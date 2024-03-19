@@ -9,8 +9,7 @@
 
 #include <ode_solvers_nml.h>
 
-#define DECIM_DISP_ODE	  400
-#define USE_ITM_OUT_ODE		1
+#define USE_ITM_OUT_ODE		0
 
 #define ORD_4	4
 
@@ -102,9 +101,11 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 	// ITM console output:
 #if USE_ITM_OUT_ODE
 	static int step_ode = 0;
+	static int DECIM_DISP_ODE = DECIM_DISP_GENERAL;
 	int c_i;
 
 	if ((step_ode % DECIM_DISP_ODE) == 0) {
+		printf("____________________________\n");
 		printf("solve_ode_sys_rkutta_ord4_nml [%d]: T = [%f]\tF_end = [%f, %f]\n",
 			step_ode, T, ode_params.par_dbl[IDX_X], ode_params.par_dbl[IDX_Y]);
 
@@ -114,14 +115,14 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 		}
 		printf("]\n");
 
-		printf("____________________________\n");
+		printf("\n");
 		printf("sum_K_weighted = [");
 		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
 			printf("%f\t", sum_K_weighted->data[c_i][0]);
 		}
 		printf("]\n");
 
-		printf("____________________________\n");
+		printf("\n");
 		printf("y_f = [");
 		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
 			printf("%f\t", y_f->data[c_i][0]);

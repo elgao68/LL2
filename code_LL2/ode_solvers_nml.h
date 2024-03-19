@@ -15,6 +15,7 @@
 #include <_ode_solver_params.h>
 #include <_coord_system.h>
 #include <nml_ref_based.h>
+#include <_std_c.h>
 
 void
 solve_ode_sys_rkutta_ord4_nml(nml_mat* x_1, nml_mat* x_0, double T, nml_mat* (*ode_func)(nml_mat*, ode_param_struct), ode_param_struct ode_params);

@@ -50,7 +50,7 @@ static admitt_model_params_t admitt_model_params_local;
 #define DT_DISP_MSEC_ALGO		1000
 
 #define USE_ITM_OUT_TRAJ_REF		0
-#define USE_ITM_OUT_ADMITT_MODEL	0
+#define USE_ITM_OUT_ADMITT_MODEL	1
 
 /////////////////////////////////////////////////////////////////////////////////////
 // FUNCTION DEFINITIONS, MOTION ALGORITHMS - GAO
@@ -281,10 +281,7 @@ nml_mat* admitt_model_ss_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 	// Counters & constants:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	static step_i = 0;
 	int c_i;
-
-	int DECIM_DISP = 2000;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// System inputs:
@@ -350,7 +347,11 @@ nml_mat* admitt_model_ss_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 
 	// ITM console output:
 #if USE_ITM_OUT_ADMITT_MODEL
-	if ((step_i % DECIM_DISP) == 0) {
+	static int step_i = 0;
+	static int DECIM_DISP_DT_Z = DECIM_DISP_GENERAL;
+
+	if ((step_i % DECIM_DISP_DT_Z) == 0) {
+		printf("____________________________\n");
 		printf("admitt_model_ss_nml: [%d]\tF_end_in_nml = [%f\t%f]\t dt_z = [",
 			step_i,
 			F_end_in_nml->data[IDX_X][0], F_end_in_nml->data[IDX_Y][0]);
@@ -358,10 +359,9 @@ nml_mat* admitt_model_ss_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 		for (c_i = 0; c_i < 2*N_COORD_EXT; c_i++) {
 			printf("%f\t", dt_z_nml->data[c_i][0]);
 		}
-
-		printf("]\n");
-		step_i++;
+		printf("]\n\n");
 	}
+	step_i++;
 #endif
 
     return dt_z_nml;

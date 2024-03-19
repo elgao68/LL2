@@ -9,7 +9,7 @@
 
 #include <dynamic_systems_nml.h>
 
-#define USE_ITM_OUT_DYN_SYS_MATR	1
+#define USE_ITM_OUT_DYN_SYS_MATR	0
 
 void
 dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
@@ -77,9 +77,11 @@ dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
 	// ITM console output:
 #if USE_ITM_OUT_DYN_SYS_MATR
 	static int step_i = 0;
-	static int DECIM_DISP = 800;
+	static int DECIM_DISP_UNC = DECIM_DISP_GENERAL;
 
-	if ((step_i % DECIM_DISP) == 0) {
+	if ((step_i % DECIM_DISP_UNC) == 0) {
+		printf("____________________________\n");
+		printf("dyn_sys_msd_nml_unc [%d]:\n", step_i);
 		/*
 		printf("M_sys:\n");
 		for (r_i = 0; r_i < M_sys->num_rows; r_i++) {
@@ -106,8 +108,21 @@ dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
 		printf("\n");
 		*/
 
+		printf("K_q_prod:\n");
+		for (r_i = 0; r_i < K_q_prod->num_rows; r_i++) {
+			for (c_i = 0; c_i < K_q_prod->num_cols; c_i++)
+				printf("%f\t", K_q_prod->data[r_i][c_i]);
+			printf("\n");
+		}
+		printf("\n");
 
-
+		printf("B_v_prod:\n");
+		for (r_i = 0; r_i < B_v_prod->num_rows; r_i++) {
+			for (c_i = 0; c_i < B_v_prod->num_cols; c_i++)
+				printf("%f\t", B_v_prod->data[r_i][c_i]);
+			printf("\n");
+		}
+		printf("\n");
 
 		printf("Q_in: ");
 		for (c_i = IDX_X; c_i <= IDX_PHI; c_i++)
@@ -290,11 +305,11 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	// ITM console output:
 #if USE_ITM_OUT_DYN_SYS_MATR
 	static int step_i = 0;
-	static int DECIM_DISP = 800;
+	static int DECIM_DISP_CON = DECIM_DISP_GENERAL;
 
-	if ((step_i % DECIM_DISP) == 0) {
-		printf("dyn_sys_msd_nml_constr_lagr [%d]:\n", step_i);
+	if ((step_i % DECIM_DISP_CON) == 0) {
 		printf("____________________________\n");
+		printf("dyn_sys_msd_nml_constr_lagr [%d]:\n", step_i);
 		printf("Q_in_ext:\n");
 		for (r_i = 0; r_i < Q_in_ext->num_rows; r_i++) {
 			for (c_i = 0; c_i < Q_in_ext->num_cols; c_i++)
@@ -302,7 +317,6 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 			printf("\n");
 		}
 
-		printf("____________________________\n");
 		printf("mu:\n");
 		for (r_i = 0; r_i < mu->num_rows; r_i++) {
 			for (c_i = 0; c_i < mu->num_cols; c_i++)
@@ -334,13 +348,13 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 			printf("\n");
 		}
 
-		printf("____________________________\n");
 		printf("dt_v_lam: ");
 		for (r_i = 0; r_i < dt_v_lam->num_rows; r_i++) {
 			for (c_i = 0; c_i < dt_v_lam->num_cols; c_i++)
 				printf("%f\t", dt_v_lam->data[r_i][c_i]);
 			printf("\n");
 		}
+		printf("\n");
 	}
 
 	step_i++;

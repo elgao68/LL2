@@ -222,16 +222,17 @@ uint8_t send_calibration_resp(uint8_t actProto, uint8_t percent, uint8_t state);
  @retval: 0 = success, 1 = failed
  */
 
-uint8_t set_lowerlimb_exercise_feedback_info(float f_x, float f_y,
-										  int32_t fQei_L, int32_t fQei_R,
-										  float fVel_X, float fVel_Y,
-										  float fVolt_L, float fVolt_R,
-										  float fCs_L, float fCs_R,
-										  float fFs_X, float fFs_Y,
-                                          float fCmd_Fx, float fCmd_Fy, float fCmd_Fr,
-										  float fRefPos_x, float fRefPos_y,
-										  float fRefVel_x, float fRefVel_y,
-										  float fRefPhase, float fRefFreq);
+uint8_t set_lowerlimb_exercise_feedback_info(uint64_t up_time,
+								float f_x, float f_y,
+								int32_t fQei_L, int32_t fQei_R,
+								float fVel_X, float fVel_Y,
+								float fVolt_L, float fVolt_R,
+								float fCs_L, float fCs_R,
+								float fFs_X, float fFs_Y,
+								float fCmd_Fx, float fCmd_Fy, float fCmd_Fr,
+								float fRefPos_x, float fRefPos_y,
+								float fRefVel_x, float fRefVel_y,
+								float fRefPhase, float fRefFreq);
 
 /**
  @brief: stop exercise

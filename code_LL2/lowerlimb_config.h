@@ -94,6 +94,8 @@ extern "C" {
 #define Y_FORCE_VOLT_GRADIENT       (Y_FORCE_MEASURED_POS - FORCE_REF)/(Y_VOLT_CALCULATED_POS - VOLT_REF)
 #define Y_FORCE_VOLT_OFFSET         FORCE_REF - (Y_FORCE_VOLT_GRADIENT * VOLT_REF)
 
+#define FORCE_SENSOR_READ_ZERO 		2233 // TODO: eliminate at a later date
+
 //Control Parameters Gain
 #define FB_GAIN					0
 #define FF_GAIN					0

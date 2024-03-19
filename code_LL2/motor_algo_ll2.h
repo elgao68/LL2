@@ -109,6 +109,14 @@ typedef struct {
   float Y_axis;
 } force_sensor_list_t;
 
+// Reference kinematics:
+typedef struct {
+	double p_ref[N_COORD_2D];
+	double dt_p_ref[N_COORD_2D];
+	double phi_ref;
+	double dt_phi_ref;
+} lowerlimb_ref_kinematics_t;
+
 /////////////////////////////////////////////////////////////////////////////////////
 // ODE PARAMETER INDICES:
 /////////////////////////////////////////////////////////////////////////////////////
