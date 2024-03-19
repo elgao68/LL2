@@ -1,0 +1,117 @@
+/* ========================================
+ 
+  Copyright Thesis Pte Ltd, 2017
+  All Rights Reserved
+  UNPUBLISHED, LICENSED SOFTWARE.
+ 
+  CONFIDENTIAL AND PROPRIETARY INFORMATION
+  WHICH IS THE PROPERTY OF THESIS PTE LTD.
+ 
+  ========================================
+  Version: 1.0
+  Written by: Kenneth Er
+  ========================================
+	Basic SPI interface for STM32F429
+  
+	======================================== */
+	
+#ifndef PSOC_SPI_H
+#define PSOC_SPI_H
+
+/*============================================================================*/
+/*       INCLUDES                                                             */
+/*============================================================================*/
+#include "main.h"
+#include "stm32f4xx_hal.h"
+#include <stdint.h>
+
+/*==============================================================================
+ * @START
+ * Function: stm32_spi_init
+ * IN      : none
+ * OUT     : None
+ * PRE     : None
+ * POST    :
+ * RETURN  :
+ *
+ * INFO    : Init SPI module
+ *
+ * @END
+ *============================================================================*/
+void stm32_spi_init(void);
+
+/*==============================================================================
+ * @START
+ * Function: stm32_spi_send
+ * IN      : value = byte to be sent
+ * OUT     : None
+ * PRE     : None
+ * POST    :
+ * RETURN  :
+ *
+ * INFO    : Send one byte by SPI
+ *
+ * @END
+ *============================================================================*/
+void stm32_spi_send_byte(uint8_t value);
+
+/*==============================================================================
+* @START
+* Function: stm32_spi_recv
+* IN      : None
+* OUT     : None
+* PRE     : None
+* POST    :
+* RETURN  : read byte
+*
+* INFO    : Recv one byte by SPI
+*
+* @END
+*============================================================================*/
+uint8_t stm32_spi_recv_byte(void);
+
+/*==============================================================================
+* @START
+* Function: stm32_spi_write
+* IN      : *data      = pointer to data array for writing
+            length     = length of data
+* OUT     : None
+* PRE     : None
+* POST    :
+* RETURN  : always 0
+*
+* INFO    : write to
+* @END
+*============================================================================*/
+int stm32_spi_write(uint8_t *data, uint16_t length);
+
+/*==============================================================================
+* @START
+* Function: stm32_spi_read
+* IN      : *data      = pointer to data array for storing read data
+            length     = length of data
+* OUT     : None
+* PRE     : None
+* POST    :
+* RETURN  : always 0
+* @END
+*============================================================================*/
+int	stm32_spi_read(uint8_t *data, uint16_t length);
+
+/*==============================================================================
+ * @START
+ * Function: stm32_spi_write_read
+ * IN      : tx_data      = pointer to data array for writing
+             tx_len     = length of data
+						 rx_data      = pointer to data array for storing read data
+             rx_len     = length of data
+ * OUT     : None
+ * PRE     : None
+ * POST    :
+ * RETURN  :
+ * @END
+ *============================================================================*/
+int	stm32_spi_write_read(uint8_t tx_data[], uint16_t tx_len, uint8_t rx_data[], uint16_t rx_len);
+ 
+
+#endif /* MPU9250_INTF_H */
