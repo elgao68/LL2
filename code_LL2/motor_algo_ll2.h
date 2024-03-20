@@ -137,7 +137,7 @@ void traj_reference_step_active(
 // FUNCTION DECLARATIONS, DYNAMIC SYSTEMS - GAO
 /////////////////////////////////////////////////////////////////////////////////////
 
-nml_mat* admitt_model_ss_nml(nml_mat* z, ode_param_struct ode_params);
+nml_mat* ode_admitt_model_nml(nml_mat* z, ode_param_struct ode_params);
 
 void admitt_model_matrices_nml(nml_mat* M_sys, nml_mat* B_sys, nml_mat* K_sys, double m_val[], double b_val[], double k_val[], size_t N_q);
 

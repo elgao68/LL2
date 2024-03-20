@@ -25,19 +25,16 @@
 	"Cannot solve system. Wrong-sized matrix.\n" \
 
 void nml_mat_dot_ref(nml_mat *m_out, nml_mat *m1, nml_mat *m2) {
-  if (!(m1->num_cols == m2->num_rows))
-	  if (DEBUG_TRUE) {
-		  nml_log(stderr, __FILE__, __LINE__, CANNOT_MULT);
-	  }
+	if (!(m1->num_cols == m2->num_rows))
+		if (DEBUG_TRUE) {
+			nml_log(stderr, __FILE__, __LINE__, CANNOT_MULT);
+		}
 
-  int i, j, k;
-  for(i = 0; i < m_out->num_rows; i++) {
-    for(j = 0; j < m_out->num_cols; j++) {
-      for(k = 0; k < m1->num_cols; k++) {
-        m_out->data[i][j] += m1->data[i][k] * m2->data[k][j];
-      }
-    }
-  }
+	int i, j, k;
+	for(i = 0; i < m_out->num_rows; i++)
+		for(j = 0; j < m_out->num_cols; j++)
+			for(k = 0; k < m1->num_cols; k++)
+				m_out->data[i][j] += m1->data[i][k] * m2->data[k][j];
 }
 
 void nml_mat_mult_elemwise_ref(nml_mat *m_out, nml_mat *m1, nml_mat *m2) {
@@ -53,12 +50,14 @@ void nml_mat_mult_elemwise_ref(nml_mat *m_out, nml_mat *m1, nml_mat *m2) {
 }
 
 void nml_mat_cp_ref(nml_mat *m_out, nml_mat *m) {
-  int i,j;
-  for(i = 0; i < m->num_rows; i++) {
-    for(j = 0; j < m->num_cols; j++) {
-      m_out->data[i][j] = m->data[i][j];
-    }
-  }
+	// Safety catch - assumption is that m_out dimensions were correctly specified with nml_mat_new():
+	m_out->num_rows = m->num_rows;
+	m_out->num_cols = m->num_cols;
+
+	int i,j;
+	for(i = 0; i < m->num_rows; i++)
+		for(j = 0; j < m->num_cols; j++)
+			m_out->data[i][j] = m->data[i][j];
 }
 
 /*

@@ -38,6 +38,8 @@
 // Display variables:
 ////////////////////////////////////////////////////////////////////////////
 
-#define DECIM_DISP_GENERAL	200
+// 0.5  sec = 100 @ 5 msec sampling
+// 0.05 sec =  10 @ 5 msec sampling
+#define DECIM_DISP_GENERAL	10
 
 #endif /* LL2_STD_C_H_ */

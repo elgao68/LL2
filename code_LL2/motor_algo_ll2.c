@@ -50,7 +50,7 @@ static admitt_model_params_t admitt_model_params_local;
 #define DT_DISP_MSEC_ALGO		1000
 
 #define USE_ITM_OUT_TRAJ_REF		0
-#define USE_ITM_OUT_ADMITT_MODEL	1
+#define USE_ITM_OUT_ADMITT_MODEL	0
 
 /////////////////////////////////////////////////////////////////////////////////////
 // FUNCTION DEFINITIONS, MOTION ALGORITHMS - GAO
@@ -121,9 +121,6 @@ void traj_reference_step_active(
 
 	double sig_exp = 3.0/T_exp;
 
-	double ax_x_adj = 0.0;
-	double ax_y_adj = 0.0;
-
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Set up counters:
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -137,17 +134,28 @@ void traj_reference_step_active(
 	double t_ref = dt_k*step_int;
 
     /////////////////////////////////////////////////////////////////////////////////////
+    //  Adjusted trajectory path parameters:
+    /////////////////////////////////////////////////////////////////////////////////////
+
+	const int USE_ADJ_TRAJ_PARAMS = 0;
+
+	double ax_x_adj;
+	double ax_y_adj;
+
+	if (USE_ADJ_TRAJ_PARAMS) {
+		ax_x_adj = (1.0 - exp(-sig_exp*t_ref))*ax_x;
+		ax_y_adj = (1.0 - exp(-sig_exp*t_ref))*ax_y;
+	}
+	else {
+		ax_x_adj = ax_x;
+		ax_y_adj = ax_y;
+	}
+
+    /////////////////////////////////////////////////////////////////////////////////////
     // Integrate admittance model:
     /////////////////////////////////////////////////////////////////////////////////////
 
 	if (step_int > 0) {
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Obtain trajectory path constraint (ony A_con will be used for now):
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		traj_ellipse_constraints(*phi_ref, *dt_phi_ref, A_con, b_con,
-				ax_x_adj, ax_y_adj, ax_ang);
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Dynamic system (ODE) inputs and other parameters:
@@ -158,14 +166,20 @@ void traj_reference_step_active(
 		ode_params.par_dbl[IDX_Y]   = F_end_m[IDX_Y];
 		ode_params.par_dbl[IDX_PHI] = 0.0;
 
-		// Include constraint matrix in parameters:
-		nml_mat_cp_ref(ode_params.par_nml[IDX_PAR_NML_A_CON], A_con);
+		// Obtain trajectory path constraint (ony A_con will be used for now):
+		if (USE_ADMITT_MODEL_CONSTR) {
+			traj_ellipse_constraints(*phi_ref, *dt_phi_ref, A_con, b_con,
+					ax_x_adj, ax_y_adj, ax_ang);
+
+			// Include constraint matrix in ODE parameters:
+			nml_mat_cp_ref(ode_params.par_nml[IDX_PAR_NML_A_CON], A_con);
+		}
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Integration step for ODE:
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		solve_ode_sys_rkutta_ord4_nml(z_intern, z_intern_prev, dt_k, admitt_model_ss_nml, ode_params);
+		solve_ode_sys_rkutta_ord4_nml(z_intern, z_intern_prev, dt_k, ode_admitt_model_nml, ode_params);
 	}
 	else {
 		// Initialize internal state:
@@ -202,10 +216,6 @@ void traj_reference_step_active(
 		*phi_ref    = z_intern->data[IDX_PHI][0];
 		*dt_phi_ref = z_intern->data[IDX_DT_PHI][0];
 
-	    //  Adjusted trajectory path dimensions:
-		ax_x_adj = (1.0 - exp(-sig_exp*t_ref))*ax_x;
-		ax_y_adj = (1.0 - exp(-sig_exp*t_ref))*ax_y;
-
 		// Compute reference trajectory position and velocity from PHASE:
 		traj_ellipse_points(*phi_ref, *dt_phi_ref, p_ref, dt_p_ref, u_t_ref,
 			ax_x_adj, ax_y_adj, ax_ang);
@@ -234,7 +244,7 @@ void traj_reference_step_active(
 // FUNCTION DEFINITIONS, DYNAMIC SYSTEMS - GAO
 /////////////////////////////////////////////////////////////////////////////////////
 
-nml_mat* admitt_model_ss_nml(nml_mat* z_nml, ode_param_struct ode_params) {
+nml_mat* ode_admitt_model_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 
     /////////////////////////////////////////////////////////////////////////////////////
     // Declare static matrices:
@@ -352,7 +362,7 @@ nml_mat* admitt_model_ss_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 
 	if ((step_i % DECIM_DISP_DT_Z) == 0) {
 		printf("____________________________\n");
-		printf("admitt_model_ss_nml: [%d]\tF_end_in_nml = [%f\t%f]\t dt_z = [",
+		printf("ode_admitt_model_nml: [%d]\tF_end_in_nml = [%f\t%f]\t dt_z = [",
 			step_i,
 			F_end_in_nml->data[IDX_X][0], F_end_in_nml->data[IDX_Y][0]);
 

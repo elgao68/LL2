@@ -9,7 +9,7 @@
 
 #include <ode_solvers_nml.h>
 
-#define USE_ITM_OUT_ODE		0
+#define USE_ITM_OUT_ODE		1
 
 #define ORD_4	4
 
@@ -26,6 +26,8 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	static nml_mat* K[ORD_4];
+
+	static nml_mat* buff_K;
 	static nml_mat* FK;
 	static nml_mat* K_scaled;
 	static nml_mat* y_step;
@@ -45,10 +47,11 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 		for (i = 0; i < ORD_4; i++)
 			K[i] = nml_mat_new(ode_params.DIM, 1);
 
-		FK           = nml_mat_new(ode_params.DIM, 1);
-		K_scaled     = nml_mat_new(ode_params.DIM, 1);
-		y_step       = nml_mat_new(ode_params.DIM, 1);
-		GK           = nml_mat_new(ode_params.DIM, 1);
+		buff_K   = nml_mat_new(ode_params.DIM, 1);
+		FK       = nml_mat_new(ode_params.DIM, 1);
+		K_scaled = nml_mat_new(ode_params.DIM, 1);
+		y_step   = nml_mat_new(ode_params.DIM, 1);
+		GK       = nml_mat_new(ode_params.DIM, 1);
 		sum_K_weighted = nml_mat_new(ode_params.DIM, 1);
 
 		initial = 0;
@@ -60,7 +63,8 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 
 	for (i = 0; i < ORD_4; i++)
 		if (i == 0) {
-			K[0] = (*ode_func)(y_o, ode_params);
+			buff_K = (*ode_func)(y_o, ode_params); // NOTE: buff_K points to the internal state (dt_y) of ode_func()
+			nml_mat_cp_ref(K[0], buff_K);
 			nml_mat_smult_r(K[0], T);
 		}
 		else {
@@ -73,7 +77,8 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 			nml_mat_add_r(y_step, FK);
 
 			// K_scaled(i) = f(y_step(i)):
-			K_scaled = (*ode_func)(y_step, ode_params);
+			buff_K = (*ode_func)(y_step, ode_params); // NOTE: buff_K points to the internal state (dt_y) of ode_func()
+			nml_mat_cp_ref(K_scaled, buff_K);
 
 			// K(i) = T*K_scaled(i):
 			nml_mat_cp_ref(K[i], K_scaled);
