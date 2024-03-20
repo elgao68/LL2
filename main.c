@@ -26,7 +26,12 @@
 #include "dhcp.h"
 #include "w5500_app.h"
 #include "peripheral.h"
-#include "_params_simulation.h"
+
+#include "_test_simulation.h"
+#include "_test_real_time.h"
+#include "_test_scratch.h"
+#include "_test_ode_int.h"
+
 // #include "lowerlimb_calib_protocols.h"
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -35,14 +40,6 @@
 
 #define HEAP_SIZE_MIN	3840
 #define KBYTE           1024
-
-////////////////////////////////////////////////////////////////////////////////
-// TEST SCRIPTS - DECLARATIONS - GAO
-////////////////////////////////////////////////////////////////////////////////
-
-void test_real_time();
-void test_simulation();
-void test_scratch();
 
 ////////////////////////////////////////////////////////////////////////////////
 // Private variables:
@@ -56,35 +53,6 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim4;
 TIM_HandleTypeDef htim9;
 UART_HandleTypeDef huart3;
-
-////////////////////////////////////////////////////////////////////////////////
-// USER CODE BEGIN PV
-////////////////////////////////////////////////////////////////////////////////
-
-// TCP ethernet related
-//  Demo Firmware Version
-#define VER_H		0x00
-#define VER_L		0x00
-#define VER_P		0x00
-#define INTERVAL_5MS		5
-uint64_t ethernet_test_nextTime = 0;
-
-static uint64_t algo_nextTime = 0;
-static uint64_t brakes_nextTime = 0;
-static lowerlimb_sys_info_t LL_sys_info;
-static uint64_t expire_nextTime = 0;
-static uint8_t prev_fifo_size = 0;
-
-// ADC
-static uint32_t dum_force_end_in_x = 0;
-static uint32_t dum_force_end_in_y = 0;
-static uint32_t current_sensor_L = 0;
-static uint32_t current_sensor_R = 0;
-
-// Motor driver feedback related:
-// static uint8_t tcpTxData[292];
-// static uint64_t R_brakes_powersavetimer = 0;
-// static uint64_t P_brakes_powersavetimer = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Private function prototypes:
@@ -112,21 +80,16 @@ void _Error_Handler(char *file, int line);
 #define _TEST_REAL_TIME      1
 #define _TEST_SIMULATION	 2
 #define _TEST_SCRATCH        3
+#define _TEST_ODE_INT            4
 
-#define TEST_OPTION			 _TEST_REAL_TIME
+#define TEST_OPTION			 _TEST_ODE_INT
 
-// Dynamic system mode: unconstrained / constrained:
-#define USE_ADMITT_MODEL_CONSTR		0
-#define OVERRIDE_DYN_PARAMS			1
+#define DT_DISP_MSEC_GUI_PARAMS		2000
+#define DT_DISP_MSEC_REALTIME		1000
 
-#define DT_DISP_MSEC_GUI_PARAMS	2000
-#define DT_DISP_MSEC_REALTIME	1000
-
-#define USE_ITM_OUT_GUI_PARAMS	0
-#define USE_ITM_OUT_REAL_TIME	0
-#define USE_ITM_OUT_SIM			0
-
-#define DT_EXPIRE_MSEC		 	1000
+#define USE_ITM_OUT_GUI_PARAMS		0
+#define USE_ITM_OUT_REAL_TIME		0
+#define USE_ITM_OUT_SIM				0
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -140,7 +103,8 @@ int _write(int32_t file, uint8_t *ptr, int32_t len);
 void cycle_haptic_buttons();
 void LED_sys_state_off();
 void set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time);
-uint8_t set_LL_exercise_feedback_help(lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings);
+uint8_t set_LL_exercise_feedback_help(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
+		lowerlimb_ref_kinematics_t* ref_kinematics);
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -259,12 +223,6 @@ main(void) {
 #endif
 
 	/////////////////////////////////////////////////////////////////////////////////////
-	// TCP APP
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	// lowerlimb_tcp_init_app_state(0, VER_H, VER_L, VER_P, &LL_motors_settings); // TODO: remove at a later date
-
-	/////////////////////////////////////////////////////////////////////////////////////
 	// test MSB (REMOVED)
 	/////////////////////////////////////////////////////////////////////////////////////
 
@@ -283,609 +241,14 @@ main(void) {
 	/////////////////////////////////////////////////////////////////////////////////////
 
 #if TEST_OPTION == _TEST_REAL_TIME
-	test_real_time();
+	test_real_time(&hadc1, &hadc3);
 #elif TEST_OPTION == _TEST_SIMULATION
 	test_simulation();
+#elif TEST_OPTION == _TEST_ODE_INT
+	test_ode_int();
 #endif
 
 	return 0;
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-// TEST SCRIPT - REAL-TIME- GAO
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-
-void
-test_real_time() {
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// MOTOR STATE VARS - GAO:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	const int MOTOR_TORQUE_ON = 0;
-
-	uint8_t motor_result      = 0;
-	uint8_t motor_alert       = 0;
-	uint8_t prevConnected     = 0;
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// FIRMWARE/CONTROL PARAMETERS - GAO:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	uint64_t up_time;
-	uint64_t up_time_end;
-
-	lowerlimb_mech_readings_t   LL_mech_readings;
-	lowerlimb_motors_settings_t LL_motors_settings;
-	traj_ctrl_params_t          traj_ctrl_params;
-	admitt_model_params_t       admitt_model_params;
-
-	const int IS_CALIBRATION = 1; // what did this flag do in update_motor_algo() (now set_LL_mech_readings())?
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// Sensor variables:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	// Force sensor readings, raw:
-	uint32_t force_end_in_x_sensor = 0;
-	uint32_t force_end_in_y_sensor = 0;
-
-	// End-effector force measurements:
-	double F_end_m[N_COORD_2D];
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// Kinematics variables - REFERENCE:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-    // Integrator time step:
-	double dt_k = (double)DT_STEP_MSEC/MSEC_PER_SEC; // integrator step (initial)
-
-	// Reference position and velocity:
-	double    p_ref[N_COORD_2D] = {0.0, 0.0};
-	double dt_p_ref[N_COORD_2D] = {0.0, 0.0};
-
-	// Cycle phase and instantaneous frequency:
-	double    phi_ref = 0.0;
-	double dt_phi_ref = 0.0;
-
-	// Trajectory path tangent vector:
-	double u_t_ref[N_COORD_2D] = {0.0, 0.0};
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// Kinematics variables - MEASURED:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	// Measured position and velocity:
-	double    p_m[N_COORD_2D];
-	double dt_p_m[N_COORD_2D];
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// Counters:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	int step_rt = 0;
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// Force command:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	float force_end_cmd[N_COORD_2D] = {0.0, 0.0};
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// TCP app:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	lowerlimb_tcp_init_app_state(0, VER_H, VER_L, VER_P, &LL_motors_settings);
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// Initialize motor algorithm:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	init_motor_algo(&LL_mech_readings, &LL_motors_settings);
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////
-	// USER CODE BEGIN WHILE - GAO
-	/////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	while (1) {
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// uart rx state check
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		uart_rx_data_state();
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// ethernet check
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		ethernet_w5500_state();
-
-		////////////////////////////////////////////////////////////////////////////////////////
-		// GET TCP/IP APP STATE - GAO
-		////////////////////////////////////////////////////////////////////////////////////////
-
-		LL_sys_info = lowerlimb_tcp_app_state(Read_Haptic_Button(), motor_alert,
-				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings);
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Clear motor_alert after sending into tcp app state:
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		motor_alert = 0;
-
-		////////////////////////////////////////////////////////////////////////////////////////
-		// Override trajectory and control parameters - TODO: remove at a later date
-		////////////////////////////////////////////////////////////////////////////////////////
-
-#if OVERRIDE_DYN_PARAMS
-		/*
-		traj_ctrl_params.cycle_period = 3.0;
-		traj_ctrl_params.exp_blend_time = 3.0;
-		traj_ctrl_params.semiaxis_x = 0.15;
-		traj_ctrl_params.semiaxis_y = 0.08;
-		traj_ctrl_params.rot_angle = 0;
-		// traj_ctrl_params.cycle_dir = 1;
-		*/
-
-		admitt_model_params.inertia_x = 10;
-		admitt_model_params.inertia_y = 10;
-		admitt_model_params.damping   = 20;
-		admitt_model_params.stiffness = 100;
-		admitt_model_params.p_eq_x = 0;
-		admitt_model_params.p_eq_y = 0;
-		admitt_model_params.Fx_offset = 0;
-		admitt_model_params.Fy_offset = 0;
-#endif
-
-#if USE_ITM_OUT_GUI_PARAMS
-		if (step_rt > 0 && step_rt % (DT_DISP_MSEC_GUI_PARAMS/(int)(1000*dt_k)) == 0) {
-			printf("___________________________________\n");
-			printf("step_rt   = [%d]\n", step_rt);
-			printf("\n");
-			printf("cycle_period   = [%f]\n", traj_ctrl_params.cycle_period);
-			printf("exp_blend_time = [%f]\n", traj_ctrl_params.exp_blend_time );
-			printf("semiaxis_x     = [%f]\n", traj_ctrl_params.semiaxis_x);
-			printf("semiaxis_y     = [%f]\n", traj_ctrl_params.semiaxis_y);
-			printf("rot_angle      = [%f]\n", traj_ctrl_params.rot_angle);
-			// printf("cycle_dir    = [%d]\n", traj_ctrl_params.cycle_dir);
-
-			printf("\n");
-			printf("inertia_x = [%f]\n", admitt_model_params.inertia_x );
-			printf("inertia_y = [%f]\n", admitt_model_params.inertia_y);
-			printf("damping   = [%f]\n", admitt_model_params.damping);
-			printf("stiffness = [%f]\n", admitt_model_params.stiffness);
-			printf("p_eq_x    = [%f]\n", admitt_model_params.p_eq_x );
-			printf("p_eq_y    = [%f]\n", admitt_model_params.p_eq_y);
-			printf("Fx_offset = [%f]\n", admitt_model_params.Fx_offset);
-			printf("Fy_offset = [%f]\n", admitt_model_params.Fy_offset);
-			printf("\n");
-
-			fflush(stdout);
-		}
-#endif
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Execute real-time step:
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		up_time = getUpTime();
-
-		if (up_time >= algo_nextTime) {
-
-			algo_nextTime = up_time + DT_STEP_MSEC;
-
-			/////////////////////////////////////////////////////////////////////////////////////
-			// if system is on or off?
-			/////////////////////////////////////////////////////////////////////////////////////
-
-			if (LL_sys_info.system_state == ON) {
-
-				/////////////////////////////////////////////////////////////////////////////////////
-				// Check emergency signal GPIOG GPIO_PIN_14
-				/////////////////////////////////////////////////////////////////////////////////////
-
-				cycle_haptic_buttons();
-				set_brakes_timed(up_time, &brakes_nextTime);
-
-				/////////////////////////////////////////////////////////////////////////////////////
-				// update safety
-				/////////////////////////////////////////////////////////////////////////////////////
-
-				set_safetyOff(LL_sys_info.safetyOFF);
-
-				/////////////////////////////////////////////////////////////////////////////////////
-				/////////////////////////////////////////////////////////////////////////////////////
-				// SWITCH ACTIVITY STATE - GAO
-				/////////////////////////////////////////////////////////////////////////////////////
-				/////////////////////////////////////////////////////////////////////////////////////
-
-				switch (LL_sys_info.activity_state) {
-
-					/////////////////////////////////////////////////////////////////////////////////////
-					// IDLE state:
-					/////////////////////////////////////////////////////////////////////////////////////
-
-					case IDLE:
-						// clear motor algo readings and settings
-						clear_lowerlimb_mech_readings(&LL_mech_readings);
-						clear_lowerlimb_motors_settings(&LL_motors_settings);
-						clear_ctrl_params();
-
-						// disable motor
-						motor_R_move(0, false, false);
-						motor_L_move(0, false, false);
-
-						// restart
-						init_motor_algo(&LL_mech_readings, &LL_motors_settings);
-
-						// Reset calibration state:
-						// reset_calibration_state();
-
-						break;
-
-					/////////////////////////////////////////////////////////////////////////////////////
-					// CALIBRATION state:
-					/////////////////////////////////////////////////////////////////////////////////////
-
-					case CALIB: // To-do (REMOVED)
-						break;
-
-					/////////////////////////////////////////////////////////////////////////////////////
-					// EXERCISE state:
-					/////////////////////////////////////////////////////////////////////////////////////
-
-					case EXERCISE:
-							if (LL_sys_info.exercise_state == RUNNING) {
-
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Retrieve force sensor readings:
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								force_sensors_read(&hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor, &dum_force_end_in_x, &dum_force_end_in_y);
-								current_sensors_read(&hadc1, &current_sensor_L, &current_sensor_R);
-
-								/////////////////////////////////////////////////////////////////////////////////////
-							    // Get lower-limb robot sensor readings:
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								motor_alert = set_LL_mech_readings(&LL_mech_readings, up_time,
-										qei_count_L_read(), qei_count_R_read(),
-										current_sensor_L, current_sensor_R,
-										force_end_in_x_sensor, force_end_in_y_sensor,
-										IS_CALIBRATION);
-
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Extract measured end-effector forces:
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								F_end_m[IDX_X] = (double)LL_mech_readings.Xforce;
-								F_end_m[IDX_Y] = (double)LL_mech_readings.Yforce;
-
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Extract measured position and velocity from sensor readings:
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								p_m[IDX_X]     = (double)LL_mech_readings.coord.x;
-								p_m[IDX_Y]     = (double)LL_mech_readings.coord.y;
-
-								dt_p_m[IDX_X]  = (double)LL_mech_readings.velocity.x;
-								dt_p_m[IDX_Y]  = (double)LL_mech_readings.velocity.y;
-
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Motor algorithm computation:
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								traj_reference_step_active(p_ref, dt_p_ref, &phi_ref, &dt_phi_ref, u_t_ref, dt_k,
-										F_end_m,
-										traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR);
-
-								/////////////////////////////////////////////////////////////////////////////////////
-								// UPDATE MOTOR SETTINGS - GAO:
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								// Clear motors settings:
-							    clear_lowerlimb_motors_settings(&LL_motors_settings);
-
-								set_LL_motor_settings(&LL_motors_settings, force_end_cmd);
-
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Send motor commands:
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								if (MOTOR_TORQUE_ON) {
-									// Check if need to end exercise:
-									if ((motor_alert == 1) || (motor_alert == 2)) {
-										stop_exercise(&LL_motors_settings);
-
-										// Disable motors:
-										motor_R_move(0, false, false);
-										motor_L_move(0, false, false);
-									}
-									else {
-										motor_R_move(LL_motors_settings.right.dac_in, LL_motors_settings.right.motor_direction,
-											LL_motors_settings.right.en_motor_driver);
-										motor_L_move(LL_motors_settings.left.dac_in, LL_motors_settings.left.motor_direction,
-											LL_motors_settings.left.en_motor_driver);
-									}
-								}
-
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Distal Force Sensor - Change only when updating TCP Protocol
-								// Input Brakes info from TCP System Info
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								set_LL_exercise_feedback_help(&LL_mech_readings, &LL_motors_settings);
-
-								up_time_end = getUpTime();
-
-								// ITM console output:
-#if USE_ITM_OUT_REAL_TIME
-								if ((up_time_end - up_time) > DT_STEP_MSEC)
-									printf("%d\t%f\t(%d)\n",
-										step_rt,
-										dt_k*step_rt,
-										(int)(up_time_end - up_time));
-
-								else if (step_rt % (DT_DISP_MSEC_REALTIME/(int)(1000*dt_k)) == 0)
-									printf("%d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f\n",
-										step_rt,
-										dt_k*step_rt,
-										(int)(up_time_end - up_time),
-										phi_ref,
-										dt_phi_ref,
-										p_ref[IDX_X],
-										p_ref[IDX_Y],
-										dt_p_ref[IDX_X],
-										dt_p_ref[IDX_Y]);
-#endif
-
-								step_rt++;
-							}
-
-							// Case when LL_sys_info.exercise_state != RUNNING:
-							else {
-								// reset
-								clear_lowerlimb_mech_readings(&LL_mech_readings);
-								clear_lowerlimb_motors_settings(&LL_motors_settings);
-								clear_ctrl_params();
-
-								// Set the motors to 0 and disable the motor driver
-								motor_R_move(0, false, false);
-								motor_L_move(0, false, false);
-
-							} // end if (LL_sys_info.exercise_state == RUNNING)
-					} // switch (LL_sys_info.activity_state)
-			} // if (LL_sys_info.system_state == ON)
-			else {
-				LED_sys_state_off();
-			}
-
-			/////////////////////////////////////////////////////////////////////////////////////
-			// indicate system was TCP connected
-			/////////////////////////////////////////////////////////////////////////////////////
-
-			prevConnected = 1;
-
-			/////////////////////////////////////////////////////////////////////////////////////
-			// Check if need to dump UART FIFO
-			/////////////////////////////////////////////////////////////////////////////////////
-
-			if (prev_fifo_size != rx_fifo_size()) {
-				prev_fifo_size = rx_fifo_size();
-				expire_nextTime = up_time + DT_EXPIRE_MSEC;
-			}
-
-			if ((up_time >= expire_nextTime) && (rx_fifo_size() > 0)) {
-				rx_fifo_clear();
-				prev_fifo_size = 0;
-			}
-		} // if (up_time >= algo_nextTime)
-	} // while (1)
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-// TEST SCRIPT - SIMULATION - GAO
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-
-void
-test_simulation() {
-
-	#include <_params_simulation.h>
-	int step_sim = 0;
-	int r_i, c_i;
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// Complete kinematics set-up:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	// Trajectory path - constraint matrices:
-	nml_mat* A_con = nml_mat_new(N_CONSTR_TRAJ, N_COORD_EXT);
-	nml_mat* b_con = nml_mat_new(N_CONSTR_TRAJ, 1);
-
-	sig_exp    = 3.0/T_exp;
-	dt_phi_ref = 2*PI/T_cycle;
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// ITM console output:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-#if USE_ITM_OUT_SIM
-	printf("%f\t%f\t%f\t%f\t%f\t%f\n",
-		dt_k,
-		T_cycle,
-		T_exp,
-		ax_x,
-		ax_y,
-		ax_ang);
-#endif
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////
-	// USER CODE BEGIN WHILE - GAO
-	/////////////////////////////////////////////////////////////////////////////////////
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	do {
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Apply delay:
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		HAL_Delay(25);
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Run simulation:
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		t_ref  = dt_k*step_sim;
-		phi_ref = dt_phi_ref*t_ref;
-
-		//  Adjusted trajectory path dimensions:
-		ax_x_adj = (1.0 - exp(-sig_exp*t_ref))*ax_x;
-		ax_y_adj = (1.0 - exp(-sig_exp*t_ref))*ax_y;
-
-		// Generate trajectory points:
-		traj_ellipse_help(phi_ref, dt_phi_ref, p_ref, dt_p_ref, u_t_ref,
-				A_con, b_con,
-				ax_x_adj, ax_y_adj, ax_ang);
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Simulation output:
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		// Write feedback message:
-		/*
-		set_lowerlimb_exercise_feedback_info(
-			p_ref[IDX_X], p_ref[IDX_Y],
-			0, 0,
-			dt_p_ref[IDX_X], dt_p_ref[IDX_Y],
-			0, 0,
-			0, 0,
-			0, 0, // force Sensor
-			0, 0, 0, // force commands
-			0, 0, // reference positions
-			0, 0, // reference velocities
-			0, 0 // reference phase and frequency
-		);
-		*/
-
-		// ITM console output:
-		printf("%d\t%f\t%f\t%f\t%f\t%f\t%f\t%f\t",
-			step_sim,
-			t_ref,
-			phi_ref,
-			dt_phi_ref,
-			p_ref[IDX_X],
-			p_ref[IDX_Y],
-			dt_p_ref[IDX_X],
-			dt_p_ref[IDX_Y]);
-
-		for (r_i = 0; r_i < N_CONSTR_TRAJ; r_i++) {
-			for (c_i = 0; c_i < N_COORD_EXT; c_i++)
-				printf("%f\t", A_con->data[r_i][c_i]);
-			printf("\n");
-		}
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Increase step counter:
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		step_sim++;
-
-	} while (t_ref <= T_MAX);
-}
-
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-// "SCRATCH" SCRIPT - GAO
-/////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////
-
-void
-test_scratch() {
-
-	/////////////////////////////////////////////////////////////////////////////
-	// Test console:
-	/////////////////////////////////////////////////////////////////////////////
-
-	int i = 0;
-	for (i = 1; i <= 10; i++) {
-		printf("foo[%d]\n", i);
-		HAL_Delay(100);
-	}
-	printf("\n");
-
-	/////////////////////////////////////////////////////////////////////////////
-	// Matrix multiplication:
-	/////////////////////////////////////////////////////////////////////////////
-
-	double a[] = {
-			0.11, 0.12, 0.13,
-			0.21, 0.22, 0.23 };
-	double b[] = {
-			1011, 1012,
-			1021, 1022,
-			1031, 1032 };
-
-	nml_mat* A = nml_mat_from(2, 3, 6, a);
-	nml_mat* B = nml_mat_from(3, 2, 6, b);
-
-	// Multiply matrices
-	nml_mat* C = nml_mat_dot(A, B);
-
-	double CC[4];
-
-	CC[0] = C->data[0][0];
-	CC[1] = C->data[0][1];
-
-	CC[2] = C->data[1][0];
-	CC[3] = C->data[1][1];
-
-	nml_mat* D = nml_mat_sqr(4);
-
-	/////////////////////////////////////////////////////////////////////////////
-	// Solve linear system:
-	/////////////////////////////////////////////////////////////////////////////
-
-	double a_data[] = {
-		0.18, 0.60, 0.57, 0.96,
-		0.41, 0.24, 0.99, 0.58,
-		0.14, 0.30, 0.97, 0.66,
-		0.51, 0.13, 0.19, 0.85 };
-
-	double b_data[] = { 1.0, 2.0, 3.0, 4.0 };
-
-	nml_mat* A_sys = nml_mat_from(4, 4, 16, a_data);
-	nml_mat* b_sys = nml_mat_from(4, 1,  4, b_data);
-
-	nml_mat_lup* A_LUP = nml_mat_lup_solve(A_sys);
-	nml_mat*     x     = nml_ls_solve(A_LUP, b_sys);
-
-	double xx[4];
-
-	xx[0] = x->data[0][0];
-	xx[1] = x->data[1][0];
-	xx[2] = x->data[2][0];
-	xx[3] = x->data[3][0];
-
-	nml_mat* E = nml_mat_sqr(4);
-
-	int r_i, c_i;
-	for (r_i = 0; r_i < 2; r_i++) {
-		printf("\n");
-		for (c_i = 0; c_i < 2; c_i++) {
-			printf("C[%d][%d] = %f\n", r_i, c_i, C->data[r_i][c_i]);
-			HAL_Delay(100);
-			// fflush(stdout);
-		}
-	}
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -950,11 +313,13 @@ set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 }
 
 uint8_t
-set_LL_exercise_feedback_help(lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings) {
+set_LL_exercise_feedback_help(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
+		lowerlimb_ref_kinematics_t* ref_kinematics) {
 
 	float FORCE_END_MAGN = 0.0; // don't need to maintain this
 
 	return set_lowerlimb_exercise_feedback_info(
+		up_time,
 		mech_readings->coord.x,
 		mech_readings->coord.y,
 		mech_readings->left.qei_count,
@@ -970,7 +335,12 @@ set_LL_exercise_feedback_help(lowerlimb_mech_readings_t* mech_readings, lowerlim
 		motor_settings->force_end[IDX_X],
 		motor_settings->force_end[IDX_Y],
 		FORCE_END_MAGN,
-		0, 0, 0, 0, 0, 0);
+		ref_kinematics->p_ref[IDX_X],
+		ref_kinematics->p_ref[IDX_Y],
+		ref_kinematics->dt_p_ref[IDX_X],
+		ref_kinematics->dt_p_ref[IDX_Y],
+		ref_kinematics->phi_ref,
+		ref_kinematics->dt_phi_ref);
 }
 
 /////////////////////////////////////////////////////////////////////////////
