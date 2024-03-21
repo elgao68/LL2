@@ -86,8 +86,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	double T_RUN_MAX;
 
-	int step_rt = 0;
-	double t_ref_rt = 0;
+	int step_i = 0;
+	double t_ref = 0;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Force command:
@@ -175,9 +175,9 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 #endif
 
 #if USE_ITM_OUT_GUI_PARAMS
-		if (step_rt > 0 && step_rt % (DT_DISP_MSEC_GUI_PARAMS/(int)(1000*dt_k)) == 0) {
+		if (step_i > 0 && step_i % (DT_DISP_MSEC_GUI_PARAMS/(int)(1000*dt_k)) == 0) {
 			printf("___________________________________\n");
-			printf("step_rt   = [%d]\n", step_rt);
+			printf("step_i   = [%d]\n", step_i);
 			printf("\n");
 			printf("cycle_period   = [%f]\n", traj_ctrl_params.cycle_period);
 			printf("exp_blend_time = [%f]\n", traj_ctrl_params.exp_blend_time );
@@ -291,8 +291,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 										force_end_in_x_sensor, force_end_in_y_sensor,
 										IS_CALIBRATION);
 #if OVERR_FORCE_SENSORS_CALIB_1
-								LL_mech_readings.Xforce = 0; // 0.1*cos(2*PI*t_ref_rt + PI/2);
-								LL_mech_readings.Yforce = 0; // 0.1*cos(2*PI*t_ref_rt);
+								LL_mech_readings.Xforce = 0; // 0.1*cos(2*PI*t_ref + PI/2);
+								LL_mech_readings.Yforce = 0; // 0.1*cos(2*PI*t_ref);
 #endif
 
 								/////////////////////////////////////////////////////////////////////////////////////
@@ -370,7 +370,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								// Update step time:
 								/////////////////////////////////////////////////////////////////////////////////////
 
-								t_ref_rt = dt_k*step_rt;
+								t_ref = dt_k*step_i;
 
 								// Check uptime after computations:
 								up_time_end = getUpTime();
@@ -380,18 +380,18 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								if ((up_time_end - up_time) > DT_STEP_MSEC) {
 
 									printf("____________________________\n");
-									printf("step_rt [%d]: t_ref_rt = %f\tDT MSEC = %d\n",
-										step_rt,
-										t_ref_rt,
+									printf("step_i [%d]: t_ref = %f\tDT MSEC = %d\n",
+										step_i,
+										t_ref,
 										(int)(up_time_end - up_time));
 									printf("____________________________\n");
 								}
 
 								/*
-								else if (step_rt % (DT_DISP_MSEC_REALTIME/(int)(1000*dt_k)) == 0)
+								else if (step_i % (DT_DISP_MSEC_REALTIME/(int)(1000*dt_k)) == 0)
 									printf("%d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f\n",
-										step_rt,
-										t_ref_rt,
+										step_i,
+										t_ref,
 										(int)(up_time_end - up_time),
 										phi_ref,
 										dt_phi_ref,
@@ -401,7 +401,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 										dt_p_ref[IDX_Y]);
 										*/
 #endif
-								step_rt++;
+								step_i++;
 							} // end if (LL_sys_info.exercise_state == ) (case: RUNNING)
 							else {
 								// reset
@@ -440,5 +440,5 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				prev_fifo_size = 0;
 			}
 		} // if (up_time >= algo_nextTime)
-	} while (t_ref_rt <= T_RUN_MAX);
+	} while (t_ref <= T_RUN_MAX);
 }

@@ -222,6 +222,10 @@ uint8_t send_calibration_resp(uint8_t actProto, uint8_t percent, uint8_t state);
  @retval: 0 = success, 1 = failed
  */
 
+uint8_t
+set_LL_exercise_feedback_help(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
+		lowerlimb_ref_kinematics_t* ref_kinematics);
+
 uint8_t set_lowerlimb_exercise_feedback_info(uint64_t up_time,
 								float f_x, float f_y,
 								int32_t fQei_L, int32_t fQei_R,

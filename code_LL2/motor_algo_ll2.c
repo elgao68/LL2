@@ -193,6 +193,17 @@ void traj_reference_step_active(
 	nml_mat_cp_ref(z_intern_prev, z_intern);
 
 	// ITM console output:
+	if (step_int == 0) {
+		printf("\n");
+		printf("T_cycle = %f\n", T_cycle);
+		printf("T_exp   = %f\n", T_exp);
+		printf("ax_x    = %f\n", ax_x);
+		printf("ax_y    = %f\n", ax_y);
+		printf("ax_ang  = %f\n", ax_ang);
+		printf("cycle_dir  = %f\n", (double)cycle_dir);
+		printf("\n");
+	}
+
 #if USE_ITM_OUT_TRAJ_REF
 	if (step_int % (DT_DISP_MSEC_ALGO/(int)(1000*dt_k)) == 0) {
 		printf("%d\tF_end = [%f\t%f]\t z = [",
@@ -291,7 +302,8 @@ nml_mat* ode_admitt_model_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 	// Counters & constants:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	int c_i;
+	int c_i, r_i;
+	static int step_i = 0;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// System inputs:
@@ -356,8 +368,54 @@ nml_mat* ode_admitt_model_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 				dt_z_nml, Q_in_nml, z_nml, F_end_in_nml, M_sys_q, B_sys_q, K_sys_q, q_eq_nml);
 
 	// ITM console output:
+	if (step_i == 0) {
+		printf("M_sys_q = [ ...\n");
+		for (r_i = 0; r_i < M_sys_q->num_rows; r_i++) {
+			for (c_i = 0; c_i < M_sys_q->num_cols; c_i++) {
+				printf("%f", M_sys_q->data[r_i][c_i]);
+				if (c_i < (M_sys_q->num_cols - 1))
+					printf(", ");
+				else
+					printf("\n");
+			}
+		}
+		printf("];\n\n");
+
+		printf("B_sys_q = [ ...\n");
+		for (r_i = 0; r_i < B_sys_q->num_rows; r_i++) {
+			for (c_i = 0; c_i < B_sys_q->num_cols; c_i++) {
+				printf("%f", B_sys_q->data[r_i][c_i]);
+				if (c_i < (B_sys_q->num_cols - 1))
+					printf(", ");
+				else
+					printf("\n");
+			}
+		}
+		printf("];\n\n");
+
+		printf("K_sys_q = [ ...\n");
+		for (r_i = 0; r_i < K_sys_q->num_rows; r_i++) {
+			for (c_i = 0; c_i < K_sys_q->num_cols; c_i++) {
+				printf("%f", K_sys_q->data[r_i][c_i]);
+				if (c_i < (K_sys_q->num_cols - 1))
+					printf(", ");
+				else
+					printf("\n");
+			}
+		}
+		printf("];\n\n");
+
+		printf("q_eq = [ ...\n");
+		for (r_i = 0; r_i < q_eq_nml->num_rows; r_i++) {
+			printf("%f", q_eq_nml->data[r_i][0]);
+			if (r_i < (q_eq_nml->num_rows - 1))
+				printf("; ");
+			else
+				printf("]\n");
+		}
+	}
+
 #if USE_ITM_OUT_ADMITT_MODEL
-	static int step_i = 0;
 	static int DECIM_DISP_DT_Z = DECIM_DISP_GENERAL;
 
 	if ((step_i % DECIM_DISP_DT_Z) == 0) {
@@ -371,8 +429,8 @@ nml_mat* ode_admitt_model_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 		}
 		printf("]\n\n");
 	}
-	step_i++;
 #endif
+	step_i++;
 
     return dt_z_nml;
 }

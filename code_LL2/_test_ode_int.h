@@ -12,11 +12,16 @@
 
 #include <_std_c.h>
 #include <admitt_model_params.h>
-// #include <lowerlimb_tcp_app.h>
-// #include <motor_algo_ll2.h>
+#include <lowerlimb_tcp_app.h>
+#include <motor_algo_ll2.h>
 #include <nml.h>
 #include <nml_util.h>
 #include <traj_ctrl_params_nml.h>
+#include "timer.h"
+
+// Dynamic system mode: unconstrained / constrained:
+#define USE_ADMITT_MODEL_CONSTR		0
+#define OVERRIDE_DYN_PARAMS			1
 
 void test_ode_int();
 

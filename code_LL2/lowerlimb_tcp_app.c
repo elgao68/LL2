@@ -103,6 +103,37 @@ void reset_lowerlimb_sys_info(void) {
 	lowerlimb_sys_info.fw_min_ver = fw_min;
 }
 
+uint8_t
+set_LL_exercise_feedback_help(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
+		lowerlimb_ref_kinematics_t* ref_kinematics) {
+
+	float FORCE_END_MAGN = 0.0; // don't need to maintain this
+
+	return set_lowerlimb_exercise_feedback_info(
+		up_time,
+		mech_readings->coord.x,
+		mech_readings->coord.y,
+		mech_readings->left.qei_count,
+		mech_readings->right.qei_count,
+		mech_readings->velocity.x,
+		mech_readings->velocity.y,
+		motor_settings->left.volt,
+		motor_settings->right.volt,
+		mech_readings->left.currsens_amps,
+		mech_readings->right.currsens_amps,
+		mech_readings->Xforce, // X-axis Force Sensor
+		mech_readings->Yforce, // Y-axis Force Sensor
+		motor_settings->force_end[IDX_X],
+		motor_settings->force_end[IDX_Y],
+		FORCE_END_MAGN,
+		ref_kinematics->p_ref[IDX_X],
+		ref_kinematics->p_ref[IDX_Y],
+		ref_kinematics->dt_p_ref[IDX_X],
+		ref_kinematics->dt_p_ref[IDX_Y],
+		ref_kinematics->phi_ref,
+		ref_kinematics->dt_phi_ref);
+}
+
 uint8_t set_lowerlimb_exercise_feedback_info(uint64_t up_time,
 								float f_x, float f_y,
 								int32_t fQei_L, int32_t fQei_R,

@@ -82,31 +82,6 @@ dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
 	if ((step_i % DECIM_DISP_UNC) == 0) {
 		printf("____________________________\n");
 		printf("dyn_sys_msd_nml_unc [%d]:\n", step_i);
-		/*
-		printf("M_sys:\n");
-		for (r_i = 0; r_i < M_sys->num_rows; r_i++) {
-			for (c_i = 0; c_i < M_sys->num_cols; c_i++)
-				printf("%f\t", M_sys->data[r_i][c_i]);
-			printf("\n");
-		}
-		printf("\n");
-
-		printf("B_sys:\n");
-		for (r_i = 0; r_i < B_sys->num_rows; r_i++) {
-			for (c_i = 0; c_i < B_sys->num_cols; c_i++)
-				printf("%f\t", B_sys->data[r_i][c_i]);
-			printf("\n");
-		}
-		printf("\n");
-
-		printf("K_sys:\n");
-		for (r_i = 0; r_i < K_sys->num_rows; r_i++) {
-			for (c_i = 0; c_i < K_sys->num_cols; c_i++)
-				printf("%f\t", K_sys->data[r_i][c_i]);
-			printf("\n");
-		}
-		printf("\n");
-		*/
 
 		printf("K_q_prod:\n");
 		for (r_i = 0; r_i < K_q_prod->num_rows; r_i++) {
