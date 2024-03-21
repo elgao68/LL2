@@ -166,7 +166,7 @@ void traj_reference_step_active(
 		ode_params.par_dbl[IDX_Y]   = F_end_m[IDX_Y];
 		ode_params.par_dbl[IDX_PHI] = 0.0;
 
-		// Obtain trajectory path constraint (ony A_con will be used for now):
+		// Obtain trajectory path constraint (only A_con will be used for now):
 		if (USE_ADMITT_MODEL_CONSTR) {
 			traj_ellipse_constraints(*phi_ref, *dt_phi_ref, A_con, b_con,
 					ax_x_adj, ax_y_adj, ax_ang);
@@ -179,7 +179,12 @@ void traj_reference_step_active(
 		// Integration step for ODE:
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		solve_ode_sys_rkutta_ord4_nml(z_intern, z_intern_prev, dt_k, ode_admitt_model_nml, ode_params);
+		if (USE_ADMITT_MODEL_CONSTR)
+			// solve_ode_sys_rkutta_ord4_nml(z_intern, z_intern_prev, dt_k, ode_admitt_model_nml, ode_params);
+			solve_ode_sys_rectang_nml(z_intern, z_intern_prev, dt_k, ode_admitt_model_nml, ode_params); // TODO: verify integrator robustness
+		else
+			solve_ode_sys_rectang_nml(z_intern, z_intern_prev, dt_k, ode_admitt_model_nml, ode_params);
+
 	}
 	else {
 		// Initialize internal state:
@@ -255,7 +260,7 @@ void traj_reference_step_active(
 // FUNCTION DEFINITIONS, DYNAMIC SYSTEMS - GAO
 /////////////////////////////////////////////////////////////////////////////////////
 
-nml_mat* ode_admitt_model_nml(nml_mat* z_nml, ode_param_struct ode_params) {
+void ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct ode_params) {
 
     /////////////////////////////////////////////////////////////////////////////////////
     // Declare static matrices:
@@ -267,7 +272,7 @@ nml_mat* ode_admitt_model_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 	static nml_mat* B_sys_q;
 	static nml_mat* K_sys_q;
 
-	static nml_mat* dt_z_nml;
+	// static nml_mat* dt_z_nml; // TODO: remove at a later date
 	static nml_mat* A_con;
 
 	static nml_mat* Q_in_nml;
@@ -287,7 +292,7 @@ nml_mat* ode_admitt_model_nml(nml_mat* z_nml, ode_param_struct ode_params) {
 		K_sys_q  = nml_mat_new(N_COORD_EXT, N_COORD_EXT);
 
 		// System output:
-		dt_z_nml = nml_mat_new(2*N_COORD_EXT, 1);
+		// dt_z_nml = nml_mat_new(2*N_COORD_EXT, 1); // TODO: remove at a later date
 
 		// Constraint matrix:
 		A_con    = nml_mat_new(N_CONSTR_TRAJ, N_COORD_EXT);

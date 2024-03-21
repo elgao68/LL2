@@ -35,7 +35,7 @@ void test_ode_int() {
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	// Integrator time step:
-	double dt_k = (double)DT_STEP_MSEC/MSEC_PER_SEC; // integrator step (initial)
+	double dt_k = 0.001; // (double)DT_STEP_MSEC/MSEC_PER_SEC; // integrator step (initial)
 
 	// Reference position and velocity:
 	double    p_ref[N_COORD_2D] = {0.0, 0.0};

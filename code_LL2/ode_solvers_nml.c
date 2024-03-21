@@ -9,12 +9,91 @@
 
 #include <ode_solvers_nml.h>
 
-#define USE_ITM_OUT_ODE		1
+#define USE_ITM_OUT_ODE	1
 
-#define ORD_4	4
+#define ORD_4			4
 
 void
-solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*ode_func)(nml_mat*, ode_param_struct), ode_param_struct ode_params) {
+solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,
+		void (*ode_func)(nml_mat*, nml_mat*, ode_param_struct), // ensure that every ode_ function declaration is consistent with this structure
+		ode_param_struct ode_params) {
+
+	static nml_mat* dt_y;
+	static nml_mat* delta_y;
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Initialize matrices:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	static int initial = 1;
+
+	if (initial) {
+		dt_y   = nml_mat_new(ode_params.DIM, 1);
+		delta_y   = nml_mat_new(ode_params.DIM, 1);
+
+		initial = 0;
+	}
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Time derivative (dt_y):
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	(*ode_func)(dt_y, y_o, ode_params);
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Integration step:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	nml_mat_cp_ref(delta_y, dt_y);
+	nml_mat_smult_r(delta_y, T);
+
+	// Compute ODE output:
+	nml_mat_cp_ref(y_f, y_o);
+	nml_mat_add_r( y_f, delta_y);
+
+#if USE_ITM_OUT_ODE
+	static int step_ode = 0;
+	static int DECIM_DISP_ODE = DECIM_DISP_GENERAL;
+	int c_i;
+
+	if ((step_ode % DECIM_DISP_ODE) == 0) {
+		printf("____________________________\n");
+		printf("solve_ode_sys_rectang_nml [%d]: T = [%f]\tF_end = [%f, %f]\n",
+			step_ode, T, ode_params.par_dbl[IDX_X], ode_params.par_dbl[IDX_Y]);
+
+		printf("y_o = [");
+		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
+			printf("%f\t", y_o->data[c_i][0]);
+		}
+		printf("]\n");
+
+		printf("\n");
+		printf("dt_y = [");
+		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
+			printf("%f\t", dt_y->data[c_i][0]);
+		}
+		printf("]\n");
+
+		printf("\n");
+		printf("y_f = [");
+		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
+			printf("%f\t", y_f->data[c_i][0]);
+		}
+		printf("]\n");
+
+		printf("\n");
+	}
+
+	// Increase counter:
+	step_ode++;
+#endif
+}
+
+/*
+void
+solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T,
+		void (*ode_func)(nml_mat*, nml_mat*, ode_param_struct), // ensure that every ode_ function declaration is consistent with this structure
+		ode_param_struct ode_params) {
 
 	// Time integration step for an n-dimensional system of ODEs using 4th-order Runge-Kutta
 
@@ -29,7 +108,6 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 
 	static nml_mat* buff_K;
 	static nml_mat* FK;
-	static nml_mat* K_scaled;
 	static nml_mat* y_step;
 	static nml_mat* GK;
 	static nml_mat* sum_K_weighted;
@@ -49,7 +127,6 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 
 		buff_K   = nml_mat_new(ode_params.DIM, 1);
 		FK       = nml_mat_new(ode_params.DIM, 1);
-		K_scaled = nml_mat_new(ode_params.DIM, 1);
 		y_step   = nml_mat_new(ode_params.DIM, 1);
 		GK       = nml_mat_new(ode_params.DIM, 1);
 		sum_K_weighted = nml_mat_new(ode_params.DIM, 1);
@@ -63,26 +140,23 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 
 	for (i = 0; i < ORD_4; i++)
 		if (i == 0) {
-			buff_K = (*ode_func)(y_o, ode_params); // NOTE: buff_K points to the internal state (dt_y) of ode_func()
+			(*ode_func)(buff_K, y_o, ode_params); // NOTE: buff_K points to the internal state (dt_y) of ode_func()
 			nml_mat_cp_ref(K[0], buff_K);
 			nml_mat_smult_r(K[0], T);
 		}
 		else {
-			// F(i)*K(i-i):
+			// FK(i) = F(i)*K(i-1):
 			nml_mat_cp_ref(FK, K[i - 1]);
 			nml_mat_smult_r(FK, F[i]);
 
-			// y_step(i) = y_o + F(i)*K(i-i):
+			// y_step(i) = y_o + F(i)*K(i-1) = y_o + FK(i):
 			nml_mat_cp_ref(y_step, y_o);
 			nml_mat_add_r(y_step, FK);
 
-			// K_scaled(i) = f(y_step(i)):
-			buff_K = (*ode_func)(y_step, ode_params); // NOTE: buff_K points to the internal state (dt_y) of ode_func()
-			nml_mat_cp_ref(K_scaled, buff_K);
-
-			// K(i) = T*K_scaled(i):
-			nml_mat_cp_ref(K[i], K_scaled);
-			nml_mat_smult_r(K[i], T);
+			// K(i) = T*f(y_step(i)):
+			(*ode_func)(buff_K, y_step, ode_params); // NOTE: buff_K points to the internal state (dt_y) of ode_func()
+			nml_mat_smult_r(buff_K, T);
+			nml_mat_cp_ref(K[i], buff_K);
 		}
 
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -121,6 +195,15 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 		printf("]\n");
 
 		printf("\n");
+		for (i = 0; i < ORD_4; i++) {
+			printf("K[%d] = [", i);
+			for (c_i = 0; c_i < ode_params.DIM; c_i++) {
+				printf("%f\t", sum_K_weighted->data[c_i][0]);
+			}
+			printf("]\n");
+		}
+
+		printf("\n");
 		printf("sum_K_weighted = [");
 		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
 			printf("%f\t", sum_K_weighted->data[c_i][0]);
@@ -141,16 +224,6 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T, nml_mat* (*o
 	step_ode++;
 #endif
 }
-
-/////////////////////////////////////////////////////////////////////////////
-// ODE TEMPLATE:
-/////////////////////////////////////////////////////////////////////////////
-
-/*
-nml_mat*
-_ode_nml(nml_mat* x, ode_param_struct ode_params) {
-	nml_mat* dt_x_m = nml_mat_new(ode_params.DIM, 1); // NOTE: make sure ode_params.ORD matches solver order
-
-	return dt_x_m;
-}
 */
+
+

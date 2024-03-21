@@ -166,7 +166,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				sqrt(admitt_model_params.stiffness*admitt_model_params.inertia_x);
 
 		sigma = damp_ratio*w_n;
-		T_RUN_MAX = 3.0/sigma;
+		T_RUN_MAX = 6.0/sigma;
 
 		admitt_model_params.p_eq_x    = 0;
 		admitt_model_params.p_eq_y    = 0;

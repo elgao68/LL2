@@ -18,6 +18,9 @@
 
 #include <nml.h>
 #include <math.h>
+#include <_math_utils.h>
+
+void nml_mat_eye_ref(nml_mat *A);
 
 void nml_mat_dot_ref(nml_mat *m_out, nml_mat *m1, nml_mat *m2);
 
@@ -36,5 +39,8 @@ void nml_ls_solve_ref(nml_mat *x_soln, nml_mat *L, nml_mat *U, nml_mat *P, nml_m
 void nml_ls_solvefwd_ref(nml_mat* x, nml_mat *L, nml_mat *b);
 
 void nml_ls_solvebck_ref(nml_mat *x, nml_mat *U, nml_mat *b);
+
+// Matrix exponential:
+void nml_exp_matrix_ref(nml_mat *exp_A, nml_mat *A, nml_mat *pow_A, nml_mat* term_buff, double T, int N_STEPS);
 
 #endif /* CODE_LL2_NML_REF_BASED_H_ */

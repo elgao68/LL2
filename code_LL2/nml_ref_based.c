@@ -24,11 +24,20 @@
 #define CANNOT_SOLVE_LIN_SYS_INVALID_B \
 	"Cannot solve system. Wrong-sized matrix.\n" \
 
+void nml_mat_eye_ref(nml_mat *A) {
+	nml_mat_all_set(A, 0.0);
+
+	for (int r_i = 0; r_i < A->num_rows; r_i++)
+		A->data[r_i][r_i] = 1.0;
+}
+
 void nml_mat_dot_ref(nml_mat *m_out, nml_mat *m1, nml_mat *m2) {
 	if (!(m1->num_cols == m2->num_rows))
 		if (DEBUG_TRUE) {
 			nml_log(stderr, __FILE__, __LINE__, CANNOT_MULT);
 		}
+
+	nml_mat_all_set(m_out, 0.0);
 
 	int i, j, k;
 	for(i = 0; i < m_out->num_rows; i++)
@@ -73,7 +82,6 @@ void nml_mat_lup_solve_ref(nml_mat *m, nml_mat *L, nml_mat *U, nml_mat *P, unsig
   }
 
   int j,i, pivot;
-  // unsigned int num_permutations = 0;
   double mult;
 
   for(j = 0; j < U->num_cols; j++) {
@@ -131,7 +139,7 @@ void nml_ls_solve_ref(nml_mat *x_soln, nml_mat *L, nml_mat *U, nml_mat *P, nml_m
 	if (U->num_rows != b->num_rows || b->num_cols != 1) {
 		nml_log(stderr, __FILE__, __LINE__, CANNOT_SOLVE_LIN_SYS_INVALID_B);
 	}
-	Pb = nml_mat_dot(P, b);
+	nml_mat_dot_ref(Pb, P, b);
 
 	// We solve L*y = P*b using forward substitution
 	nml_ls_solvefwd_ref(y, L, Pb);
@@ -191,3 +199,23 @@ void nml_ls_solvebck_ref(nml_mat *x, nml_mat *U, nml_mat *b) {
 		x->data[i][0] = tmp / U->data[i][i];
 	}
 }
+
+// Matrix exponential:
+void nml_exp_matrix_ref(nml_mat *exp_A, nml_mat *A, nml_mat *pow_A, nml_mat* term_buff, double T, int N_STEPS) {
+
+	// WARNING: no dimensional check is performed
+
+	nml_mat_eye_ref(exp_A); // initialize sum to identity matrix
+	nml_mat_eye_ref(pow_A); // initialize power of A to identity matrix (A^0)
+
+	for (int i = 1; i < N_STEPS; i++) {
+		// Compute power of A (A^i):
+		nml_mat_dot_ref(term_buff, pow_A, A);
+		nml_mat_cp_ref(pow_A, term_buff);
+
+		// Compute new term in sum, noting that term_buff == pow_A:
+		nml_mat_smult_r(term_buff, pow(T, i)/factorial(i));
+		nml_mat_add_r(exp_A, term_buff);
+	}
+}
+

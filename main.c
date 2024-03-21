@@ -35,23 +35,16 @@
 // #include "lowerlimb_calib_protocols.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-// MEMORY HANDLING - CRITICAL - GAO
-////////////////////////////////////////////////////////////////////////////////
-
-#define HEAP_SIZE_MIN	3840
-#define KBYTE           1024
-
-////////////////////////////////////////////////////////////////////////////////
 // Private variables:
 ////////////////////////////////////////////////////////////////////////////////
 
-ADC_HandleTypeDef hadc1;
-ADC_HandleTypeDef hadc3;
-DAC_HandleTypeDef hdac;
-SPI_HandleTypeDef hspi3;
-TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim4;
-TIM_HandleTypeDef htim9;
+ADC_HandleTypeDef  hadc1;
+ADC_HandleTypeDef  hadc3;
+DAC_HandleTypeDef  hdac;
+SPI_HandleTypeDef  hspi3;
+TIM_HandleTypeDef  htim2;
+TIM_HandleTypeDef  htim4;
+TIM_HandleTypeDef  htim9;
 UART_HandleTypeDef huart3;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -80,10 +73,9 @@ void _Error_Handler(char *file, int line);
 #define _TEST_REAL_TIME      1
 #define _TEST_SIMULATION	 2
 #define _TEST_SCRATCH        3
-#define _TEST_ODE_INT            4
+#define _TEST_ODE_INT        4
 
-#define TEST_OPTION			 _TEST_ODE_INT
-
+#define TEST_OPTION			 _TEST_REAL_TIME
 #define DT_DISP_MSEC_GUI_PARAMS		2000
 #define DT_DISP_MSEC_REALTIME		1000
 
@@ -97,14 +89,11 @@ void _Error_Handler(char *file, int line);
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
-int _write(int32_t file, uint8_t *ptr, int32_t len);
+int _write(int32_t file, uint8_t *ptr, int32_t len); // use this to send output to SWV ITM Data Console
 // int __io_putchar(int ch);
-
 void cycle_haptic_buttons();
 void LED_sys_state_off();
 void set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time);
-uint8_t set_LL_exercise_feedback_help(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
-		lowerlimb_ref_kinematics_t* ref_kinematics);
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -114,13 +103,6 @@ uint8_t set_LL_exercise_feedback_help(uint64_t up_time, lowerlimb_mech_readings_
 
 int
 main(void) {
-
-	/////////////////////////////////////////////////////////////////////////////////////
-	// 'Defragment' the heap - TODO: remove at a later date
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	// uint8_t heap = (uint8_t*)malloc(HEAP_SIZE_MIN*KBYTE*sizeof(uint8_t));
-	// free(heap);
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Reset of all peripherals, Initializes the Flash interface and the Sys tick.
@@ -207,20 +189,6 @@ main(void) {
 	HAL_Delay(1000);
 	set_ethernet_w5500_mac(0x00, 0x0a, 0xdc, 0xab, 0xcd, 0xef);
 	ethernet_w5500_sys_init();
-
-#if _TEST_DEBUG_
-	uint8_t tmpstr[6] = { 0, };
-
-	ctlwizchip(CW_GET_ID, (void*) tmpstr);
-
-	u@rt_printf("\r\n=======================================\r\n");
-	u@rt_printf(" WIZnet %s Test code v%d.%.2d\r\n", tmpstr, VER_H, VER_L);
-	u@rt_printf("=======================================\r\n");
-	u@rt_printf(">> TCP client + Motor drivers test\r\n");
-	u@rt_printf("=======================================\r\n");
-
-	Display_Net_Conf(); //  Print out the network information to serial terminal
-#endif
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// test MSB (REMOVED)
@@ -310,37 +278,6 @@ set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 
 		set_r_brake_status(p_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
 	}
-}
-
-uint8_t
-set_LL_exercise_feedback_help(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
-		lowerlimb_ref_kinematics_t* ref_kinematics) {
-
-	float FORCE_END_MAGN = 0.0; // don't need to maintain this
-
-	return set_lowerlimb_exercise_feedback_info(
-		up_time,
-		mech_readings->coord.x,
-		mech_readings->coord.y,
-		mech_readings->left.qei_count,
-		mech_readings->right.qei_count,
-		mech_readings->velocity.x,
-		mech_readings->velocity.y,
-		motor_settings->left.volt,
-		motor_settings->right.volt,
-		mech_readings->left.currsens_amps,
-		mech_readings->right.currsens_amps,
-		mech_readings->Xforce, // X-axis Force Sensor
-		mech_readings->Yforce, // Y-axis Force Sensor
-		motor_settings->force_end[IDX_X],
-		motor_settings->force_end[IDX_Y],
-		FORCE_END_MAGN,
-		ref_kinematics->p_ref[IDX_X],
-		ref_kinematics->p_ref[IDX_Y],
-		ref_kinematics->dt_p_ref[IDX_X],
-		ref_kinematics->dt_p_ref[IDX_Y],
-		ref_kinematics->phi_ref,
-		ref_kinematics->dt_phi_ref);
 }
 
 /////////////////////////////////////////////////////////////////////////////

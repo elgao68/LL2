@@ -74,6 +74,10 @@ dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
 	for (c_i = IDX_X; c_i <= IDX_PHI; c_i++)
 		Q_in->data[c_i][0] = -K_q_prod->data[c_i][0] - B_v_prod->data[c_i][0] + u_in->data[c_i][0];
 
+	// Inertia matrix inverse:
+	for (c_i = 0; c_i < M_sys->num_cols; c_i++)
+		inv_M_sys->data[c_i][c_i] = 1.0/M_sys->data[c_i][c_i];
+
 	// ITM console output:
 #if USE_ITM_OUT_DYN_SYS_MATR
 	static int step_i = 0;
@@ -95,6 +99,14 @@ dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
 		for (r_i = 0; r_i < B_v_prod->num_rows; r_i++) {
 			for (c_i = 0; c_i < B_v_prod->num_cols; c_i++)
 				printf("%f\t", B_v_prod->data[r_i][c_i]);
+			printf("\n");
+		}
+		printf("\n");
+
+		printf("inv_M_sys:\n");
+		for (r_i = 0; r_i < inv_M_sys->num_rows; r_i++) {
+			for (c_i = 0; c_i < inv_M_sys->num_cols; c_i++)
+				printf("%f\t", inv_M_sys->data[r_i][c_i]);
 			printf("\n");
 		}
 		printf("\n");
