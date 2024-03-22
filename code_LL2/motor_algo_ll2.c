@@ -56,9 +56,10 @@ static admitt_model_params_t admitt_model_params_local;
 // FUNCTION DEFINITIONS, MOTION ALGORITHMS - GAO
 /////////////////////////////////////////////////////////////////////////////////////
 
-void traj_reference_step_active(
-	double p_ref[],	double dt_p_ref[], double* phi_ref, double* dt_phi_ref, double u_t_ref[], double dt_k,
-	double F_end_m[],
+void traj_ref_step_active_elliptic(
+	double p_ref[],	double dt_p_ref[],
+	double* phi_ref, double* dt_phi_ref,
+	double u_t_ref[], double dt_k, double F_end_m[], double z_intern_o_dbl[],
 	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR) {
 
     /////////////////////////////////////////////////////////////////////////////////////
@@ -67,7 +68,7 @@ void traj_reference_step_active(
 
 	// Admittance model state:
 	static nml_mat* z_intern;
-	static nml_mat* z_intern_prev;
+	static nml_mat* z_intern_prev[N_PREV_INT_STEPS];
 
 	// Trajectory path - constraint matrices:
 	static nml_mat* A_con;
@@ -83,6 +84,12 @@ void traj_reference_step_active(
 	ode_params.DIM = 2*N_COORD_EXT;
 
 	/////////////////////////////////////////////////////////////////////////////////////
+    // Counters:
+    /////////////////////////////////////////////////////////////////////////////////////
+
+	int i;
+
+	/////////////////////////////////////////////////////////////////////////////////////
     // Initialize matrices:
     /////////////////////////////////////////////////////////////////////////////////////
 
@@ -91,7 +98,10 @@ void traj_reference_step_active(
 	if (init_nml) {
 		// Admittance model state:
 		z_intern      = nml_mat_new(2*N_COORD_EXT, 1); // internal state
-		z_intern_prev = nml_mat_new(2*N_COORD_EXT, 1); // internal state
+
+
+		for (i = 0; i < N_PREV_INT_STEPS; i++)
+			z_intern_prev[i] = nml_mat_new(2*N_COORD_EXT, 1); // internal state
 
 		// Trajectory path - constraint matrices:
 		A_con = nml_mat_new(N_CONSTR_TRAJ, N_COORD_EXT);
@@ -180,22 +190,19 @@ void traj_reference_step_active(
 		/////////////////////////////////////////////////////////////////////////////////////
 
 		if (USE_ADMITT_MODEL_CONSTR)
-			// solve_ode_sys_rkutta_ord4_nml(z_intern, z_intern_prev, dt_k, ode_admitt_model_nml, ode_params);
-			solve_ode_sys_rectang_nml(z_intern, z_intern_prev, dt_k, ode_admitt_model_nml, ode_params); // TODO: verify integrator robustness
+			// solve_ode_sys_rkutta_ord4_nml(z_intern, z_intern_prev[DELAY_1], dt_k, ode_admitt_model_nml, ode_params);
+			solve_ode_sys_rectang_nml(z_intern, z_intern_prev[DELAY_1], dt_k, ode_admitt_model_nml, ode_params); // TODO: verify integrator robustness
 		else
-			solve_ode_sys_rectang_nml(z_intern, z_intern_prev, dt_k, ode_admitt_model_nml, ode_params);
+			solve_ode_sys_rectang_nml(z_intern, z_intern_prev[DELAY_1], dt_k, ode_admitt_model_nml, ode_params);
 
 	}
 	else {
 		// Initialize internal state:
-		z_intern->data[0][0] = ax_x_adj;
-		z_intern->data[1][0] = ax_y_adj;
-		z_intern->data[2][0] = 0.0;
-		z_intern->data[3][0] = 0.0;
-		z_intern->data[4][0] = 0.0;
+		for (i = 0; i < 2*N_COORD_EXT; i++)
+			z_intern->data[i][0] = z_intern_o_dbl[i];
 	}
 
-	nml_mat_cp_ref(z_intern_prev, z_intern);
+	nml_mat_cp_ref(z_intern_prev[DELAY_1], z_intern);
 
 	// ITM console output:
 	if (step_int == 0) {

@@ -48,6 +48,9 @@ void test_ode_int() {
 	// Trajectory path tangent vector:
 	double u_t_ref[N_COORD_2D] = {0.0, 0.0};
 
+	// Internal state: initial values:
+	double z_intern_o_dbl[2*N_COORD_EXT];
+
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Counters and timers:
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -90,6 +93,32 @@ void test_ode_int() {
 	admitt_model_params.Fx_offset = 0;
 	admitt_model_params.Fy_offset = 0;
 
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Run simulation loop:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	if (USE_ADMITT_MODEL_CONSTR_ODE) {
+		z_intern_o_dbl[0] = traj_ctrl_params.semiaxis_x;
+		z_intern_o_dbl[1] = 0;
+		z_intern_o_dbl[2] = 0;
+		z_intern_o_dbl[3] = 0.5;
+		z_intern_o_dbl[4] = 0;
+		z_intern_o_dbl[5] = 0;
+	}
+	else {
+		z_intern_o_dbl[0] = traj_ctrl_params.semiaxis_x;
+		z_intern_o_dbl[1] = traj_ctrl_params.semiaxis_y;
+		z_intern_o_dbl[2] = 0;
+		z_intern_o_dbl[3] = 0;
+		z_intern_o_dbl[4] = 0;
+		z_intern_o_dbl[5] = 0;
+	}
+
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Run simulation loop:
+	/////////////////////////////////////////////////////////////////////////////////////
+
 	do {
 		// Apply delay:
 		HAL_Delay(25);
@@ -98,16 +127,24 @@ void test_ode_int() {
 		// Extract measured end-effector forces:
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		F_end_m[IDX_X] = 0;
-		F_end_m[IDX_Y] = 0;
+		if (USE_ADMITT_MODEL_CONSTR_ODE) {
+			F_end_m[IDX_X] = 0; // TODO: add force function
+			F_end_m[IDX_Y] = 0;
+		}
+		else {
+			F_end_m[IDX_X] = 0;
+			F_end_m[IDX_Y] = 0;
+		};
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Motor algorithm computation:
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		traj_reference_step_active(p_ref, dt_p_ref, &phi_ref, &dt_phi_ref, u_t_ref, dt_k,
-				F_end_m,
-				traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR);
+		traj_ref_step_active_elliptic(
+				p_ref, dt_p_ref,
+				&phi_ref, &dt_phi_ref,
+				u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
+				traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR_ODE);
 
 		// Set reference kinematics struct:
 		for (int c_i = 0; c_i < N_COORD_2D; c_i++) {

@@ -22,6 +22,8 @@
 
 void nml_mat_eye_ref(nml_mat *A);
 
+void nml_mat_transp_ref(nml_mat *r, nml_mat *m);
+
 void nml_mat_dot_ref(nml_mat *m_out, nml_mat *m1, nml_mat *m2);
 
 void nml_mat_mult_elemwise_ref(nml_mat *m_out, nml_mat *m1, nml_mat *m2);
@@ -31,7 +33,7 @@ void nml_mat_cp_ref(nml_mat *m_out, nml_mat *m);
 // void nml_mat_lup_solve_ref(nml_mat_lup *r, nml_mat *m, nml_mat *L, nml_mat *U, nml_mat *P);
 void nml_mat_lup_solve_ref(nml_mat *m, nml_mat *L, nml_mat *U, nml_mat *P, unsigned int* num_permutations);
 
-void nml_mat_lup_new_ref(nml_mat_lup *r, nml_mat *L, nml_mat *U, nml_mat *P, unsigned int num_permutations);
+// void nml_mat_lup_new_ref(nml_mat_lup *r, nml_mat *L, nml_mat *U, nml_mat *P, unsigned int num_permutations);
 
 // void nml_ls_solve_ref(nml_mat *x_soln, nml_mat_lup *lu, nml_mat* b, nml_mat *Pb, nml_mat *y);
 void nml_ls_solve_ref(nml_mat *x_soln, nml_mat *L, nml_mat *U, nml_mat *P, nml_mat* b, nml_mat *Pb, nml_mat *y);

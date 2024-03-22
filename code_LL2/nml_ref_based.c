@@ -31,6 +31,15 @@ void nml_mat_eye_ref(nml_mat *A) {
 		A->data[r_i][r_i] = 1.0;
 }
 
+void nml_mat_transp_ref(nml_mat *r, nml_mat *m) {
+  int i, j;
+  for(i = 0; i < r->num_rows; i++) {
+    for(j = 0; j < r->num_cols; j++) {
+      r->data[i][j] = m->data[j][i];
+    }
+  }
+}
+
 void nml_mat_dot_ref(nml_mat *m_out, nml_mat *m1, nml_mat *m2) {
 	if (!(m1->num_cols == m2->num_rows))
 		if (DEBUG_TRUE) {
@@ -88,7 +97,7 @@ void nml_mat_lup_solve_ref(nml_mat *m, nml_mat *L, nml_mat *U, nml_mat *P, unsig
     // Retrieves the row with the biggest element for column (j)
     pivot = _nml_mat_absmaxr(U, j);
     if (fabs(U->data[pivot][j]) < NML_MIN_COEF) {
-  	  nml_log(stderr, __FILE__, __LINE__, CANNOT_LU_MATRIX_DEGENERATE);
+    	nml_log(stderr, __FILE__, __LINE__, CANNOT_LU_MATRIX_DEGENERATE);
     }
 
     if (pivot!=j) {
@@ -112,12 +121,14 @@ void nml_mat_lup_solve_ref(nml_mat *m, nml_mat *L, nml_mat *U, nml_mat *P, unsig
   nml_mat_diag_set(L, 1.0);
 }
 
+/*
 void nml_mat_lup_new_ref(nml_mat_lup *r, nml_mat *L, nml_mat *U, nml_mat *P, unsigned int num_permutations) {
   r->L = L;
   r->U = U;
   r->P = P;
   r->num_permutations = num_permutations;
 }
+*/
 
 // A[n][n] is a square matrix
 // m contains matrices L, U, P for A[n][n] so that P*A = L*U
@@ -191,7 +202,7 @@ void nml_ls_solvefwd_ref(nml_mat* x, nml_mat *L, nml_mat *b) {
 void nml_ls_solvebck_ref(nml_mat *x, nml_mat *U, nml_mat *b) {
 	int i = U->num_cols, j;
 	double tmp;
-	while(i-->0) {
+	while(i-- > 0) {
 		tmp = b->data[i][0];
 		for(j = i; j < U->num_cols; j++) {
 			tmp -= U->data[i][j] * x->data[j][0];

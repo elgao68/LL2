@@ -61,8 +61,8 @@ static uint32_t current_sensor_R = 0;
 // static uint64_t P_brakes_powersavetimer = 0;
 
 // Dynamic system mode: unconstrained / constrained:
-#define USE_ADMITT_MODEL_CONSTR		0
-#define OVERRIDE_DYN_PARAMS			1
+#define USE_ADMITT_MODEL_CONSTR_RT	0
+#define OVERR_DYN_PARAMS_RT			1
 
 #define DT_EXPIRE_MSEC		 	1000
 

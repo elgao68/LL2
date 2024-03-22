@@ -274,8 +274,8 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	// Solve for acceleration & Lagrange multipliers' vector:
-	U = nml_mat_cp(mu);
-	P = nml_mat_eye(mu->num_rows);
+	nml_mat_cp_ref(U, mu);
+	nml_mat_eye_ref(P);
 
 	// was nml_mat_lup_solve_ref(mu_LUP, mu, L, U, P);
 	nml_mat_lup_solve_ref(mu, L, U, P, 	&num_permutations);

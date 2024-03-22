@@ -1019,16 +1019,16 @@ nml_mat *nml_ls_solve(nml_mat_lup *lu, nml_mat* b) {
       1);
       return NULL;
   }
-  nml_mat *P_Q_in_ext_prod = nml_mat_dot(lu->P, b);
+  nml_mat *Pb = nml_mat_dot(lu->P, b);
 
   // We solve L*y = P*b using forward substitution
-  nml_mat *y = nml_ls_solvefwd(lu->L, P_Q_in_ext_prod);
+  nml_mat *y = nml_ls_solvefwd(lu->L, Pb);
 
   // We solve U*x=y
   nml_mat *x = nml_ls_solvebck(lu->U, y);
 
   nml_mat_free(y);
-  nml_mat_free(P_Q_in_ext_prod);
+  nml_mat_free(Pb);
   return x;
 }
 

@@ -72,6 +72,9 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// Trajectory path tangent vector:
 	double u_t_ref[N_COORD_2D] = {0.0, 0.0};
 
+	// Internal state: initial values:
+	double z_intern_o_dbl[2*N_COORD_EXT];
+
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - MEASURED:
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -144,7 +147,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 		// Override trajectory and control parameters - TODO: remove at a later date
 		////////////////////////////////////////////////////////////////////////////////////////
 
-#if OVERRIDE_DYN_PARAMS
+#if OVERR_DYN_PARAMS_RT
 		/*
 		traj_ctrl_params.cycle_period = 3.0;
 		traj_ctrl_params.exp_blend_time = 3.0;
@@ -316,9 +319,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								// Motor algorithm computation:
 								/////////////////////////////////////////////////////////////////////////////////////
 
-								traj_reference_step_active(p_ref, dt_p_ref, &phi_ref, &dt_phi_ref, u_t_ref, dt_k,
-										F_end_m,
-										traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR);
+								traj_ref_step_active_elliptic(
+										p_ref, dt_p_ref,
+										&phi_ref, &dt_phi_ref,
+										u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
+										traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR_RT);
 
 								// Set reference kinematics struct:
 								for (int c_i = 0; c_i < N_COORD_2D; c_i++) {

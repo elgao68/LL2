@@ -22,7 +22,7 @@ const int DT_SIM_MSEC = 5;
 double dt_k = (double)DT_SIM_MSEC/1000.0; // integrator step (initial)
 
 // Admittance model state:
-double z_intern[2*N_COORD_EXT] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; // internal state
+double z_in[2*N_COORD_EXT] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0}; // internal state
 
 // Reference position and velocity:
 double    p_ref[N_COORD_2D] = {0.0, 0.0};

@@ -13,6 +13,7 @@
 #include <_std_c.h>
 #include <nml.h>
 #include <nml_util.h>
+#include <nml_ref_based.h>
 
 void test_scratch();
 

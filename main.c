@@ -75,7 +75,7 @@ void _Error_Handler(char *file, int line);
 #define _TEST_SCRATCH        3
 #define _TEST_ODE_INT        4
 
-#define TEST_OPTION			 _TEST_REAL_TIME
+#define TEST_OPTION			 _TEST_SCRATCH
 #define DT_DISP_MSEC_GUI_PARAMS		2000
 #define DT_DISP_MSEC_REALTIME		1000
 
@@ -245,15 +245,14 @@ __io_putchar(int ch) {
 void
 cycle_haptic_buttons() {
 	if (Read_Haptic_Button()) {
-		Left_LED_function (Blue);
-		Right_LED_function (Blue);
+		Left_LED_function(Blue);
+		Right_LED_function(Blue);
 	}
 	else {
-		Left_LED_function (Red);
-		Right_LED_function (Red);
+		Left_LED_function(Red);
+		Right_LED_function(Red);
 	}
 }
-
 
 void
 LED_sys_state_off() {
