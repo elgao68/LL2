@@ -98,37 +98,38 @@ test_scratch() {
 	// Obtain matrix inverse with nml_mat_lup_solve_ref() and nml_ls_solve_ref():
 	/////////////////////////////////////////////////////////////////////////////
 
+	// CASE 1:
 	nml_mat* M = nml_mat_new(5, 5);
 
-	M->data[0][0] = 0.1;
+	M->data[0][0] =  0.1;
 	M->data[0][1] = -2.0;
-	M->data[0][2] = 3.0;
+	M->data[0][2] =  3.0;
 	M->data[0][3] = -4.0;
-	M->data[0][4] = 5.0;
+	M->data[0][4] =  5.0;
 
 	M->data[1][0] = -6.0;
-	M->data[1][1] = 0.7;
+	M->data[1][1] =  0.7;
 	M->data[1][2] = -8.0;
-	M->data[1][3] = 9.0;
+	M->data[1][3] =  9.0;
 	M->data[1][4] = -1.0;
 
-	M->data[2][0] = 1.0;
-	M->data[2][1] = 2.0;
-	M->data[2][2] = 0.5;
-	M->data[2][3] = 1.0;
+	M->data[2][0] =  1.0;
+	M->data[2][1] =  2.0;
+	M->data[2][2] =  0.5;
+	M->data[2][3] =  1.0;
 	M->data[2][4] = -2.0;
 
-	M->data[3][0] = 3.0;
+	M->data[3][0] =  3.0;
 	M->data[3][1] = -4.0;
-	M->data[3][2] = 5.0;
+	M->data[3][2] =  5.0;
 	M->data[3][3] = -6.0;
 	M->data[3][4] = 0.7;
 
 	M->data[4][0] = -8.0;
-	M->data[4][1] = 9.0;
-	M->data[4][2] = 0.3;
-	M->data[4][3] = 4.0;
-	M->data[4][4] = 5.0;
+	M->data[4][1] =  9.0;
+	M->data[4][2] =  0.3;
+	M->data[4][3] =  4.0;
+	M->data[4][4] =  5.0;
 
 	/*
 	M inverse from Matlab:
@@ -138,6 +139,25 @@ test_scratch() {
 	    0.2881    0.2914    0.8198    0.4089    0.0409
 	    0.5995    0.3904    1.1489    0.1551   -0.0835
 	    0.4409    0.0517    0.3243   -0.2100   -0.0715
+	*/
+
+	// CASE 2: M_con matrix from LL UK equations:
+	/*
+	double M_data[] = {
+	         0,         0,         0,
+	         0,         0,    0.1000,
+	         0,         0,    1.0000,
+	    1.0000,         0,         0,
+	         0,    1.0000,   -0.1000};
+
+	nml_mat* M = nml_mat_from(5, 3, 15, M_data);
+
+	M inverse from Matlab:
+
+	inv_M_con =
+	         0         0         0    1.0000         0
+	   -0.0000    0.0099    0.0990         0    1.0000
+	   -0.0000    0.0990    0.9901         0   -0.0000
 	*/
 
 	// Obtain matrix inverse:
@@ -157,7 +177,7 @@ test_scratch() {
 
 	unsigned int num_permutations;
 
-	// Solve matriv inverse one column at a time:
+	// Solve matrix inverse one column at a time:
 	for (c_i = 0; c_i < inv_M->num_cols; c_i++) {
 		nml_mat_cp_ref(U, M);
 		nml_mat_eye_ref(P);

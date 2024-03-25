@@ -9,7 +9,8 @@
 
 #include <dynamic_systems_nml.h>
 
-#define USE_ITM_OUT_DYN_SYS_MATR	0
+#define USE_ITM_OUT_DYN_SYS_UNC		0
+#define USE_ITM_OUT_DYN_SYS_CON		1
 
 void
 dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
@@ -17,6 +18,9 @@ dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
 
 	size_t N_z = z->num_rows;
 	size_t N_q = N_z/2;
+
+	// Counters:
+	int c_i, r_i;
 
     /////////////////////////////////////////////////////////////////////////////////////
     // Declare static matrices:
@@ -54,8 +58,6 @@ dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
 	// Position and velocity vectors:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	int c_i, r_i;
-
 	for (c_i = IDX_X; c_i <= IDX_PHI; c_i++) {
 		q->data[c_i][0] = z->data[c_i][0] - q_eq->data[c_i][0]; // offset position by equilibrium value
 		v->data[c_i][0] = z->data[c_i + N_q][0];
@@ -79,9 +81,9 @@ dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
 		inv_M_sys->data[c_i][c_i] = 1.0/M_sys->data[c_i][c_i];
 
 	// ITM console output:
-#if USE_ITM_OUT_DYN_SYS_MATR
+#if USE_ITM_OUT_DYN_SYS_UNC
 	static int step_i = 0;
-	static int DECIM_DISP_UNC = DECIM_DISP_GENERAL;
+	int DECIM_DISP_UNC = DECIM_DISP_GENERAL;
 
 	if ((step_i % DECIM_DISP_UNC) == 0) {
 		printf("____________________________\n");
@@ -148,6 +150,9 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	// Counters:
 	int r_i, c_i, r_i_loc, c_i_loc;
 
+	static int step_i = 0;
+	int DECIM_DISP_CON = DECIM_DISP_GENERAL;
+
     /////////////////////////////////////////////////////////////////////////////////////
     // Declare static matrices:
     /////////////////////////////////////////////////////////////////////////////////////
@@ -163,7 +168,6 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	static nml_mat* L;
 	static nml_mat* U;
 	static nml_mat* P;
-	// static nml_mat_lup* mu_LUP;
 	unsigned int num_permutations;
 
 	static nml_mat *dt_v_lam;
@@ -187,7 +191,6 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 
 		mu = nml_mat_new(N_q + N_c, N_q + N_c);
 
-		// mu_LUP = malloc(sizeof(*mu_LUP)); // verify this
 		L  = nml_mat_new(mu->num_rows, mu->num_rows);
 		U  = nml_mat_new(mu->num_rows, mu->num_rows);
 		P  = nml_mat_new(mu->num_rows, mu->num_rows);
@@ -277,10 +280,61 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	nml_mat_cp_ref(U, mu);
 	nml_mat_eye_ref(P);
 
-	// was nml_mat_lup_solve_ref(mu_LUP, mu, L, U, P);
+	// ITM console output:
+#if USE_ITM_OUT_DYN_SYS_CON
+	// if ((step_i % DECIM_DISP_CON) == 0) {
+		printf("____________________________\n");
+		printf("dyn_sys_msd_nml_constr_lagr [%d]:\n", step_i);
+		printf("\n");
+		printf("M_sys:\n");
+		for (r_i = 0; r_i < M_sys->num_rows; r_i++) {
+			for (c_i = 0; c_i < M_sys->num_cols; c_i++)
+				printf("%f\t", M_sys->data[r_i][c_i]);
+			printf("\n");
+		}
+
+		printf("A_con:\n");
+		for (r_i = 0; r_i < A_con->num_rows; r_i++) {
+			for (c_i = 0; c_i < A_con->num_cols; c_i++)
+				printf("%f\t", A_con->data[r_i][c_i]);
+			printf("\n");
+		}
+
+		printf("A_con_tr:\n");
+		for (r_i = 0; r_i < A_con_tr->num_rows; r_i++) {
+			for (c_i = 0; c_i < A_con_tr->num_cols; c_i++)
+				printf("%f\t", A_con_tr->data[r_i][c_i]);
+			printf("\n");
+		}
+
+		printf("\n");
+		printf("mu:\n");
+		for (r_i = 0; r_i < mu->num_rows; r_i++) {
+			for (c_i = 0; c_i < mu->num_cols; c_i++)
+				printf("%f\t", mu->data[r_i][c_i]);
+			printf("\n");
+		}
+
+		printf("\n");
+		printf("U initial:\n");
+		for (r_i = 0; r_i < U->num_rows; r_i++) {
+			for (c_i = 0; c_i < U->num_cols; c_i++)
+				printf("%f\t", U->data[r_i][c_i]);
+			printf("\n");
+		}
+
+		printf("\n");
+		printf("P initial:\n");
+		for (r_i = 0; r_i < P->num_rows; r_i++) {
+			for (c_i = 0; c_i < P->num_cols; c_i++)
+				printf("%f\t", P->data[r_i][c_i]);
+			printf("\n");
+		}
+	// } // if ((step_i % DECIM_DISP_CON)
+#endif
+
 	nml_mat_lup_solve_ref(mu, L, U, P, 	&num_permutations);
 
-	// was nml_ls_solve_ref(dt_v_lam, mu_LUP, Q_in_ext, P_Q_in_ext_prod, y_dt_v_lam);
 	nml_ls_solve_ref(dt_v_lam, L, U, P, Q_in_ext, P_Q_in_ext_prod, y_dt_v_lam);
 
 	// Constrained output vector:
@@ -290,13 +344,11 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	}
 
 	// ITM console output:
-#if USE_ITM_OUT_DYN_SYS_MATR
-	static int step_i = 0;
-	static int DECIM_DISP_CON = DECIM_DISP_GENERAL;
-
-	if ((step_i % DECIM_DISP_CON) == 0) {
-		printf("____________________________\n");
+#if USE_ITM_OUT_DYN_SYS_CON
+	// if ((step_i % DECIM_DISP_CON) == 0) {
+		printf("----------------------------\n");
 		printf("dyn_sys_msd_nml_constr_lagr [%d]:\n", step_i);
+		printf("\n");
 		printf("Q_in_ext:\n");
 		for (r_i = 0; r_i < Q_in_ext->num_rows; r_i++) {
 			for (c_i = 0; c_i < Q_in_ext->num_cols; c_i++)
@@ -304,15 +356,8 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 			printf("\n");
 		}
 
-		printf("mu:\n");
-		for (r_i = 0; r_i < mu->num_rows; r_i++) {
-			for (c_i = 0; c_i < mu->num_cols; c_i++)
-				printf("%f\t", mu->data[r_i][c_i]);
-			printf("\n");
-		}
-
 		printf("\n");
-		printf("L:\n");
+		printf("L final:\n");
 		for (r_i = 0; r_i < L->num_rows; r_i++) {
 			for (c_i = 0; c_i < L->num_cols; c_i++)
 				printf("%f\t", L->data[r_i][c_i]);
@@ -320,7 +365,7 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 		}
 
 		printf("\n");
-		printf("U:\n");
+		printf("U final:\n");
 		for (r_i = 0; r_i < U->num_rows; r_i++) {
 			for (c_i = 0; c_i < U->num_cols; c_i++)
 				printf("%f\t", U->data[r_i][c_i]);
@@ -328,7 +373,7 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 		}
 
 		printf("\n");
-		printf("P:\n");
+		printf("P final:\n");
 		for (r_i = 0; r_i < P->num_rows; r_i++) {
 			for (c_i = 0; c_i < P->num_cols; c_i++)
 				printf("%f\t", P->data[r_i][c_i]);
@@ -342,9 +387,9 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 			printf("\n");
 		}
 		printf("\n");
-	}
+	// } // end if ((step_i % DECIM_DISP_CON)
+#endif
 
 	step_i++;
-#endif
 }
 

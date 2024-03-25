@@ -428,7 +428,7 @@ void ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct od
 	}
 
 #if USE_ITM_OUT_ADMITT_MODEL
-	static int DECIM_DISP_DT_Z = DECIM_DISP_GENERAL;
+	int DECIM_DISP_DT_Z = DECIM_DISP_GENERAL;
 
 	if ((step_i % DECIM_DISP_DT_Z) == 0) {
 		printf("____________________________\n");

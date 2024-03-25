@@ -79,11 +79,18 @@ void test_ode_int() {
 	static double sigma;
 
 	admitt_model_params.inertia_x = admitt_model_params.inertia_y = 10.0;
-	admitt_model_params.stiffness = admitt_model_params.inertia_x*w_n*w_n;
 
-	admitt_model_params.damping =
-			2*damp_ratio*
-			sqrt(admitt_model_params.stiffness*admitt_model_params.inertia_x);
+	if (USE_ADMITT_MODEL_CONSTR_ODE) {
+		admitt_model_params.stiffness =  0.0;
+		admitt_model_params.damping   = 20.0;
+	}
+	else {
+		admitt_model_params.stiffness = admitt_model_params.inertia_x*w_n*w_n;
+
+		admitt_model_params.damping =
+				2*damp_ratio*
+				sqrt(admitt_model_params.stiffness*admitt_model_params.inertia_x);
+	}
 
 	sigma = damp_ratio*w_n;
 	T_RUN_MAX = 3.0/sigma;
@@ -113,7 +120,6 @@ void test_ode_int() {
 		z_intern_o_dbl[4] = 0;
 		z_intern_o_dbl[5] = 0;
 	}
-
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Run simulation loop:
@@ -169,7 +175,6 @@ void test_ode_int() {
 		t_ref = dt_k*step_i;
 
 		// ITM console output:
-
 		/*
 		if (step_i % (DT_DISP_MSEC_REALTIME/(int)(1000*dt_k)) == 0)
 			printf("%d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f\n",

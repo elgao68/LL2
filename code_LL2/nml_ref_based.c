@@ -78,12 +78,6 @@ void nml_mat_cp_ref(nml_mat *m_out, nml_mat *m) {
 			m_out->data[i][j] = m->data[i][j];
 }
 
-/*
-LUP solver - old definition:
-void nml_mat_lup_solve_ref(nml_mat_lup *r, nml_mat *m, nml_mat *L, nml_mat *U, nml_mat *P),
-returned return nml_mat_lup_new_ref(r, L, U, P, num_permutations);
-*/
-
 // LUP solver - new definition - uses no nml_mat_lup* struct:
 void nml_mat_lup_solve_ref(nml_mat *m, nml_mat *L, nml_mat *U, nml_mat *P, unsigned int* num_permutations) {
   if (!m->is_square) {
@@ -121,15 +115,6 @@ void nml_mat_lup_solve_ref(nml_mat *m, nml_mat *L, nml_mat *U, nml_mat *P, unsig
   nml_mat_diag_set(L, 1.0);
 }
 
-/*
-void nml_mat_lup_new_ref(nml_mat_lup *r, nml_mat *L, nml_mat *U, nml_mat *P, unsigned int num_permutations) {
-  r->L = L;
-  r->U = U;
-  r->P = P;
-  r->num_permutations = num_permutations;
-}
-*/
-
 // A[n][n] is a square matrix
 // m contains matrices L, U, P for A[n][n] so that P*A = L*U
 //
@@ -141,9 +126,6 @@ void nml_mat_lup_new_ref(nml_mat_lup *r, nml_mat *L, nml_mat *U, nml_mat *P, uns
 //    L * y = P b (forward substitution)
 //    U * x = y (backward substitution)
 // We obtain and return x:
-
-// Old implementation:
-// void nml_ls_solve_ref(nml_mat *x_soln, nml_mat_lup *lu, nml_mat* b, nml_mat *Pb, nml_mat *y)
 
 // New implementation - no nml_mat_lup* struct:
 void nml_ls_solve_ref(nml_mat *x_soln, nml_mat *L, nml_mat *U, nml_mat *P, nml_mat* b, nml_mat *Pb, nml_mat *y) {
@@ -230,3 +212,50 @@ void nml_exp_matrix_ref(nml_mat *exp_A, nml_mat *A, nml_mat *pow_A, nml_mat* ter
 	}
 }
 
+// Swap operations:
+void nml_swap_cols_array_ref(nml_mat *M_sw, nml_mat *M, int idx_swap[]) {
+
+	// WARNING: no dimensional check is performed
+
+	for (int c_i = 0; c_i < M->num_cols; c_i++)
+		for (int r_i = 0; r_i < M->num_rows; r_i++)
+			M_sw->data[r_i][c_i] = M->data[r_i][idx_swap[c_i]];
+}
+
+void nml_swap_rows_array_ref(nml_mat *M_sw, nml_mat *M, int idx_swap[]) {
+
+	// WARNING: no dimensional check is performed
+
+	for (int r_i = 0; r_i < M->num_rows; r_i++)
+		for (int c_i = 0; c_i < M->num_cols; c_i++)
+			M_sw->data[r_i][c_i] = M->data[idx_swap[r_i]][c_i];
+}
+
+// Matrix inverse:
+void nml_mat_inv_ref(nml_mat *inv_M, nml_mat *M, nml_mat *L, nml_mat *U, nml_mat *P,
+		nml_mat* I_col, nml_mat* inv_M_col, nml_mat* P_I_col, nml_mat* y_inv_M) {
+
+	unsigned int num_permutations;
+	int r_i, c_i; // counters
+
+	// Solve matrix inverse one column at a time:
+	for (c_i = 0; c_i < inv_M->num_cols; c_i++) {
+		nml_mat_cp_ref(U, M);
+		nml_mat_eye_ref(P);
+
+		// LUP decomposition:
+		nml_mat_lup_solve_ref(M, L, U, P, &num_permutations);
+
+		// Generate column of RHS (identity matrix):
+		nml_mat_all_set(I_col, 0.0);
+		I_col->data[c_i][0] = 1.0;
+
+		nml_mat_all_set(inv_M_col, 0.0);
+		nml_ls_solve_ref(inv_M_col, L, U, P, I_col, P_I_col, y_inv_M);
+
+		// Assign solution to matrix inverse column:
+		for (r_i = 0; r_i < inv_M->num_rows; r_i++) {
+			inv_M->data[r_i][c_i] = inv_M_col->data[r_i][0];
+		}
+	}
+}

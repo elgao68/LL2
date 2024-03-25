@@ -53,7 +53,7 @@ solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,
 
 #if USE_ITM_OUT_ODE
 	static int step_ode = 0;
-	static int DECIM_DISP_ODE = DECIM_DISP_GENERAL;
+	int DECIM_DISP_ODE = DECIM_DISP_GENERAL;
 	int c_i;
 
 	if ((step_ode % DECIM_DISP_ODE) == 0) {
@@ -180,7 +180,7 @@ solve_ode_sys_rkutta_ord4_nml(nml_mat* y_f, nml_mat* y_o, double T,
 	// ITM console output:
 #if USE_ITM_OUT_ODE
 	static int step_ode = 0;
-	static int DECIM_DISP_ODE = DECIM_DISP_GENERAL;
+	int DECIM_DISP_ODE = DECIM_DISP_GENERAL;
 	int c_i;
 
 	if ((step_ode % DECIM_DISP_ODE) == 0) {

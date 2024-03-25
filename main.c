@@ -29,8 +29,9 @@
 
 #include "_test_simulation.h"
 #include "_test_real_time.h"
-#include "_test_scratch.h"
+// #include "_test_scratch.h"
 #include "_test_ode_int.h"
+#include "_test_matr_inv.h"
 
 // #include "lowerlimb_calib_protocols.h"
 
@@ -74,8 +75,10 @@ void _Error_Handler(char *file, int line);
 #define _TEST_SIMULATION	 2
 #define _TEST_SCRATCH        3
 #define _TEST_ODE_INT        4
+#define _TEST_MATR_INV       5
 
-#define TEST_OPTION			 _TEST_SCRATCH
+#define TEST_OPTION			 _TEST_MATR_INV
+
 #define DT_DISP_MSEC_GUI_PARAMS		2000
 #define DT_DISP_MSEC_REALTIME		1000
 
@@ -214,6 +217,8 @@ main(void) {
 	test_simulation();
 #elif TEST_OPTION == _TEST_ODE_INT
 	test_ode_int();
+#elif TEST_OPTION == _TEST_MATR_INV
+	test_matr_inv();
 #endif
 
 	return 0;
