@@ -77,7 +77,7 @@ void _Error_Handler(char *file, int line);
 #define _TEST_ODE_INT        4
 #define _TEST_MATR_INV       5
 
-#define TEST_OPTION			 _TEST_MATR_INV
+#define TEST_OPTION			 _TEST_ODE_INT
 
 #define DT_DISP_MSEC_GUI_PARAMS		2000
 #define DT_DISP_MSEC_REALTIME		1000

@@ -90,8 +90,6 @@ test_matr_inv() {
 	*/
 
 	// Matrix inverse arguments:
-	nml_mat* I_col = nml_mat_new(M->num_rows, 1); // equation system's RHS term: single-column placeholder
-
 	nml_mat* inv_M     = nml_mat_new(M->num_rows, M->num_rows); // matrix inverse: initial allocation
 	nml_mat* inv_M_sw  = nml_mat_new(M->num_rows, M->num_rows); // matrix inverse (swapped): initial allocation
 	nml_mat* inv_M_col = nml_mat_new(M->num_rows, 1); // matrix inverse: single-column placeholder
@@ -100,6 +98,7 @@ test_matr_inv() {
 	nml_mat* U = nml_mat_new(M->num_rows, M->num_rows);
 	nml_mat* P = nml_mat_new(M->num_rows, M->num_rows);
 
+	nml_mat* I_col = nml_mat_new(M->num_rows, 1); // equation system's RHS term: single-column placeholder
 	nml_mat* P_I_col = nml_mat_new(P->num_rows, M->num_cols); // NOTE: technically second argument should be eye->num_cols
 	nml_mat* y_inv_M  = nml_mat_new(U->num_cols, 1); // needed by nml_ls_solve_ref();
 

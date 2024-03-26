@@ -21,6 +21,8 @@ solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,
 	static nml_mat* dt_y;
 	static nml_mat* delta_y;
 
+	static int step_ode = 0;
+
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Initialize matrices:
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -28,8 +30,8 @@ solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,
 	static int initial = 1;
 
 	if (initial) {
-		dt_y   = nml_mat_new(ode_params.DIM, 1);
-		delta_y   = nml_mat_new(ode_params.DIM, 1);
+		dt_y    = nml_mat_new(ode_params.DIM, 1);
+		delta_y = nml_mat_new(ode_params.DIM, 1);
 
 		initial = 0;
 	}
@@ -44,7 +46,7 @@ solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,
 	// Integration step:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	nml_mat_cp_ref(delta_y, dt_y);
+	nml_mat_cp_ref( delta_y, dt_y);
 	nml_mat_smult_r(delta_y, T);
 
 	// Compute ODE output:
@@ -52,15 +54,15 @@ solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,
 	nml_mat_add_r( y_f, delta_y);
 
 #if USE_ITM_OUT_ODE
-	static int step_ode = 0;
 	int DECIM_DISP_ODE = DECIM_DISP_GENERAL;
 	int c_i;
 
-	if ((step_ode % DECIM_DISP_ODE) == 0) {
+	// if ((step_ode % DECIM_DISP_ODE) == 0) {
 		printf("____________________________\n");
-		printf("solve_ode_sys_rectang_nml [%d]: T = [%f]\tF_end = [%f, %f]\n",
-			step_ode, T, ode_params.par_dbl[IDX_X], ode_params.par_dbl[IDX_Y]);
+		printf("solve_ode_sys_rectang_nml [%d]: dt = [%f]\t t = [%f]\t F_end = [%f, %f]\n",
+			step_ode, T, T*(double)step_ode, ode_params.par_dbl[IDX_X], ode_params.par_dbl[IDX_Y]);
 
+		printf("\n");
 		printf("y_o = [");
 		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
 			printf("%f\t", y_o->data[c_i][0]);
@@ -68,9 +70,9 @@ solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,
 		printf("]\n");
 
 		printf("\n");
-		printf("dt_y = [");
+		printf("delta_y = ["); // was dt_y
 		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
-			printf("%f\t", dt_y->data[c_i][0]);
+			printf("%f\t", delta_y->data[c_i][0]); // was dt_y
 		}
 		printf("]\n");
 
@@ -82,11 +84,11 @@ solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,
 		printf("]\n");
 
 		printf("\n");
-	}
+	// }
+#endif
 
 	// Increase counter:
 	step_ode++;
-#endif
 }
 
 /*

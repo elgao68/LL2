@@ -35,7 +35,7 @@ void test_ode_int() {
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	// Integrator time step:
-	double dt_k = 0.001; // (double)DT_STEP_MSEC/MSEC_PER_SEC; // integrator step (initial)
+	double dt_k = 0.005; // (double)DT_STEP_MSEC/MSEC_PER_SEC; // integrator step (initial)
 
 	// Reference position and velocity:
 	double    p_ref[N_COORD_2D] = {0.0, 0.0};
@@ -108,8 +108,8 @@ void test_ode_int() {
 		z_intern_o_dbl[0] = traj_ctrl_params.semiaxis_x;
 		z_intern_o_dbl[1] = 0;
 		z_intern_o_dbl[2] = 0;
-		z_intern_o_dbl[3] = 0.5;
-		z_intern_o_dbl[4] = 0;
+		z_intern_o_dbl[3] = 0;
+		z_intern_o_dbl[4] = 0.5;
 		z_intern_o_dbl[5] = 0;
 	}
 	else {

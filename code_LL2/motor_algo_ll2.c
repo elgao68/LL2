@@ -380,6 +380,7 @@ void ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct od
 				dt_z_nml, Q_in_nml, z_nml, F_end_in_nml, M_sys_q, B_sys_q, K_sys_q, q_eq_nml);
 
 	// ITM console output:
+#if USE_ITM_OUT_ADMITT_MODEL
 	if (step_i == 0) {
 		printf("M_sys_q = [ ...\n");
 		for (r_i = 0; r_i < M_sys_q->num_rows; r_i++) {
@@ -427,7 +428,6 @@ void ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct od
 		}
 	}
 
-#if USE_ITM_OUT_ADMITT_MODEL
 	int DECIM_DISP_DT_Z = DECIM_DISP_GENERAL;
 
 	if ((step_i % DECIM_DISP_DT_Z) == 0) {
@@ -442,9 +442,8 @@ void ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct od
 		printf("]\n\n");
 	}
 #endif
-	step_i++;
 
-    return dt_z_nml;
+	step_i++;
 }
 
 void admitt_model_matrices_nml(nml_mat* M_sys, nml_mat* B_sys, nml_mat* K_sys, double m_val[], double b_val[], double k_val[], size_t N_q) {

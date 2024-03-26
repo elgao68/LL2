@@ -157,24 +157,40 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
     // Declare static matrices:
     /////////////////////////////////////////////////////////////////////////////////////
 
+	// (1) Kinematics arrays:
 	static nml_mat* v;
 	static nml_mat* dt_z_unc;
 
+	// (2) Constraint matrix and auxiliary matrices:
 	static nml_mat* A_con_tr;
 	static nml_mat* zero_m;
 
+	// (3) Extended inertia matrix and inverse-related matrices:
 	static nml_mat* mu;
+	static nml_mat* mu_sw; // inertia matrix, swapped
+	static nml_mat* inv_mu; // matrix inverse
+	static nml_mat* inv_mu_sw; // matrix inverse (swapped)
+	static nml_mat* inv_mu_col; // matrix inverse: single-column placeholder
 
+	// (4) LU decomposition matrices:
 	static nml_mat* L;
 	static nml_mat* U;
 	static nml_mat* P;
-	unsigned int num_permutations;
 
+	// (5) Matrix inversion: auxiliary matrices
+	static nml_mat* I_col; // equation system's RHS term: single-column placeholder
+	static nml_mat* P_I_col;
+	static nml_mat* y_inv_mu;
+
+	// (6) State-space dynamic system: input and first derivatives arrays:
 	static nml_mat *dt_v_lam;
 	static nml_mat* Q_in_ext;
 
-	static nml_mat* P_Q_in_ext_prod;
-	static nml_mat* y_dt_v_lam;
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Swap indices array (CRITICAL FOR MATRIX INVERSE USING LU):
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	int IDX_SWAP[] = {3, 1, 4, 0, 2};
 
 	/////////////////////////////////////////////////////////////////////////////////////
     // Initialize matrices:
@@ -183,23 +199,35 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	static int init_nml = 1;
 
 	if (init_nml) {
+		// (1) Kinematics arrays:
 		v        = nml_mat_new(N_q, 1);
 		dt_z_unc = nml_mat_new(N_z, 1);
 
+		// (2) Constraint matrix and auxiliary matrices:
 		A_con_tr = nml_mat_new(N_q, N_c);
 		zero_m   = nml_mat_new(N_c, N_c);
 
-		mu = nml_mat_new(N_q + N_c, N_q + N_c);
+		// (3) Extended inertia matrix and inverse-related matrices:
+		mu         = nml_mat_new(N_q + N_c, N_q + N_c);
+		mu_sw      = nml_mat_new(mu->num_rows, mu->num_rows); // inertia matrix, swapped
 
+		inv_mu     = nml_mat_new(mu->num_rows, mu->num_rows); // matrix inverse: initial allocation
+		inv_mu_sw  = nml_mat_new(mu->num_rows, mu->num_rows); // matrix inverse (swapped): initial allocation
+		inv_mu_col = nml_mat_new(mu->num_rows, 1); // matrix inverse: single-column placeholder
+
+		// (4) LU decomposition matrices:
 		L  = nml_mat_new(mu->num_rows, mu->num_rows);
 		U  = nml_mat_new(mu->num_rows, mu->num_rows);
 		P  = nml_mat_new(mu->num_rows, mu->num_rows);
 
+		// (5) Matrix inversion: auxiliary matrices
+		I_col   = nml_mat_new(mu->num_rows, 1); // equation system's RHS term: single-column placeholder
+		P_I_col = nml_mat_new(P->num_rows, mu->num_cols); // NOTE: technically second argument should be eye->num_cols
+		y_inv_mu = nml_mat_new(U->num_cols, 1); // needed by nml_ls_solve_ref();
+
+		// (6) State-space dynamic system: input and first derivatives arrays:
 		dt_v_lam = nml_mat_new(N_q + N_c, 1);
 		Q_in_ext = nml_mat_new(N_q + N_c, 1);
-
-		P_Q_in_ext_prod = nml_mat_new(P->num_rows, Q_in_ext->num_cols);
-		y_dt_v_lam = nml_mat_new(U->num_cols, 1);
 
 		init_nml = 0;
 	}
@@ -272,14 +300,6 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	for (c_i = IDX_X; c_i <= IDX_PHI; c_i++)
 		Q_in_ext->data[c_i][0] = Q_in->data[c_i][0];
 
-	/////////////////////////////////////////////////////////////////////////////////////
-	// Constrained system output - computation:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	// Solve for acceleration & Lagrange multipliers' vector:
-	nml_mat_cp_ref(U, mu);
-	nml_mat_eye_ref(P);
-
 	// ITM console output:
 #if USE_ITM_OUT_DYN_SYS_CON
 	// if ((step_i % DECIM_DISP_CON) == 0) {
@@ -300,12 +320,14 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 			printf("\n");
 		}
 
+		/*
 		printf("A_con_tr:\n");
 		for (r_i = 0; r_i < A_con_tr->num_rows; r_i++) {
 			for (c_i = 0; c_i < A_con_tr->num_cols; c_i++)
 				printf("%f\t", A_con_tr->data[r_i][c_i]);
 			printf("\n");
 		}
+		*/
 
 		printf("\n");
 		printf("mu:\n");
@@ -315,6 +337,15 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 			printf("\n");
 		}
 
+		printf("\n");
+		printf("inv mu:\n");
+		for (r_i = 0; r_i < inv_mu->num_rows; r_i++) {
+			for (c_i = 0; c_i < inv_mu->num_cols; c_i++)
+				printf("%f\t", inv_mu->data[r_i][c_i]);
+			printf("\n");
+		}
+
+		/*
 		printf("\n");
 		printf("U initial:\n");
 		for (r_i = 0; r_i < U->num_rows; r_i++) {
@@ -330,12 +361,30 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 				printf("%f\t", P->data[r_i][c_i]);
 			printf("\n");
 		}
+		*/
+
 	// } // if ((step_i % DECIM_DISP_CON)
 #endif
 
-	nml_mat_lup_solve_ref(mu, L, U, P, 	&num_permutations);
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Invert extended inertia matrix:
+	/////////////////////////////////////////////////////////////////////////////////////
 
-	nml_ls_solve_ref(dt_v_lam, L, U, P, Q_in_ext, P_Q_in_ext_prod, y_dt_v_lam);
+	// Swap inertia matrix columns:
+	nml_swap_cols_array_ref(mu_sw, mu, IDX_SWAP);
+
+	// Solve matrix inverse for swapped matrix:
+	nml_mat_inv_ref(inv_mu_sw, mu_sw, L, U, P,
+			I_col, inv_mu_col, P_I_col, y_inv_mu);
+
+	// Swap inverse matrix rows to obtain desired inverse:
+	nml_swap_rows_array_ref(inv_mu, inv_mu_sw, IDX_SWAP);
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Constrained system output:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	nml_mat_dot_ref(dt_v_lam, inv_mu, Q_in_ext);
 
 	// Constrained output vector:
 	for (c_i = IDX_X; c_i <= IDX_PHI; c_i++) {
@@ -348,14 +397,14 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	// if ((step_i % DECIM_DISP_CON) == 0) {
 		printf("----------------------------\n");
 		printf("dyn_sys_msd_nml_constr_lagr [%d]:\n", step_i);
-		printf("\n");
-		printf("Q_in_ext:\n");
-		for (r_i = 0; r_i < Q_in_ext->num_rows; r_i++) {
-			for (c_i = 0; c_i < Q_in_ext->num_cols; c_i++)
-				printf("%f\t", Q_in_ext->data[r_i][c_i]);
-			printf("\n");
-		}
 
+		printf("\n");
+		printf("Q_in_ext = [");
+		for (r_i = 0; r_i < Q_in_ext->num_rows; r_i++)
+			printf("%f\t", Q_in_ext->data[r_i][0]);
+		printf("]\n");
+
+		/*
 		printf("\n");
 		printf("L final:\n");
 		for (r_i = 0; r_i < L->num_rows; r_i++) {
@@ -379,13 +428,14 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 				printf("%f\t", P->data[r_i][c_i]);
 			printf("\n");
 		}
+		*/
 
-		printf("dt_v_lam: ");
-		for (r_i = 0; r_i < dt_v_lam->num_rows; r_i++) {
-			for (c_i = 0; c_i < dt_v_lam->num_cols; c_i++)
-				printf("%f\t", dt_v_lam->data[r_i][c_i]);
-			printf("\n");
-		}
+		printf("\n");
+		printf("dt_v_lam = [");
+		for (r_i = 0; r_i < dt_v_lam->num_rows; r_i++)
+			printf("%f\t", dt_v_lam->data[r_i][0]);
+		printf("]\n");
+
 		printf("\n");
 	// } // end if ((step_i % DECIM_DISP_CON)
 #endif
