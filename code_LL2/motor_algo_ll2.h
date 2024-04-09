@@ -28,6 +28,7 @@
 #include <dynamic_systems_nml.h>
 #include <lowerlimb_config.h>
 #include <traj_ctrl_params_nml.h>
+#include "transition_mode.h"
 
 #ifdef __cplusplus
 	extern "C" {

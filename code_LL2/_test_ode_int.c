@@ -15,7 +15,7 @@ void test_ode_int() {
 	// FIRMWARE/CONTROL PARAMETERS - GAO:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	// These are only needed for data logging (set_LL_exercise_feedback_help()):
+	// These are only needed for data logging (set_lowerlimb_exercise_feedback()):
 	lowerlimb_mech_readings_t   LL_mech_readings;
 	lowerlimb_motors_settings_t LL_motors_settings;
 
@@ -105,17 +105,23 @@ void test_ode_int() {
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	if (USE_ADMITT_MODEL_CONSTR_ODE) {
+		// Positions:
 		z_intern_o_dbl[0] = traj_ctrl_params.semiaxis_x;
 		z_intern_o_dbl[1] = 0;
 		z_intern_o_dbl[2] = 0;
+
+		// Velocities:
 		z_intern_o_dbl[3] = 0;
 		z_intern_o_dbl[4] = 0.5;
 		z_intern_o_dbl[5] = 0;
 	}
 	else {
+		// Positions:
 		z_intern_o_dbl[0] = traj_ctrl_params.semiaxis_x;
 		z_intern_o_dbl[1] = traj_ctrl_params.semiaxis_y;
 		z_intern_o_dbl[2] = 0;
+
+		// Velocities:
 		z_intern_o_dbl[3] = 0;
 		z_intern_o_dbl[4] = 0;
 		z_intern_o_dbl[5] = 0;
@@ -166,7 +172,7 @@ void test_ode_int() {
 		// Input Brakes info from TCP System Info
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		set_LL_exercise_feedback_help(getUpTime(), &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
+		set_lowerlimb_exercise_feedback(getUpTime(), &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Update step time:

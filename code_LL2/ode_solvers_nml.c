@@ -11,7 +11,7 @@
 
 #define USE_ITM_OUT_ODE	1
 
-#define ORD_4			4
+#define ORD_4	4
 
 void
 solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,

@@ -102,7 +102,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// TCP app:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	lowerlimb_tcp_init_app_state(0, VER_H, VER_L, VER_P, &LL_motors_settings);
+	lowerlimb_tcp_app_state_initialize(0, VER_H, VER_L, VER_P, &LL_motors_settings);
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Initialize motor algorithm:
@@ -369,7 +369,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								// Input Brakes info from TCP System Info
 								/////////////////////////////////////////////////////////////////////////////////////
 
-								set_LL_exercise_feedback_help(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
+								set_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
 
 								/////////////////////////////////////////////////////////////////////////////////////
 								// Update step time:

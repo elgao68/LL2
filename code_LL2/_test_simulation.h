@@ -14,6 +14,8 @@
 #include <_coord_system.h>
 #include <nml.h>
 #include <nml_util.h>
+#include "traj_ctrl_params_nml.h"
+#include "stm32f4xx_hal.h"
 
 void test_simulation();
 

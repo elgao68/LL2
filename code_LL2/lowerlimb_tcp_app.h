@@ -25,6 +25,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "common.h"
+#include "w5500_app.h"
+#include "transition_mode.h"
+#include "qei_motor_drivers.h"
 
 ///////////////////////////////////////////////////////
 // CONTROL / SIMULATION SETTINGS - GAO
@@ -194,7 +197,26 @@ typedef struct {
 
 } lowerlimb_exercise_feedback_params_t;
 
-void* memcpy_msb(void *pDest, const void *pSrc, unsigned long len);
+///////////////////////////////////////////////////////////////////////
+// Messaging variables:
+///////////////////////////////////////////////////////////////////////
+
+static lowerlimb_sys_info_t lowerlimb_sys_info;
+//static uint64_t ui64CalibNextTime = 0;
+static lowerlimb_brakes_command_t lowerlimb_brakes_command;
+
+//TCP messages:
+static uint8_t tcpRxData[DATA_BUF_SIZE];
+static uint16_t tcpRxLen = 0;
+extern ADC_HandleTypeDef hadc3;
+
+//message preample and postample
+static uint8_t PREAMP_TCP[2] = { 0x48, 0x4D };
+static uint8_t POSTAMP_TCP[2] = { 0x68, 0x6D };
+
+///////////////////////////////////////////////////////////////////////
+// Messaging functions:
+///////////////////////////////////////////////////////////////////////
 
 /**
  @brief: Send calibration response message
@@ -203,6 +225,9 @@ void* memcpy_msb(void *pDest, const void *pSrc, unsigned long len);
  @param[in]: state = 0 (0 = idle, 1 = running, 2 = passed, 3 = failed)
  */
 uint8_t send_calibration_resp(uint8_t actProto, uint8_t percent, uint8_t state);
+uint8_t send_error_msg(uint16_t tmp_cmd_code, uint16_t tmp_err_code);
+uint8_t send_OK_resp(uint16_t tmp_cmd_code);
+uint8_t send_resp_msg(uint16_t tmp_cmd_code, uint8_t tmp_payload[],	uint16_t tmp_len);
 
 /**
  @brief: reset the lowerlimb_exercise_feedback_info
@@ -222,11 +247,7 @@ uint8_t send_calibration_resp(uint8_t actProto, uint8_t percent, uint8_t state);
  @retval: 0 = success, 1 = failed
  */
 
-uint8_t
-set_LL_exercise_feedback_help(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
-		lowerlimb_ref_kinematics_t* ref_kinematics);
-
-uint8_t set_lowerlimb_exercise_feedback_info(uint64_t up_time,
+uint8_t send_lowerlimb_exercise_feedback(uint64_t up_time,
 								float f_x, float f_y,
 								int32_t fQei_L, int32_t fQei_R,
 								float fVel_X, float fVel_Y,
@@ -238,17 +259,17 @@ uint8_t set_lowerlimb_exercise_feedback_info(uint64_t up_time,
 								float fRefVel_x, float fRefVel_y,
 								float fRefPhase, float fRefFreq);
 
-/**
- @brief: stop exercise
- @retval: 0 = success, 1 = failed
- */
-uint8_t stop_exercise(lowerlimb_motors_settings_t* LL_motors_settings);
+
+
+///////////////////////////////////////////////////////////////////////
+// TCP/IP scripts (see lowerlimb_tcp_scripts.c):
+///////////////////////////////////////////////////////////////////////
 
 /**
  @brief: Start in the APP.
  @retval: 0 = success, 1 = failed
  */
-uint8_t lowerlimb_tcp_init_app_state(uint64_t init_unix, uint8_t maj_ver,
+uint8_t lowerlimb_tcp_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings);
 
 /**
@@ -260,6 +281,30 @@ uint8_t lowerlimb_tcp_init_app_state(uint64_t init_unix, uint8_t maj_ver,
 lowerlimb_sys_info_t lowerlimb_tcp_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert,
 		traj_ctrl_params_t* traj_ctrl_params, admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings);
 
+///////////////////////////////////////////////////////////////////////
+// Helper functions:
+///////////////////////////////////////////////////////////////////////
+
+uint8_t
+set_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
+		lowerlimb_ref_kinematics_t* ref_kinematics);
+
+void reset_lowerlimb_sys_info(void);
+// void clear_lowerlimb_targs_params(void);
+uint8_t update_unix_time(void);
+uint8_t set_unix_time(uint64_t tmp_unix);
+uint8_t set_system_on(void);
+uint8_t set_system_off(void);
+uint8_t set_activity_idle(void);
+uint8_t set_activity_exercise(void);
+uint8_t set_activity_calib(void);
+
+/**
+ @brief: stop exercise
+ @retval: 0 = success, 1 = failed
+ */
+uint8_t stop_exercise(lowerlimb_motors_settings_t* LL_motors_settings);
+
 /**
  @brief: reset all alerts and set normal state.
  */
@@ -270,6 +315,9 @@ bool get_r_brake_cmd(void);
 
 void set_l_brake_status(uint8_t status);
 void set_r_brake_status(uint8_t status);
+
+void* memcpy_msb(void *pDest, const void *pSrc, unsigned long len);
+
 #endif
 
 /* [] END OF FILE */
