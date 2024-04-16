@@ -12,7 +12,7 @@
  *
  * ========================================
  */
-#include <lowerlimb_tcp_app.h>
+#include <lowerlimb_app.h>
 #include <stdlib.h>
 #include <string.h>
 #include "w5500_app.h"
@@ -167,7 +167,7 @@ send_resp_msg(uint16_t tmp_cmd_code, uint8_t tmp_payload[],
 }
 
 uint8_t
-send_lowerlimb_exercise_feedback(uint64_t up_time,
+send_lowerlimb_exercise_feedback_help(uint64_t up_time,
 								float f_x, float f_y,
 								int32_t fQei_L, int32_t fQei_R,
 								float fVel_X, float fVel_Y,
@@ -338,12 +338,12 @@ send_lowerlimb_exercise_feedback(uint64_t up_time,
 ///////////////////////////////////////////////////////////////////////
 
 uint8_t
-set_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
+send_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
 		lowerlimb_ref_kinematics_t* ref_kinematics) {
 
 	float FORCE_END_MAGN = 0.0; // don't need to maintain this
 
-	return send_lowerlimb_exercise_feedback(
+	return send_lowerlimb_exercise_feedback_help(
 		up_time,
 		mech_readings->coord.x,
 		mech_readings->coord.y,
@@ -368,6 +368,63 @@ set_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mec
 		ref_kinematics->dt_phi_ref);
 }
 
+void
+send_lowerlimb_sys_info(lowerlimb_sys_info_t* lowerlimb_sys_info, uint8_t tmp_resp_msg[], uint16_t cmd_code) {
+
+	uint16_t resp_payload_index = 0;
+	uint16_t LEN_BYTES_RESERVE = 40;
+
+	memcpy_msb(tmp_resp_msg, &(lowerlimb_sys_info->unix), sizeof(lowerlimb_sys_info->unix));
+	resp_payload_index += sizeof(lowerlimb_sys_info->unix);
+
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->system_state;
+	resp_payload_index += sizeof(lowerlimb_sys_info->system_state);
+
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->exercise_state;
+	resp_payload_index += sizeof(lowerlimb_sys_info->exercise_state);
+
+	if (lowerlimb_sys_info->calibrate_state == 1)
+		tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->calibrate_state;
+	else if (lowerlimb_sys_info->isCalibrated == YES)
+		tmp_resp_msg[resp_payload_index] = 0;
+	else
+		tmp_resp_msg[resp_payload_index] = 0xFF; //indicate need calibration
+
+	resp_payload_index += sizeof(lowerlimb_sys_info->calibrate_state);
+
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->operation_state;
+	resp_payload_index += sizeof(lowerlimb_sys_info->operation_state);
+
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->fw_maj_ver;
+	resp_payload_index += sizeof(lowerlimb_sys_info->fw_maj_ver);
+
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->fw_min_ver;
+	resp_payload_index += sizeof(lowerlimb_sys_info->fw_min_ver);
+
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->fw_patch_ver;
+	resp_payload_index += sizeof(lowerlimb_sys_info->fw_patch_ver);
+
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->safetyOFF;
+	resp_payload_index += sizeof(lowerlimb_sys_info->safetyOFF);
+
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->l_brake_status;
+	resp_payload_index += sizeof(lowerlimb_sys_info->l_brake_status);
+
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->r_brake_status;
+	resp_payload_index += sizeof(lowerlimb_sys_info->r_brake_status);
+
+	memcpy_msb(&tmp_resp_msg[resp_payload_index], &lowerlimb_sys_info->f_x, sizeof(lowerlimb_sys_info->f_x));
+	resp_payload_index += sizeof(lowerlimb_sys_info->f_x);
+
+	memcpy_msb(&tmp_resp_msg[resp_payload_index], &lowerlimb_sys_info->f_y, sizeof(lowerlimb_sys_info->f_y));
+	resp_payload_index += sizeof(lowerlimb_sys_info->f_y);
+
+	resp_payload_index +=  LEN_BYTES_RESERVE; //Reserved bytes
+
+	//send response:
+	send_resp_msg(cmd_code, tmp_resp_msg, resp_payload_index);
+}
+
 /**
  @brief: reset the lowerlimb_sys_info
  @retval: none
@@ -387,6 +444,16 @@ void reset_lowerlimb_sys_info(void) {
 	//restore old values
 	lowerlimb_sys_info.fw_maj_ver = fw_maj;
 	lowerlimb_sys_info.fw_min_ver = fw_min;
+}
+
+uint8_t valid_app_status(uint8_t property, uint8_t value, uint16_t* app_status, uint16_t cmd_code, uint16_t ERR_CODE, uint16_t err_offset) {
+	if (property != value) {
+		send_error_msg(cmd_code, ERR_CODE);
+		*app_status = ERR_CODE + err_offset;
+		return 0;
+	}
+	else
+		return 1;
 }
 
 /**

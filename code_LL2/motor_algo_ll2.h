@@ -68,7 +68,7 @@ typedef struct {
 
 typedef struct {
     float torque;				//set torque in N.m
-    float current;				//calc current flow in Ampere
+    float current;				//calc current flow in Amperes
     float volt;					//calc voltage in V
 
     uint32_t dac_in;

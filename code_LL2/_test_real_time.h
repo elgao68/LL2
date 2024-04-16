@@ -12,7 +12,7 @@
 
 #include <_std_c.h>
 #include <admitt_model_params.h>
-#include <lowerlimb_tcp_app.h>
+#include <lowerlimb_app.h>
 #include <motor_algo_ll2.h>
 #include <nml.h>
 #include <nml_util.h>
@@ -68,6 +68,8 @@ static uint32_t current_sensor_R = 0;
 
 // Force sensors override:
 #define OVERR_FORCE_SENSORS_CALIB_1		1 // ensure calibration mode 1 is selected
+
+#define USE_ITM_OUT_CMD_CODE			1
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare helper functions (see main.c):

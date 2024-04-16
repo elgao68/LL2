@@ -9,7 +9,7 @@
 
 #include <_std_c.h>
 #include <admitt_model_params.h>
-#include <lowerlimb_tcp_app.h>
+#include <lowerlimb_app.h>
 #include <motor_algo_ll2.h>
 #include <nml.h>
 #include <nml_util.h>
@@ -77,7 +77,7 @@ void _Error_Handler(char *file, int line);
 #define _TEST_ODE_INT        4
 #define _TEST_MATR_INV       5
 
-#define TEST_OPTION			 _TEST_ODE_INT
+#define TEST_OPTION			 _TEST_REAL_TIME
 
 #define DT_DISP_MSEC_GUI_PARAMS		2000
 #define DT_DISP_MSEC_REALTIME		1000
@@ -148,19 +148,19 @@ main(void) {
 
 	uint8_t startup_status = 0;
 
-	startup_status = uart_sys_init();
-	// uart_printf("System starting up!\r\n");
+	// startup_status = uart_sys_init();
+
+	printf("\n");
+	printf("System starting up!\r\n");
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	//start 1ms timer
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	startup_status = startBaseTimer();
-	/*
-	if (startup_status) {
-		uart_printf("Base Timer init err!\r\n");
-	}
-	*/
+
+	if (startup_status)
+		printf("Base Timer init error!\r\n");
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	//start motor driver
@@ -168,12 +168,10 @@ main(void) {
 
 	startup_status = motor_qei_sys_start();
 
-	/*
-	if (startup_status) {
-		uart_printf("Motor PWM and QEI init err!\r\n");
-	}
-	uart_printf("System startup success!\r\n");
-	*/
+	if (startup_status)
+		printf("Motor PWM and QEI init err!\r\n");
+
+	printf("System startup success!\r\n");
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	//disable motor
@@ -232,8 +230,7 @@ main(void) {
 
 int
 _write(int32_t file, uint8_t *ptr, int32_t len) {
-	int i;
-	for(i = 0; i < len; i++)
+	for(int i = 0; i < len; i++)
 		ITM_SendChar(*ptr++);
 	return len;
 }

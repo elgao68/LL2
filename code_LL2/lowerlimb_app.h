@@ -35,6 +35,8 @@
 
 #define SET_CTRL_PARAMETERS  1
 
+#define USE_ITM_OUT_CMD_CODE 1
+
 ///////////////////////////////////////////////////////
 // TYPE DEFINITIONS:
 ///////////////////////////////////////////////////////
@@ -124,6 +126,8 @@ typedef enum {
 #define ERR_INVALID_EXERCISE_MODE 0x000B
 #define ERR_UNKNOWN								0xBEEF
 
+#define ERR_OFFSET                      3
+
 //type of operation states
 #define OPS_STATUS_NORMAL_MASK			0x01
 #define OPS_STATUS_EBTN_PRESSED_MASK	0x02
@@ -160,11 +164,11 @@ typedef struct {
 	uint8_t isCalibrated;		//0 = not calibrated. 1 = calibrated
 	uint8_t calib_prot_req; 	//which protocol was requested
 
-	/*returns tcp app status.
+	/*returns app status.
 	 1 = preample and postample failed,
 	 2 = incorrect msg type
 	 X = error code - 2, 3 = ERR_GENERAL_NOK*/
-	uint16_t tcp_status;
+	uint16_t app_status;
 
 	exercise_mode_t exercise_mode;
 } lowerlimb_sys_info_t;	//System Info
@@ -194,7 +198,6 @@ typedef struct {
 	uint8_t ui8OpsStatus;
 	uint8_t l_brake_status;
 	uint8_t r_brake_status;
-
 } lowerlimb_exercise_feedback_params_t;
 
 ///////////////////////////////////////////////////////////////////////
@@ -247,7 +250,7 @@ uint8_t send_resp_msg(uint16_t tmp_cmd_code, uint8_t tmp_payload[],	uint16_t tmp
  @retval: 0 = success, 1 = failed
  */
 
-uint8_t send_lowerlimb_exercise_feedback(uint64_t up_time,
+uint8_t send_lowerlimb_exercise_feedback_help(uint64_t up_time,
 								float f_x, float f_y,
 								int32_t fQei_L, int32_t fQei_R,
 								float fVel_X, float fVel_Y,
@@ -260,7 +263,6 @@ uint8_t send_lowerlimb_exercise_feedback(uint64_t up_time,
 								float fRefPhase, float fRefFreq);
 
 
-
 ///////////////////////////////////////////////////////////////////////
 // TCP/IP scripts (see lowerlimb_tcp_scripts.c):
 ///////////////////////////////////////////////////////////////////////
@@ -269,7 +271,7 @@ uint8_t send_lowerlimb_exercise_feedback(uint64_t up_time,
  @brief: Start in the APP.
  @retval: 0 = success, 1 = failed
  */
-uint8_t lowerlimb_tcp_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
+uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings);
 
 /**
@@ -278,18 +280,21 @@ uint8_t lowerlimb_tcp_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
  @param[in]: ui8Alert = alert msg from motor algo (0 = no alert, 1 = sampling alert, 2 = RT vel alert)
  @retval: 0 = success, 1 = failed
  */
-lowerlimb_sys_info_t lowerlimb_tcp_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert,
-		traj_ctrl_params_t* traj_ctrl_params, admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings);
+lowerlimb_sys_info_t lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert,
+		traj_ctrl_params_t* traj_ctrl_params, admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy);
 
 ///////////////////////////////////////////////////////////////////////
 // Helper functions:
 ///////////////////////////////////////////////////////////////////////
 
 uint8_t
-set_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
+send_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
 		lowerlimb_ref_kinematics_t* ref_kinematics);
+void
+send_lowerlimb_sys_info(lowerlimb_sys_info_t* lowerlimb_sys_info, uint8_t tmp_resp_msg[], uint16_t cmd_code);
 
 void reset_lowerlimb_sys_info(void);
+uint8_t valid_app_status(uint8_t property, uint8_t value, uint16_t* app_status, uint16_t cmd_code, uint16_t ERR_CODE, uint16_t err_offset);
 // void clear_lowerlimb_targs_params(void);
 uint8_t update_unix_time(void);
 uint8_t set_unix_time(uint64_t tmp_unix);

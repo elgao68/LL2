@@ -134,7 +134,7 @@ test_simulation() {
 
 		// Write feedback message:
 		/*
-		send_lowerlimb_exercise_feedback(
+		send_lowerlimb_exercise_feedback_help(
 			p_ref[IDX_X], p_ref[IDX_Y],
 			0, 0,
 			dt_p_ref[IDX_X], dt_p_ref[IDX_Y],

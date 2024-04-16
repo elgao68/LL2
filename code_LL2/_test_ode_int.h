@@ -12,7 +12,7 @@
 
 #include <_std_c.h>
 #include <admitt_model_params.h>
-#include <lowerlimb_tcp_app.h>
+#include <lowerlimb_app.h>
 #include <motor_algo_ll2.h>
 #include <nml.h>
 #include <nml_util.h>

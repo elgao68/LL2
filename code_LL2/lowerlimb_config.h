@@ -24,7 +24,7 @@ extern "C" {
 
 #define UART_DRIVER_EN			1
 #define DEBUG_PRINT				0
-#define LOWERLIMB_SAFETY			0
+#define LOWERLIMB_SAFETY		0
 #define MOTOR_DRIVER_OPS 		1
 #define W5500_DEBUG_PRINTF		1
 #define ONBOARD_ETHERNET		0
@@ -32,7 +32,7 @@ extern "C" {
 
 //IP Configuration
 #define MAC_ADDRESS 	{0x00, 0x08, 0xdc, 0xab, 0xcd, 0xed}
-#define IP_ADDRESS		{192, 168, 102, 12}
+#define IP_ADDRESS		{192, 168, 102, 1} //  was {192, 168, 102, 12}
 #define PORT_NUMBER		3002
 
 //math definitions

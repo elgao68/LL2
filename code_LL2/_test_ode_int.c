@@ -15,7 +15,7 @@ void test_ode_int() {
 	// FIRMWARE/CONTROL PARAMETERS - GAO:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	// These are only needed for data logging (set_lowerlimb_exercise_feedback()):
+	// These are only needed for data logging (send_lowerlimb_exercise_feedback()):
 	lowerlimb_mech_readings_t   LL_mech_readings;
 	lowerlimb_motors_settings_t LL_motors_settings;
 
@@ -172,7 +172,7 @@ void test_ode_int() {
 		// Input Brakes info from TCP System Info
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		set_lowerlimb_exercise_feedback(getUpTime(), &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
+		send_lowerlimb_exercise_feedback(getUpTime(), &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Update step time:

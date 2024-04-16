@@ -84,6 +84,18 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double dt_p_m[N_COORD_2D];
 
 	/////////////////////////////////////////////////////////////////////////////////////
+	// Force command:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	float force_end_cmd[N_COORD_2D] = {0.0, 0.0};
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// TCP/IP variables:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	uint16_t cmd_code = 0;
+
+	/////////////////////////////////////////////////////////////////////////////////////
 	// Counters and timers:
 	/////////////////////////////////////////////////////////////////////////////////////
 
@@ -93,16 +105,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double t_ref = 0;
 
 	/////////////////////////////////////////////////////////////////////////////////////
-	// Force command:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	float force_end_cmd[N_COORD_2D] = {0.0, 0.0};
-
-	/////////////////////////////////////////////////////////////////////////////////////
 	// TCP app:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	lowerlimb_tcp_app_state_initialize(0, VER_H, VER_L, VER_P, &LL_motors_settings);
+	uint8_t tcp_state = lowerlimb_app_state_initialize(0, VER_H, VER_L, VER_P, &LL_motors_settings);
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Initialize motor algorithm:
@@ -112,17 +118,16 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////
-	// USER CODE BEGIN WHILE - GAO
+	// USER CODE LOOP - GAO
 	/////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	do {
-
 		/////////////////////////////////////////////////////////////////////////////////////
 		// uart rx state check
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		uart_rx_data_state();
+		// uart_rx_data_state();
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// ethernet check
@@ -134,8 +139,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 		// GET TCP/IP APP STATE - GAO
 		////////////////////////////////////////////////////////////////////////////////////////
 
-		LL_sys_info = lowerlimb_tcp_app_state(Read_Haptic_Button(), motor_alert,
-				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings);
+		LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
+				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Clear motor_alert after sending into tcp app state:
@@ -213,6 +218,13 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 		if (up_time >= algo_nextTime) {
 
 			algo_nextTime = up_time + DT_STEP_MSEC;
+
+#if USE_ITM_OUT_CMD_CODE
+			if (step_i % 100 == 0)
+				printf("step_i [%d]: cmd_code = [%d]\n", step_i, cmd_code);
+
+			// fflush(stdout);
+#endif
 
 			/////////////////////////////////////////////////////////////////////////////////////
 			// if system is on or off?
@@ -369,7 +381,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								// Input Brakes info from TCP System Info
 								/////////////////////////////////////////////////////////////////////////////////////
 
-								set_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
+								send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
 
 								/////////////////////////////////////////////////////////////////////////////////////
 								// Update step time:
@@ -404,9 +416,9 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 										p_ref[IDX_Y],
 										dt_p_ref[IDX_X],
 										dt_p_ref[IDX_Y]);
-										*/
+								 */
 #endif
-								step_i++;
+								// step_i++;
 							} // end if (LL_sys_info.exercise_state == ) (case: RUNNING)
 							else {
 								// reset
@@ -435,6 +447,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// Check if need to dump UART FIFO
 			/////////////////////////////////////////////////////////////////////////////////////
 
+			/*
 			if (prev_fifo_size != rx_fifo_size()) {
 				prev_fifo_size = rx_fifo_size();
 				expire_nextTime = up_time + DT_EXPIRE_MSEC;
@@ -444,6 +457,9 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				rx_fifo_clear();
 				prev_fifo_size = 0;
 			}
+			*/
+
+			step_i++;
 		} // if (up_time >= algo_nextTime)
 	} while (t_ref <= T_RUN_MAX);
 }
