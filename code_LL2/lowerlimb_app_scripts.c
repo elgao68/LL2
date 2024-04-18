@@ -226,7 +226,7 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 		//////////////////////////////////////////////////////////////////////////////////////
 
 		/*
-		#if USE_ITM_OUT_CMD_CODE
+		#if USE_ITM_TCP_CHECK
 			if (step_i % 1000 == 0)
 				printf("step_i [%d]: cmd_code = [%d]\n", step_i, cmd_code);
 

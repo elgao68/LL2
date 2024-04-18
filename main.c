@@ -83,7 +83,8 @@ void _Error_Handler(char *file, int line);
 #define DT_DISP_MSEC_REALTIME		1000
 
 #define USE_ITM_OUT_GUI_PARAMS		0
-#define USE_ITM_OUT_REAL_TIME		0
+#define USE_ITM_TCP_CHECK		    1
+#define USE_ITM_OUT_RT_CHECK		1
 #define USE_ITM_OUT_SIM				0
 
 /////////////////////////////////////////////////////////////////////////////

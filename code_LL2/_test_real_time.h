@@ -29,6 +29,7 @@
 #include "dhcp.h"
 #include "w5500_app.h"
 #include "peripheral.h"
+#include "socket.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // USER CODE BEGIN PV
@@ -68,8 +69,6 @@ static uint32_t current_sensor_R = 0;
 
 // Force sensors override:
 #define OVERR_FORCE_SENSORS_CALIB_1		1 // ensure calibration mode 1 is selected
-
-#define USE_ITM_OUT_CMD_CODE			1
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare helper functions (see main.c):

@@ -93,22 +93,40 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// TCP/IP variables:
 	/////////////////////////////////////////////////////////////////////////////////////
 
+	int sock_status;
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// App variables:
+	/////////////////////////////////////////////////////////////////////////////////////
+
 	uint16_t cmd_code = 0;
+	uint8_t  app_state = 0;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Counters and timers:
 	/////////////////////////////////////////////////////////////////////////////////////
 
+	// Real-time counters and timers:
 	double T_RUN_MAX;
-
-	int step_i = 0;
 	double t_ref = 0;
 
+	int rt_step_i = 0; // real-time step counter
+	int c_i       = 0; // general-purpose counter
+
+	// TCP communication checks:
+	const int N_STEP_FLASH = 20;
+
+	int ret_i    = 0;
+	int flash_i  = N_STEP_FLASH/2;
+
+	int32_t ret_tcp_msg;
+	uint64_t dt_ret_tcp_msec;
+
 	/////////////////////////////////////////////////////////////////////////////////////
-	// TCP app:
+	// Initialize app:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	uint8_t tcp_state = lowerlimb_app_state_initialize(0, VER_H, VER_L, VER_P, &LL_motors_settings);
+	app_state = lowerlimb_app_state_initialize(0, VER_H, VER_L, VER_P, &LL_motors_settings);
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Initialize motor algorithm:
@@ -124,92 +142,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	do {
 		/////////////////////////////////////////////////////////////////////////////////////
-		// uart rx state check
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		// uart_rx_data_state();
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// ethernet check
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		ethernet_w5500_state();
-
-		////////////////////////////////////////////////////////////////////////////////////////
-		// GET TCP/IP APP STATE - GAO
-		////////////////////////////////////////////////////////////////////////////////////////
-
-		LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
-				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Clear motor_alert after sending into tcp app state:
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		motor_alert = 0;
-
-		////////////////////////////////////////////////////////////////////////////////////////
-		// Override trajectory and control parameters - TODO: remove at a later date
-		////////////////////////////////////////////////////////////////////////////////////////
-
-#if OVERR_DYN_PARAMS_RT
-		/*
-		traj_ctrl_params.cycle_period = 3.0;
-		traj_ctrl_params.exp_blend_time = 3.0;
-		traj_ctrl_params.semiaxis_x = 0.15;
-		traj_ctrl_params.semiaxis_y = 0.08;
-		traj_ctrl_params.rot_angle = 0;
-		// traj_ctrl_params.cycle_dir = 1;
-		*/
-
-		static double damp_ratio = 0.2;
-		static double w_n        = 2*PI*1.0; // natural frequency
-		static double sigma;
-
-		admitt_model_params.inertia_x = admitt_model_params.inertia_y = 10.0;
-		admitt_model_params.stiffness = admitt_model_params.inertia_x*w_n*w_n;
-
-		admitt_model_params.damping =
-				2*damp_ratio*
-				sqrt(admitt_model_params.stiffness*admitt_model_params.inertia_x);
-
-		sigma = damp_ratio*w_n;
-		T_RUN_MAX = 6.0/sigma;
-
-		admitt_model_params.p_eq_x    = 0;
-		admitt_model_params.p_eq_y    = 0;
-		admitt_model_params.Fx_offset = 0;
-		admitt_model_params.Fy_offset = 0;
-#endif
-
-#if USE_ITM_OUT_GUI_PARAMS
-		if (step_i > 0 && step_i % (DT_DISP_MSEC_GUI_PARAMS/(int)(1000*dt_k)) == 0) {
-			printf("___________________________________\n");
-			printf("step_i   = [%d]\n", step_i);
-			printf("\n");
-			printf("cycle_period   = [%f]\n", traj_ctrl_params.cycle_period);
-			printf("exp_blend_time = [%f]\n", traj_ctrl_params.exp_blend_time );
-			printf("semiaxis_x     = [%f]\n", traj_ctrl_params.semiaxis_x);
-			printf("semiaxis_y     = [%f]\n", traj_ctrl_params.semiaxis_y);
-			printf("rot_angle      = [%f]\n", traj_ctrl_params.rot_angle);
-			// printf("cycle_dir    = [%d]\n", traj_ctrl_params.cycle_dir);
-
-			printf("\n");
-			printf("inertia_x = [%f]\n", admitt_model_params.inertia_x );
-			printf("inertia_y = [%f]\n", admitt_model_params.inertia_y);
-			printf("damping   = [%f]\n", admitt_model_params.damping);
-			printf("stiffness = [%f]\n", admitt_model_params.stiffness);
-			printf("p_eq_x    = [%f]\n", admitt_model_params.p_eq_x );
-			printf("p_eq_y    = [%f]\n", admitt_model_params.p_eq_y);
-			printf("Fx_offset = [%f]\n", admitt_model_params.Fx_offset);
-			printf("Fy_offset = [%f]\n", admitt_model_params.Fy_offset);
-			printf("\n");
-
-			fflush(stdout);
-		}
-#endif
-
-		/////////////////////////////////////////////////////////////////////////////////////
 		// Execute real-time step:
 		/////////////////////////////////////////////////////////////////////////////////////
 
@@ -219,12 +151,129 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 			algo_nextTime = up_time + DT_STEP_MSEC;
 
-#if USE_ITM_OUT_CMD_CODE
-			if (step_i % 100 == 0)
-				printf("step_i [%d]: cmd_code = [%d]\n", step_i, cmd_code);
+			/////////////////////////////////////////////////////////////////////////////////////
+			// uart rx state check
+			/////////////////////////////////////////////////////////////////////////////////////
 
-			// fflush(stdout);
-#endif
+			//uart_rx_data_state();
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			// ethernet check
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			#if USE_ITM_TCP_CHECK
+				dt_ret_tcp_msec = getUpTime(); //  tests time elapsed waiting for ethernet_w5500_state() to return
+			#endif
+
+			ret_tcp_msg = ethernet_w5500_state(&sock_status);
+
+			#if USE_ITM_TCP_CHECK
+				dt_ret_tcp_msec = getUpTime() - dt_ret_tcp_msec;
+
+				if (sock_status != SOCK_ESTABLISHED) { // (ret_tcp_msg < 0)
+					// Current socket state:
+					printf("\n");
+					printf("ethernet_w5500_state(): SOCKET STATUS [0x%02x]\n", sock_status);
+
+					// Current TCP return message and time:
+					printf("rt_step_i [%d]: cmd_code = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code, ret_tcp_msg, dt_ret_tcp_msec);
+					ret_i = 0;
+				}
+			#endif
+
+			#if USE_ITM_TCP_CHECK
+				if (rt_step_i > 0 && (rt_step_i % N_STEP_FLASH) == 0) {
+					if (sock_status == SOCK_ESTABLISHED) { // ret_tcp_msg > 0
+						Left_LED_function(Blue);
+						Right_LED_function(Blue);
+					}
+					else {
+						Left_LED_function(Red);
+						Right_LED_function(Red);
+					}
+
+					flash_i = 0;
+				}
+				else if (flash_i == N_STEP_FLASH/2) {
+					Left_LED_function(0);
+					Right_LED_function(0);
+				}
+
+				flash_i++;
+			#endif
+
+			/*
+			////////////////////////////////////////////////////////////////////////////////////////
+			// GET TCP/IP APP STATE - GAO
+			////////////////////////////////////////////////////////////////////////////////////////
+
+			LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
+					&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			// Clear motor_alert after sending into tcp app state:
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			motor_alert = 0;
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			// Override trajectory and control parameters - TODO: remove at a later date
+			////////////////////////////////////////////////////////////////////////////////////////
+
+			#if OVERR_DYN_PARAMS_RT
+				// traj_ctrl_params.cycle_period = 3.0;
+				// traj_ctrl_params.exp_blend_time = 3.0;
+				// traj_ctrl_params.semiaxis_x = 0.15;
+				// traj_ctrl_params.semiaxis_y = 0.08;
+				// traj_ctrl_params.rot_angle = 0;
+				// traj_ctrl_params.cycle_dir = 1;
+
+				static double damp_ratio = 0.2;
+				static double w_n        = 2*PI*1.0; // natural frequency
+				static double sigma;
+
+				admitt_model_params.inertia_x = admitt_model_params.inertia_y = 10.0;
+				admitt_model_params.stiffness = admitt_model_params.inertia_x*w_n*w_n;
+
+				admitt_model_params.damping =
+						2*damp_ratio*
+						sqrt(admitt_model_params.stiffness*admitt_model_params.inertia_x);
+
+				sigma = damp_ratio*w_n;
+				T_RUN_MAX = 6.0/sigma;
+
+				admitt_model_params.p_eq_x    = 0;
+				admitt_model_params.p_eq_y    = 0;
+				admitt_model_params.Fx_offset = 0;
+				admitt_model_params.Fy_offset = 0;
+			#endif
+
+			#if USE_ITM_OUT_GUI_PARAMS
+				if (rt_step_i > 0 && rt_step_i % (DT_DISP_MSEC_GUI_PARAMS/(int)(1000*dt_k)) == 0) {
+					printf("___________________________________\n");
+					printf("rt_step_i   = [%d]\n", rt_step_i);
+					printf("\n");
+					printf("cycle_period   = [%f]\n", traj_ctrl_params.cycle_period);
+					printf("exp_blend_time = [%f]\n", traj_ctrl_params.exp_blend_time );
+					printf("semiaxis_x     = [%f]\n", traj_ctrl_params.semiaxis_x);
+					printf("semiaxis_y     = [%f]\n", traj_ctrl_params.semiaxis_y);
+					printf("rot_angle      = [%f]\n", traj_ctrl_params.rot_angle);
+					// printf("cycle_dir    = [%d]\n", traj_ctrl_params.cycle_dir);
+
+					printf("\n");
+					printf("inertia_x = [%f]\n", admitt_model_params.inertia_x );
+					printf("inertia_y = [%f]\n", admitt_model_params.inertia_y);
+					printf("damping   = [%f]\n", admitt_model_params.damping);
+					printf("stiffness = [%f]\n", admitt_model_params.stiffness);
+					printf("p_eq_x    = [%f]\n", admitt_model_params.p_eq_x );
+					printf("p_eq_y    = [%f]\n", admitt_model_params.p_eq_y);
+					printf("Fx_offset = [%f]\n", admitt_model_params.Fx_offset);
+					printf("Fy_offset = [%f]\n", admitt_model_params.Fy_offset);
+					printf("\n");
+
+					fflush(stdout);
+				}
+			#endif
 
 			/////////////////////////////////////////////////////////////////////////////////////
 			// if system is on or off?
@@ -236,7 +285,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Check emergency signal GPIOG GPIO_PIN_14
 				/////////////////////////////////////////////////////////////////////////////////////
 
-				cycle_haptic_buttons();
+				#if !USE_ITM_TCP_CHECK
+					cycle_haptic_buttons();
+				#endif
+
 				set_brakes_timed(up_time, &brakes_nextTime);
 
 				/////////////////////////////////////////////////////////////////////////////////////
@@ -305,10 +357,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 										current_sensor_L, current_sensor_R,
 										force_end_in_x_sensor, force_end_in_y_sensor,
 										IS_CALIBRATION);
-#if OVERR_FORCE_SENSORS_CALIB_1
-								LL_mech_readings.Xforce = 0; // 0.1*cos(2*PI*t_ref + PI/2);
-								LL_mech_readings.Yforce = 0; // 0.1*cos(2*PI*t_ref);
-#endif
+
+								#if OVERR_FORCE_SENSORS_CALIB_1
+									LL_mech_readings.Xforce = 0; // 0.1*cos(2*PI*t_ref + PI/2);
+									LL_mech_readings.Yforce = 0; // 0.1*cos(2*PI*t_ref);
+								#endif
 
 								/////////////////////////////////////////////////////////////////////////////////////
 								// Extract measured end-effector forces:
@@ -387,38 +440,34 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								// Update step time:
 								/////////////////////////////////////////////////////////////////////////////////////
 
-								t_ref = dt_k*step_i;
+								t_ref = dt_k*rt_step_i;
 
 								// Check uptime after computations:
 								up_time_end = getUpTime();
 
 								// ITM console output:
-#if USE_ITM_OUT_REAL_TIME
-								if ((up_time_end - up_time) > DT_STEP_MSEC) {
+								#if USE_ITM_OUT_RT_CHECK
+									if ((up_time_end - up_time) > DT_STEP_MSEC) {
 
-									printf("____________________________\n");
-									printf("step_i [%d]: t_ref = %f\tDT MSEC = %d\n",
-										step_i,
-										t_ref,
-										(int)(up_time_end - up_time));
-									printf("____________________________\n");
-								}
-
-								/*
-								else if (step_i % (DT_DISP_MSEC_REALTIME/(int)(1000*dt_k)) == 0)
-									printf("%d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f\n",
-										step_i,
-										t_ref,
-										(int)(up_time_end - up_time),
-										phi_ref,
-										dt_phi_ref,
-										p_ref[IDX_X],
-										p_ref[IDX_Y],
-										dt_p_ref[IDX_X],
-										dt_p_ref[IDX_Y]);
-								 */
-#endif
-								// step_i++;
+										printf("____________________________\n");
+										printf("rt_step_i [%d]: t_ref = %f\tDT MSEC = %d\n",
+											rt_step_i,
+											t_ref,
+											(int)(up_time_end - up_time));
+										printf("____________________________\n");
+									}
+									else if (rt_step_i % (DT_DISP_MSEC_REALTIME/(int)(1000*dt_k)) == 0)
+										printf("%d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f\n",
+											rt_step_i,
+											t_ref,
+											(int)(up_time_end - up_time),
+											phi_ref,
+											dt_phi_ref,
+											p_ref[IDX_X],
+											p_ref[IDX_Y],
+											dt_p_ref[IDX_X],
+											dt_p_ref[IDX_Y]);
+								#endif
 							} // end if (LL_sys_info.exercise_state == ) (case: RUNNING)
 							else {
 								// reset
@@ -434,7 +483,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					} // switch (LL_sys_info.activity_state)
 			} // if (LL_sys_info.system_state == ON)
 			else {
-				LED_sys_state_off();
+				// LED_sys_state_off();
 			}
 
 			/////////////////////////////////////////////////////////////////////////////////////
@@ -447,19 +496,24 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// Check if need to dump UART FIFO
 			/////////////////////////////////////////////////////////////////////////////////////
 
-			/*
-			if (prev_fifo_size != rx_fifo_size()) {
-				prev_fifo_size = rx_fifo_size();
-				expire_nextTime = up_time + DT_EXPIRE_MSEC;
-			}
+			// if (prev_fifo_size != rx_fifo_size()) {
+			// 	prev_fifo_size = rx_fifo_size();
+			// 	expire_nextTime = up_time + DT_EXPIRE_MSEC;
+			// }
 
-			if ((up_time >= expire_nextTime) && (rx_fifo_size() > 0)) {
-				rx_fifo_clear();
-				prev_fifo_size = 0;
-			}
+			// if ((up_time >= expire_nextTime) && (rx_fifo_size() > 0)) {
+			// 	rx_fifo_clear();
+			// 	prev_fifo_size = 0;
+			// }
+
 			*/
 
-			step_i++;
+			/////////////////////////////////////////////////////////////////////////////////////
+			// Increase step counter:
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			rt_step_i++;
+
 		} // if (up_time >= algo_nextTime)
 	} while (t_ref <= T_RUN_MAX);
 }

@@ -291,7 +291,7 @@ void SetAutoKeepAlive(uint8_t sn, uint8_t time) // time > 0
 	@retval[in]: 1 = ok. Rest = error code. Refer to socket.h
 */
 static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLen, uint8_t* wbuf, 
-										uint16_t *wLen, uint8_t* destip, uint16_t destport)
+										uint16_t *wLen, uint8_t* destip, uint16_t destport, int* sock_status)
 {
     int32_t ret; // return value for SOCK_ERRORs
     uint16_t size = 0, sentsize= 0;
@@ -302,18 +302,30 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
     if(wizphy_getphylink() == 0)
         setSn_CR(sn,Sn_CR_CLOSE);
 
+    ///////////////////////////////////////////////////////////////////////////////////
     // Socket Status Transitions
-    // Check the W5500 Socket n status register (Sn_SR, The 'Sn_SR' controlled by Sn_CR command or Packet send/recv status):
+    // Check the W5500 Socket n status register
+    // (Sn_SR, The 'Sn_SR' controlled by Sn_CR command or Packet send/recv status):
+    ///////////////////////////////////////////////////////////////////////////////////
+
     switch (getSn_SR(sn)) {
-
 		case SOCK_ESTABLISHED:
-			if(getSn_IR(sn) & Sn_IR_CON) {	// Socket n interrupt register mask; TCP CON interrupt = connection with peer is successful
-				if (W5500_DEBUG_PRINTF)
-					printf("%d: Connected to - %d.%d.%d.%d : %d\r\n",sn, destip[0], destip[1], destip[2], destip[3], destport);
+			*sock_status = SOCK_ESTABLISHED;
 
+			if (getSn_IR(sn) & Sn_IR_CON) {	// Socket n interrupt register mask; TCP CON interrupt = connection with peer is successful
 				setSn_IR(sn, Sn_IR_CON);  // this interrupt should be write the bit cleared to '1'
 				is_tcp_connected = 1; //indicate TCP connected
 			}
+
+			#if W5500_DEBUG_PRINTF
+				printf("SOCK_ESTABLISHED, sn = [%d]: ", sn);
+
+				uint8_t sn_mask = getSn_IR(sn) & Sn_IR_CON; // TODO: make sure type cast is correct
+				if (sn_mask)
+					printf("Connected to - %d.%d.%d.%d : %d\r\n", destip[0], destip[1], destip[2], destip[3], destport);
+				else
+					printf("NULL MASK\r\n");
+			#endif
 
 			// Data Transaction Parts; Handle the [data receive and send] process
 			*rLen = 0; //reset read length
@@ -334,7 +346,7 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 			while((*wLen != sentsize) && (*wLen > 0)) {
 				ret = send(sn, wbuf+sentsize, *wLen-sentsize); // Data send process (User's buffer -> Destination through H/W Tx socket buffer)
 				
-				if(ret < 0) { // Send Error occurred (sent data length < 0)
+				if (ret < 0) { // Send Error occurred (sent data length < 0)
 					close(sn); // socket close
 					return ret;
 				}
@@ -343,37 +355,67 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 			break;
 
 		case SOCK_CLOSE_WAIT:
-			if((ret=disconnect(sn)) != SOCK_OK)
+			*sock_status = SOCK_CLOSE_WAIT;
+
+			ret = disconnect(sn);
+
+			#if W5500_DEBUG_PRINTF
+				printf("SOCK_CLOSE_WAIT, sn = [%d] ", sn);
+				if (ret != SOCK_OK)
+					printf("ret = [%d] != SOCK_OK \r\n", ret);
+				else
+					printf("ret = [%d] == SOCK_OK\r\n", ret);
+			#endif
+
+			if (ret != SOCK_OK)
 				return ret;
 		
 			is_tcp_connected = 0; //indicate TCP disconnected
-
-			if (W5500_DEBUG_PRINTF)
-				printf("%d: Socket Closed\r\n", sn);
 			break;
 
 		case SOCK_INIT:
-			if (W5500_DEBUG_PRINTF)
-				printf("%d: Trying to connect to %d.%d.%d.%d : %d\r\n", sn, destip[0], destip[1], destip[2], destip[3], destport);
+			*sock_status = SOCK_INIT;
 
 			is_tcp_connected = 0; //indicate TCP disconnected
+			ret = connect(sn, destip, destport);
 
-			if ((ret = connect(sn, destip, destport)) != SOCK_OK)
+			#if W5500_DEBUG_PRINTF
+				printf("SOCK_INIT, sn = [%d]: trying to connect to %d.%d.%d.%d : %d ", sn,
+						destip[0], destip[1], destip[2], destip[3], destport);
+
+				if (ret != SOCK_OK)
+					printf("ret (socket result) = [%d] != SOCK_OK \r\n", ret);
+				else
+					printf("ret (socket result) = [%d] == SOCK_OK\r\n", ret);
+			#endif
+
+			if (ret != SOCK_OK)
 				return ret;	//	Try to TCP connect to the TCP server (destination)
 			break;
 
 		case SOCK_CLOSED:
+			*sock_status = SOCK_CLOSED;
+
 			close(sn);
-
 			is_tcp_connected = 0; //indicate TCP disconnected
+			ret = socket(sn, Sn_MR_TCP, any_port++, 0x00);
 
-			if ((ret=socket(sn, Sn_MR_TCP, any_port++, 0x00)) != sn)
+			#if W5500_DEBUG_PRINTF
+				printf("SOCK_CLOSED, sn = [%d] ", sn);
+				if (ret != sn)
+					printf("ret = [%d] != sn \r\n", ret);
+				else
+					printf("ret = [%d] == sn \r\n", ret);
+			#endif
+
+			if (ret != sn)
 				return ret; // TCP socket open with 'any_port' port number
 
 			SetAutoKeepAlive(sn, 1); // set Auto keepalive 10sec(2*5)
 			break;
 
 		default:
+			*sock_status = -1;
 			break;
     }
     return 1;
@@ -382,7 +424,7 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 /**
 		@brief: The ethernet state which check for DHCP and TCP state
 */
-void ethernet_w5500_state(void)
+int32_t ethernet_w5500_state(int* sock_status)
 {
     int32_t ret;
 	// uint16_t index;
@@ -411,7 +453,7 @@ void ethernet_w5500_state(void)
 
 			// test rapid data dump
 			if ((ret = ethernet_w5500_tcp_state(SOCK_TCPS, gReadDATABUF, &ui16ReadLen,
-					gWriteDATABUF, &ui16WriteLen, destination_ip, PORT_TCPS)) < 0) {
+					gWriteDATABUF, &ui16WriteLen, destination_ip, PORT_TCPS, sock_status)) < 0) {
 
 				if (W5500_DEBUG_PRINTF)
 					printf("SOCKET ERROR : %ld\r\n", ret);
@@ -442,16 +484,20 @@ void ethernet_w5500_state(void)
 	destination_ip[3] = 1;
 
 	// test rapid data dump
-	if ((ret = ethernet_w5500_tcp_state(SOCK_TCPS, gReadDATABUF, &ui16ReadLen,
-			gWriteDATABUF, &ui16WriteLen, destination_ip, PORT_TCPS)) < 0) {
-
-				if (W5500_DEBUG_PRINTF)
-					printf("SOCKET ERROR : %ld\r\n", ret);
+	ret = ethernet_w5500_tcp_state(SOCK_TCPS, gReadDATABUF, &ui16ReadLen,
+			gWriteDATABUF, &ui16WriteLen, destination_ip, PORT_TCPS, sock_status);
+	/*
+	if (ret != SOCK_OK) {
+		if (W5500_DEBUG_PRINTF)
+			printf("ethernet_w5500_state(): SOCKET ERROR [%ld] \r\n", ret);
 	}
+	*/
 #endif //end of DHCP_SERV_EN
 
 	// Clear TCP send data whether it has been sent or not:
 	ethernet_w5500_send_data_clear();
+
+	return ret;
 }
 
 /*
