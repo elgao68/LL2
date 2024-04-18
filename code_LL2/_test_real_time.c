@@ -114,7 +114,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	int c_i       = 0; // general-purpose counter
 
 	// TCP communication checks:
-	const int N_STEP_FLASH = 20;
+	const int N_STEP_FLASH = 10;
 
 	int ret_i    = 0;
 	int flash_i  = N_STEP_FLASH/2;
@@ -172,11 +172,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 				if (sock_status != SOCK_ESTABLISHED) { // (ret_tcp_msg < 0)
 					// Current socket state:
-					printf("\n");
 					printf("ethernet_w5500_state(): SOCKET STATUS [0x%02x]\n", sock_status);
 
 					// Current TCP return message and time:
-					printf("rt_step_i [%d]: cmd_code = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code, ret_tcp_msg, dt_ret_tcp_msec);
+					printf("rt_step_i [%d]: cmd_code = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code, ret_tcp_msg, (int)dt_ret_tcp_msec);
 					ret_i = 0;
 				}
 			#endif

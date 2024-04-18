@@ -138,10 +138,10 @@ main(void) {
 	// Check if you're only running "scratch" code:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-#if TEST_OPTION == _TEST_SCRATCH
-	test_scratch();
-	return 0;
-#endif
+	#if TEST_OPTION == _TEST_SCRATCH
+		test_scratch();
+		return 0;
+	#endif
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	//start UART sys
@@ -186,7 +186,7 @@ main(void) {
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	Ethernet_Reset(true);
-	HAL_Delay(100);
+	HAL_Delay(1000);
 	Ethernet_Reset(false);
 	HAL_Delay(1000);
 	set_ethernet_w5500_mac(0x00, 0x0a, 0xdc, 0xab, 0xcd, 0xef);
@@ -210,15 +210,15 @@ main(void) {
 	// Launch test script:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-#if TEST_OPTION == _TEST_REAL_TIME
-	test_real_time(&hadc1, &hadc3);
-#elif TEST_OPTION == _TEST_SIMULATION
-	test_simulation();
-#elif TEST_OPTION == _TEST_ODE_INT
-	test_ode_int();
-#elif TEST_OPTION == _TEST_MATR_INV
-	test_matr_inv();
-#endif
+	#if TEST_OPTION == _TEST_REAL_TIME
+		test_real_time(&hadc1, &hadc3);
+	#elif TEST_OPTION == _TEST_SIMULATION
+		test_simulation();
+	#elif TEST_OPTION == _TEST_ODE_INT
+		test_ode_int();
+	#elif TEST_OPTION == _TEST_MATR_INV
+		test_matr_inv();
+	#endif
 
 	return 0;
 }

@@ -27,8 +27,9 @@
 #include "lowerlimb_config.h"
 
 #if (W5500_DEBUG_PRINTF)
-#include "uart_driver.h"
-//#include "loopback.h"
+	#include "uart_driver.h"
+	#include "timer.h"
+	//#include "loopback.h"
 #endif
 
 /////////////////////
@@ -41,10 +42,11 @@ bool PHYStatus_check_flag = true;
 //////////////////////////////////////////////////
 // Socket & Port number definition for Examples //
 //////////////////////////////////////////////////
-#define SOCK_DHCP					0		//DHCP and TCP socket # must be diff
+
+#define SOCK_DHCP			0		// DHCP and TCP socket # must be diff
 #define SOCK_TCPS       	1
 #define SOCK_UDPS       	2
-#define PORT_TCPS					PORT_NUMBER
+#define PORT_TCPS			PORT_NUMBER
 #define PORT_UDPS       	5000
 #define MY_MAX_DHCP_RETRY	3
 
@@ -299,7 +301,11 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
     // Port number for TCP client (will be increased)
     uint16_t any_port = 50000;
 
-    if(wizphy_getphylink() == 0)
+	#if W5500_DEBUG_PRINTF
+    	uint64_t dt_ret_msec;
+	#endif
+
+    if (wizphy_getphylink() == 0)
         setSn_CR(sn,Sn_CR_CLOSE);
 
     ///////////////////////////////////////////////////////////////////////////////////
@@ -322,7 +328,7 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 
 				uint8_t sn_mask = getSn_IR(sn) & Sn_IR_CON; // TODO: make sure type cast is correct
 				if (sn_mask)
-					printf("Connected to - %d.%d.%d.%d : %d\r\n", destip[0], destip[1], destip[2], destip[3], destport);
+					printf("Connected to %d.%d.%d.%d : %d\r\n", destip[0], destip[1], destip[2], destip[3], destport);
 				else
 					printf("NULL MASK\r\n");
 			#endif
@@ -377,11 +383,20 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 			*sock_status = SOCK_INIT;
 
 			is_tcp_connected = 0; //indicate TCP disconnected
+
+			#if W5500_DEBUG_PRINTF
+				dt_ret_msec = getUpTime();
+			#endif
+
 			ret = connect(sn, destip, destport);
 
 			#if W5500_DEBUG_PRINTF
-				printf("SOCK_INIT, sn = [%d]: trying to connect to %d.%d.%d.%d : %d ", sn,
-						destip[0], destip[1], destip[2], destip[3], destport);
+				dt_ret_msec = getUpTime() - dt_ret_msec;
+
+				printf("SOCK_INIT, sn = [%d]: trying to connect to %d.%d.%d.%d : %d, dt_ret_msec = [%d] ",
+						sn,
+						destip[0], destip[1], destip[2], destip[3], destport,
+						(int)dt_ret_msec);
 
 				if (ret != SOCK_OK)
 					printf("ret (socket result) = [%d] != SOCK_OK \r\n", ret);
