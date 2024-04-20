@@ -149,8 +149,30 @@ static void Net_Conf(void)
 {
 	/** wizchip netconf */
 	ctlnetwork(CN_SET_NETINFO, (void*) &gHman_WIZNETINFO);
+
+	// NEW: change default timeout settings:
+	uint16_t T_TIMEOUT_MSEC = 200; // default 2000 * 100us
+	uint8_t  RETRY_CNT      = 8;   // default 8
+
+	wiz_NetTimeout net_timeout;
+	net_timeout.retry_cnt  = RETRY_CNT;
+	net_timeout.time_100us = T_TIMEOUT_MSEC*10;
+	ctlnetwork(CN_SET_TIMEOUT, (void*) &net_timeout);
+
+	// Wait:
 	HAL_Delay(10); //wait for 10ms
 	Display_Net_Conf();
+
+	// Verify timeout settings:
+	#if W5500_DEBUG_PRINTF
+		ctlnetwork(CN_GET_TIMEOUT, (void*) &net_timeout);
+
+		printf("\n");
+		printf("Net_Conf():\n");
+		printf("    retry_cnt = [%d]\n", (int)net_timeout.retry_cnt);
+		printf("    time_msec = [%d] (time_100us = [%d])\n", (int)net_timeout.time_100us / 10, (int)net_timeout.time_100us);
+		printf("\n");
+	#endif
 }
 
 /**
@@ -337,8 +359,11 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 			*rLen = 0; //reset read length
 
 			if ((size = getSn_RX_RSR(sn)) > 0) { // Sn_RX_RSR: Socket n Received Size Register, Receiving data length
-				if(size > DATA_BUF_SIZE) size = DATA_BUF_SIZE; // DATA_BUF_SIZE means user defined buffer size (array)
-					ret = recv(sn, rbuf, size); // Data Receive process (H/W Rx socket buffer -> User's buffer)
+
+				if(size > DATA_BUF_SIZE)
+					size = DATA_BUF_SIZE; // DATA_BUF_SIZE means user defined buffer size (array)
+
+				ret = recv(sn, rbuf, size); // Data Receive process (H/W Rx socket buffer -> User's buffer)
 					
 				if(ret <= 0)
 					return ret; // If the received data length <= 0, receive failed and process end
@@ -426,7 +451,7 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 			if (ret != sn)
 				return ret; // TCP socket open with 'any_port' port number
 
-			SetAutoKeepAlive(sn, 1); // set Auto keepalive 10sec(2*5)
+			SetAutoKeepAlive(sn, 0); // set Auto keepalive 5 sec (1*5)
 			break;
 
 		default:

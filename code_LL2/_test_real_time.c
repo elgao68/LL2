@@ -116,11 +116,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// TCP communication checks:
 	const int N_STEP_FLASH = 10;
 
-	int ret_i    = 0;
-	int flash_i  = N_STEP_FLASH/2;
+	int ret_i   = 0;
+	int flash_i = N_STEP_FLASH/2;
 
-	int32_t ret_tcp_msg;
-	uint64_t dt_ret_tcp_msec;
+	int32_t ret_tcp_msg      = 0;
+	uint64_t dt_ret_tcp_msec = 0;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Initialize app:
@@ -142,6 +142,26 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	do {
 		/////////////////////////////////////////////////////////////////////////////////////
+		// uart rx state check:
+		/////////////////////////////////////////////////////////////////////////////////////
+
+		// uart_rx_data_state();
+
+		/////////////////////////////////////////////////////////////////////////////////////
+		// Ethernet connection:
+		/////////////////////////////////////////////////////////////////////////////////////
+
+		#if USE_ITM_TCP_CHECK
+			dt_ret_tcp_msec = getUpTime(); //  tests time elapsed waiting for ethernet_w5500_state() to return
+		#endif
+
+		ret_tcp_msg = ethernet_w5500_state(&sock_status);
+
+		#if USE_ITM_TCP_CHECK
+			dt_ret_tcp_msec = getUpTime() - dt_ret_tcp_msec;
+		#endif
+
+		/////////////////////////////////////////////////////////////////////////////////////
 		// Execute real-time step:
 		/////////////////////////////////////////////////////////////////////////////////////
 
@@ -152,24 +172,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			algo_nextTime = up_time + DT_STEP_MSEC;
 
 			/////////////////////////////////////////////////////////////////////////////////////
-			// uart rx state check
-			/////////////////////////////////////////////////////////////////////////////////////
-
-			//uart_rx_data_state();
-
-			/////////////////////////////////////////////////////////////////////////////////////
-			// ethernet check
+			// Ethernet check:
 			/////////////////////////////////////////////////////////////////////////////////////
 
 			#if USE_ITM_TCP_CHECK
-				dt_ret_tcp_msec = getUpTime(); //  tests time elapsed waiting for ethernet_w5500_state() to return
-			#endif
-
-			ret_tcp_msg = ethernet_w5500_state(&sock_status);
-
-			#if USE_ITM_TCP_CHECK
-				dt_ret_tcp_msec = getUpTime() - dt_ret_tcp_msec;
-
 				if (sock_status != SOCK_ESTABLISHED) { // (ret_tcp_msg < 0)
 					// Current socket state:
 					printf("ethernet_w5500_state(): SOCKET STATUS [0x%02x]\n", sock_status);
@@ -178,9 +184,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					printf("rt_step_i [%d]: cmd_code = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code, ret_tcp_msg, (int)dt_ret_tcp_msec);
 					ret_i = 0;
 				}
-			#endif
 
-			#if USE_ITM_TCP_CHECK
 				if (rt_step_i > 0 && (rt_step_i % N_STEP_FLASH) == 0) {
 					if (sock_status == SOCK_ESTABLISHED) { // ret_tcp_msg > 0
 						Left_LED_function(Blue);
