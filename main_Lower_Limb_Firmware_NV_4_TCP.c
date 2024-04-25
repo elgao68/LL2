@@ -72,13 +72,18 @@ static uint64_t brakes_nextTime = 0;
 static uint64_t uart_output_nextTime = 0;
 static uint8_t current_paramas_index = 0;
 static uint8_t rx_data[30];
-// static lowerlimb_sys_info_t LL_sys_info;
 
 // TODO: remove at a later date:
 #include "distal_config.h"
 #include "distal_tcp_app.h"
 
-static distal_sys_info_t LL_sys_info;
+#define USE_TCP_APP_LOWERLIMB       1
+
+#if USE_TCP_APP_LOWERLIMB
+	static distal_sys_info_t LL_sys_info;
+#else
+	static lowerlimb_sys_info_t LL_sys_info;
+#endif
 
 // static lowerlimb_mech_readings_t   LL_mech_readings;
 // static lowerlimb_motors_settings_t LL_motors_settings;
@@ -142,6 +147,8 @@ set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 #define USE_ITM_TCP_CHECK		    1
 #define USE_ITM_OUT_RT_CHECK		1
 #define USE_ITM_OUT_SIM				0
+
+#define USE_TCP_APP_LOWERLIMB       1
 
 /////////////////////////////////////////////////////////////////////////////
 // HELPER FUNCTIONS - DECLARATIONS - GAO
@@ -227,10 +234,8 @@ int main(void)
 	set_ethernet_w5500_mac(0x00, 0x0a, 0xdc, 0xab, 0xcd, 0xef);
 	ethernet_w5500_sys_init();
 
-	/* MINIMAL
 	// Hman TCP APP
 	distal_tcp_init_app_state(0, VER_H, VER_L, VER_P);
-	*/
 
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
@@ -244,7 +249,8 @@ int main(void)
 		uart_rx_data_state();
 
 		//ethernet check
-		ethernet_w5500_state();
+		static int sock_status;
+		ethernet_w5500_state(&sock_status);
 
 		/////////////////////////////////////////////////////////////////////////////
 		/////////////////////////////////////////////////////////////////////////////
@@ -252,8 +258,11 @@ int main(void)
 		/////////////////////////////////////////////////////////////////////////////
 		/////////////////////////////////////////////////////////////////////////////
 
-		LL_sys_info = distal_tcp_app_state(Read_Haptic_Button(),	motor_alert);
-		// LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert, &traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
+		#if USE_TCP_APP_LOWERLIMB
+			LL_sys_info = distal_tcp_app_state(Read_Haptic_Button(), motor_alert);
+		#else
+			LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert, &traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
+		#endif
 
 		/* MINIMAL
 		//clear motor_alert after sending into tcp app state

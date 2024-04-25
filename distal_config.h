@@ -27,7 +27,6 @@ extern "C" {
 #define DEBUG_PRINT				0
 #define DISTAL_SAFETY			0
 #define MOTOR_DRIVER_OPS 		1
-#define W5500_DEBUG_PRINTF		1
 #define ONBOARD_ETHERNET		0
 #define DHCP_SERV_EN			0 //enable DHCP
 

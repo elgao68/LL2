@@ -510,12 +510,12 @@ distal_sys_info_t distal_tcp_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert) {
 	float Fy_offset;
 
 	//Force Sensor
-  uint32_t X_force_sensor = 0;
-  uint32_t Y_force_sensor = 0;
-  uint32_t Dummy_X_force_sensor = 0;
-  uint32_t Dummy_Y_force_sensor = 0;
-  float X_force_sensor_f = 0;
-  float Y_force_sensor_f = 0;
+	uint32_t X_force_sensor = 0;
+	uint32_t Y_force_sensor = 0;
+	uint32_t Dummy_X_force_sensor = 0;
+	uint32_t Dummy_Y_force_sensor = 0;
+	float X_force_sensor_f = 0;
+	float Y_force_sensor_f = 0;
 
 	//reset
 	distal_sys_info.tcp_status = 0;
