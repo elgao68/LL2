@@ -10,7 +10,10 @@
 #include "main.h"
 #include "stm32f4xx_hal.h"
 
-/* USER CODE BEGIN Includes */
+////////////////////////////////////////////////////////////////////////////////
+// User code includes:
+////////////////////////////////////////////////////////////////////////////////
+
 #include <string.h>
 #include "timer.h"
 #include "uart_driver.h"
@@ -19,11 +22,21 @@
 #include "wizchip_conf.h"
 #include "dhcp.h"
 #include "w5500_app.h"
-#include "distal_tcp_app.h"
-#include "motor_algo.h"
-#include "distal_calib_protocols.h"
 #include "peripheral.h"
-/* USER CODE END Includes */
+
+#include <_std_c.h>
+#include <admitt_model_params.h>
+#include <distal_tcp_app.h>
+// #include <motor_algo_ll2.h>
+#include <nml.h>
+#include <nml_util.h>
+#include <traj_ctrl_params_nml.h>
+
+#include "_test_simulation.h"
+// #include "_test_real_time.h"
+// #include "_test_scratch.h"
+// #include "_test_ode_int.h"
+#include "_test_matr_inv.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // Demo Firmware Version:
@@ -57,21 +70,56 @@ static uint64_t algo_nextTime = 0;
 
 static uint64_t brakes_nextTime = 0;
 static uint64_t uart_output_nextTime = 0;
-static distal_motors_settings_t current_motors_settings;
-static distal_mech_readings_t current_mech_readings;
 static uint8_t current_paramas_index = 0;
 static uint8_t rx_data[30];
-static distal_sys_info_t curHmanSysInfo;
+// static lowerlimb_sys_info_t LL_sys_info;
+
+// TODO: remove at a later date:
+#include "distal_config.h"
+#include "distal_tcp_app.h"
+
+static distal_sys_info_t LL_sys_info;
+
+// static lowerlimb_mech_readings_t   LL_mech_readings;
+// static lowerlimb_motors_settings_t LL_motors_settings;
+static traj_ctrl_params_t          traj_ctrl_params;
+static admitt_model_params_t       admitt_model_params;
+// static lowerlimb_ref_kinematics_t	ref_kinematics;
+
+static uint16_t cmd_code = 0;
+static uint8_t  app_state = 0;
+
+void
+set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
+	if (uptime >= *brakes_next_time) {
+		*brakes_next_time = uptime + 1; // 1kHz
+
+		/////////////////////////////////////////////////////////////////////////////////////
+		// Code to Engage & Disengage Brake of the Radial Axis
+		/////////////////////////////////////////////////////////////////////////////////////
+
+		set_r_brake_status(r_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
+
+		/////////////////////////////////////////////////////////////////////////////////////
+		// Code to Engage & Disengage Brake of the Rotational Axis
+		/////////////////////////////////////////////////////////////////////////////////////
+
+		set_p_brake_status(p_brakes(get_p_brake_cmd() && Read_Haptic_Button()));
+	}
+}
+
+// static distal_motors_settings_t current_motors_settings;
+// static distal_mech_readings_t current_mech_readings;
 // static distal_calib_t curHmanCalibStatus;
 
-static uint64_t expire_nextTime = 0;
-static uint8_t prev_fifo_size = 0;
+// static uint64_t expire_nextTime = 0;
+// static uint8_t prev_fifo_size = 0;
 
 ////////////////////////////////////////////////////////////////////////////////
 // STM32 PRIVATE FUNCTIONS - VERY IMPORTANT:
 ////////////////////////////////////////////////////////////////////////////////
 
-#include "stm32_private_funcs"
+#include <_stm32_private_funcs_c>
 
 ////////////////////////////////////////////////////////////////////////////////
 // CONTROL / SIMULATION SETTINGS:
@@ -182,7 +230,7 @@ int main(void)
 	/* MINIMAL
 	// Hman TCP APP
 	distal_tcp_init_app_state(0, VER_H, VER_L, VER_P);
-	 */
+	*/
 
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
@@ -198,8 +246,14 @@ int main(void)
 		//ethernet check
 		ethernet_w5500_state();
 
-		//parse input data??
-		curHmanSysInfo = distal_tcp_app_state(Read_Haptic_Button(),	motor_alert);
+		/////////////////////////////////////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////////////////////
+		// TCP APP STATE: HERE'S THE TCP CONNECTION PROBLEM!!!
+		/////////////////////////////////////////////////////////////////////////////
+		/////////////////////////////////////////////////////////////////////////////
+
+		LL_sys_info = distal_tcp_app_state(Read_Haptic_Button(),	motor_alert);
+		// LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert, &traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
 
 		/* MINIMAL
 		//clear motor_alert after sending into tcp app state
@@ -207,7 +261,7 @@ int main(void)
 		*/
 
 		//if system is on or off?
-		if (curHmanSysInfo.system_state == ON) {
+		if (LL_sys_info.system_state == ON) {
 			//check emergency signal GPIOG GPIO_PIN_14
 			if (Read_Haptic_Button()) {
 				Left_LED_function (Blue);
@@ -217,28 +271,20 @@ int main(void)
 				Right_LED_function (Red);
 			}
 
+			/* MINIMAL
 			// Brakes status:
 			if (getUpTime() >= brakes_nextTime) {
 				brakes_nextTime = getUpTime() + 1; //1kHz
 
-				//Code to Engage & Disengage Brake of the Radial Axis
-				set_r_brake_status(
-						r_brakes(
-								get_r_brake_cmd() && Read_Haptic_Button()));
-
-				//Code to Engage & Disengage Brake of the Rotational Axis
-				set_p_brake_status(
-						p_brakes(
-								get_p_brake_cmd() && Read_Haptic_Button()));
+				set_brakes_timed(getUpTime(), &brakes_nextTime);
 			}
 
-			/* MINIMAL
 			//udpate safety
-			set_safetyOff(curHmanSysInfo.safetyOFF);
+			set_safetyOff(LL_sys_info.safetyOFF);
 			*/
 
 			//check activity state
-			switch (curHmanSysInfo.activity_state) {
+			switch (LL_sys_info.activity_state) {
 				case IDLE: {
 					/* MINIMAL
 					//clear motor algo readings and settings
@@ -263,16 +309,17 @@ int main(void)
 				case EXERCISE: {
 					if (getUpTime() >= algo_nextTime) {
 						algo_nextTime = getUpTime() + DT_STEP_MSEC; //200Hz
-						if ((curHmanSysInfo.activity_state == EXERCISE)
-								&& (curHmanSysInfo.exercise_state == RUNNING)) {
 
-							/* MINIMAL
+						/* MINIMAL
+						if ((LL_sys_info.activity_state == EXERCISE)
+								&& (LL_sys_info.exercise_state == RUNNING)) {
+
 							//Retrieve Force Sensor Readings
 							force_sensors_read(&hadc3, &X_force_sensor, &Y_force_sensor, &Dummy_X_force_sensor, &Dummy_Y_force_sensor);
 							current_sensors_read(&hadc1, &R_current_sensor, &P_current_sensor);
 
 							//update motor driver algo
-							motor_result = update_motor_algo(curHmanSysInfo.exercise_mode, qei_count_R_read(),
+							motor_result = update_motor_algo(LL_sys_info.exercise_mode, qei_count_R_read(),
 									qei_count_P_read(), X_force_sensor, Y_force_sensor,
 									R_current_sensor, P_current_sensor,
 									get_r_brake_cmd(), get_p_brake_cmd(), getUpTime(), 1);
@@ -323,11 +370,11 @@ int main(void)
 									current_motors_settings.force.x,
 									current_motors_settings.force.y,
 									current_motors_settings.force_magnitude);
-							*/
-
 						}
+						*/
+
+						/* MINIMAL
 						else {
-							/* MINIMAL
 							// reset
 							clear_distal_mech_readings();
 							clear_distal_motors_settings();
@@ -336,8 +383,8 @@ int main(void)
 							//Set the motors to 0 and disable the motor driver
 							motor_P_move(0, false, false);
 							motor_R_move(0, false, false);
-							*/
 						}
+						*/
 					}
 					break;
 				}
@@ -429,6 +476,7 @@ LED_sys_state_off() {
 	Right_LED_function(Yellow);
 }
 
+/*
 void
 set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 	if (uptime >= *brakes_next_time) {
@@ -447,5 +495,6 @@ set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 		set_r_brake_status(p_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
 	}
 }
+*/
 
 

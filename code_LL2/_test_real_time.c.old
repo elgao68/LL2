@@ -155,7 +155,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			dt_ret_tcp_msec = getUpTime(); //  tests time elapsed waiting for ethernet_w5500_state() to return
 		#endif
 
-		ret_tcp_msg = ethernet_w5500_state(&sock_status);
+		// ret_tcp_msg = ethernet_w5500_state(&sock_status);
+		ethernet_w5500_state();
 
 		#if USE_ITM_TCP_CHECK
 			dt_ret_tcp_msec = getUpTime() - dt_ret_tcp_msec;
