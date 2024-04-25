@@ -26,7 +26,6 @@
 
 #include <_std_c.h>
 #include <admitt_model_params.h>
-#include <distal_tcp_app.h>
 // #include <motor_algo_ll2.h>
 #include <nml.h>
 #include <nml_util.h>
@@ -74,24 +73,28 @@ static uint8_t current_paramas_index = 0;
 static uint8_t rx_data[30];
 
 // TODO: remove at a later date:
-#include "distal_config.h"
-#include "distal_tcp_app.h"
+#define USE_TCP_APP_DISTAL       0
 
-#define USE_TCP_APP_LOWERLIMB       1
+#if USE_TCP_APP_DISTAL
+	#include "distal_config.h"
+	#include "distal_tcp_app.h"
 
-#if USE_TCP_APP_LOWERLIMB
 	static distal_sys_info_t LL_sys_info;
 #else
+	#include "lowerlimb_config.h"
+	#include "lowerlimb_app.h"
+
 	static lowerlimb_sys_info_t LL_sys_info;
+
+	static lowerlimb_mech_readings_t   LL_mech_readings;
+	static lowerlimb_motors_settings_t LL_motors_settings;
+	static lowerlimb_ref_kinematics_t	ref_kinematics;
 #endif
 
-// static lowerlimb_mech_readings_t   LL_mech_readings;
-// static lowerlimb_motors_settings_t LL_motors_settings;
-static traj_ctrl_params_t          traj_ctrl_params;
-static admitt_model_params_t       admitt_model_params;
-// static lowerlimb_ref_kinematics_t	ref_kinematics;
+static traj_ctrl_params_t		traj_ctrl_params;
+static admitt_model_params_t	admitt_model_params;
 
-static uint16_t cmd_code = 0;
+static uint16_t cmd_code  = 0;
 static uint8_t  app_state = 0;
 
 void
@@ -147,8 +150,6 @@ set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 #define USE_ITM_TCP_CHECK		    1
 #define USE_ITM_OUT_RT_CHECK		1
 #define USE_ITM_OUT_SIM				0
-
-#define USE_TCP_APP_LOWERLIMB       1
 
 /////////////////////////////////////////////////////////////////////////////
 // HELPER FUNCTIONS - DECLARATIONS - GAO
@@ -235,7 +236,11 @@ int main(void)
 	ethernet_w5500_sys_init();
 
 	// Hman TCP APP
-	distal_tcp_init_app_state(0, VER_H, VER_L, VER_P);
+	#if USE_TCP_APP_DISTAL
+		distal_tcp_init_app_state(0, VER_H, VER_L, VER_P);
+	#else
+		app_state = lowerlimb_app_state_initialize(0, VER_H, VER_L, VER_P, &LL_motors_settings);
+	#endif
 
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
@@ -258,7 +263,7 @@ int main(void)
 		/////////////////////////////////////////////////////////////////////////////
 		/////////////////////////////////////////////////////////////////////////////
 
-		#if USE_TCP_APP_LOWERLIMB
+		#if USE_TCP_APP_DISTAL
 			LL_sys_info = distal_tcp_app_state(Read_Haptic_Button(), motor_alert);
 		#else
 			LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert, &traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
