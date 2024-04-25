@@ -24,12 +24,11 @@
 #include "socket.h"
 #include "wizchip_conf.h"
 #include "dhcp.h"
-#include "lowerlimb_config.h"
+#include "distal_config.h"
 
 #if (W5500_DEBUG_PRINTF)
-	#include "uart_driver.h"
-	#include "timer.h"
-	//#include "loopback.h"
+#include "uart_driver.h"
+//#include "loopback.h"
 #endif
 
 /////////////////////
@@ -42,11 +41,10 @@ bool PHYStatus_check_flag = true;
 //////////////////////////////////////////////////
 // Socket & Port number definition for Examples //
 //////////////////////////////////////////////////
-
-#define SOCK_DHCP			0		// DHCP and TCP socket # must be diff
+#define SOCK_DHCP					0		//DHCP and TCP socket # must be diff
 #define SOCK_TCPS       	1
 #define SOCK_UDPS       	2
-#define PORT_TCPS			PORT_NUMBER
+#define PORT_TCPS					PORT_NUMBER
 #define PORT_UDPS       	5000
 #define MY_MAX_DHCP_RETRY	3
 
@@ -64,22 +62,22 @@ uint8_t ui8NewReadData = 0;
 // Network Configuration //
 ///////////////////////////
 #if (DHCP_SERV_EN) //---else if DHCP_SERV_EN == 1---//
-	wiz_NetInfo gHman_WIZNETINFO = {	.mac = MAC_ADDRESS,
-										.ip = IP_ADDRESS,
-										.sn = {255, 255, 0, 0},
-										.gw = {255, 255, 255, 0},
-										.dns = {0, 0, 0, 0},
-										.dhcp = NETINFO_DHCP
-									};
-	static uint8_t my_dhcp_retry = 0;
+wiz_NetInfo gHman_WIZNETINFO = { .mac = MAC_ADDRESS,
+                            .ip = IP_ADDRESS,
+                            .sn = {255, 255, 0, 0},
+                            .gw = {255, 255, 255, 0},
+                            .dns = {0, 0, 0, 0},
+                            .dhcp = NETINFO_DHCP
+                          };
+static uint8_t my_dhcp_retry = 0;
 #else
-	wiz_NetInfo gHman_WIZNETINFO = {	.mac = MAC_ADDRESS,
-										.ip = IP_ADDRESS,
-										.sn = {255, 255, 0, 0},
-										.gw = {255, 255, 255, 0},
-										.dns = {0, 0, 0, 0},
-										.dhcp = NETINFO_STATIC
-									};
+wiz_NetInfo gHman_WIZNETINFO = { .mac = MAC_ADDRESS,
+														.ip = IP_ADDRESS,
+														.sn = {255, 255, 0, 0},
+														.gw = {255, 255, 255, 0},
+														.dns = {0, 0, 0, 0},
+														.dhcp = NETINFO_STATIC
+													};
 #endif
 													
 static uint8_t destination_ip[4] = 	{0, 0, 0, 0};
@@ -130,15 +128,14 @@ void Display_Net_Conf(void)
     ctlwizchip(CW_GET_ID,(void*)tmpstr);
 
     if(gHman_WIZNETINFO.dhcp == NETINFO_DHCP)
-        printf("\r\n===== %s NET CONF : DHCP =====\r\n",(char*)tmpstr);
+        uart_printf("\r\n===== %s NET CONF : DHCP =====\r\n",(char*)tmpstr);
     else
-        printf("\r\n===== %s NET CONF : Static =====\r\n",(char*)tmpstr);
-
-    printf(" MAC : %02X:%02X:%02X:%02X:%02X:%02X\r\n", gHman_WIZNETINFO.mac[0], gHman_WIZNETINFO.mac[1], gHman_WIZNETINFO.mac[2], gHman_WIZNETINFO.mac[3], gHman_WIZNETINFO.mac[4], gHman_WIZNETINFO.mac[5]);
-    printf(" IP : %d.%d.%d.%d\r\n", gHman_WIZNETINFO.ip[0], gHman_WIZNETINFO.ip[1], gHman_WIZNETINFO.ip[2], gHman_WIZNETINFO.ip[3]);
-    printf(" GW : %d.%d.%d.%d\r\n", gHman_WIZNETINFO.gw[0], gHman_WIZNETINFO.gw[1], gHman_WIZNETINFO.gw[2], gHman_WIZNETINFO.gw[3]);
-    printf(" SN : %d.%d.%d.%d\r\n", gHman_WIZNETINFO.sn[0], gHman_WIZNETINFO.sn[1], gHman_WIZNETINFO.sn[2], gHman_WIZNETINFO.sn[3]);
-    printf("=======================================\r\n");
+        uart_printf("\r\n===== %s NET CONF : Static =====\r\n",(char*)tmpstr);
+    uart_printf(" MAC : %02X:%02X:%02X:%02X:%02X:%02X\r\n", gHman_WIZNETINFO.mac[0], gHman_WIZNETINFO.mac[1], gHman_WIZNETINFO.mac[2], gHman_WIZNETINFO.mac[3], gHman_WIZNETINFO.mac[4], gHman_WIZNETINFO.mac[5]);
+    uart_printf(" IP : %d.%d.%d.%d\r\n", gHman_WIZNETINFO.ip[0], gHman_WIZNETINFO.ip[1], gHman_WIZNETINFO.ip[2], gHman_WIZNETINFO.ip[3]);
+    uart_printf(" GW : %d.%d.%d.%d\r\n", gHman_WIZNETINFO.gw[0], gHman_WIZNETINFO.gw[1], gHman_WIZNETINFO.gw[2], gHman_WIZNETINFO.gw[3]);
+    uart_printf(" SN : %d.%d.%d.%d\r\n", gHman_WIZNETINFO.sn[0], gHman_WIZNETINFO.sn[1], gHman_WIZNETINFO.sn[2], gHman_WIZNETINFO.sn[3]);
+    uart_printf("=======================================\r\n");
 #endif
 }
 
@@ -147,32 +144,12 @@ void Display_Net_Conf(void)
 */
 static void Net_Conf(void)
 {
-	/** wizchip netconf */
-	ctlnetwork(CN_SET_NETINFO, (void*) &gHman_WIZNETINFO);
-
-	// NEW: change default timeout settings:
-	uint16_t T_TIMEOUT_MSEC = 200; // default 2000 * 100us
-	uint8_t  RETRY_CNT      = 8;   // default 8
-
-	wiz_NetTimeout net_timeout;
-	net_timeout.retry_cnt  = RETRY_CNT;
-	net_timeout.time_100us = T_TIMEOUT_MSEC*10;
-	ctlnetwork(CN_SET_TIMEOUT, (void*) &net_timeout);
-
-	// Wait:
-	HAL_Delay(10); //wait for 10ms
-	Display_Net_Conf();
-
-	// Verify timeout settings:
-	#if W5500_DEBUG_PRINTF
-		ctlnetwork(CN_GET_TIMEOUT, (void*) &net_timeout);
-
-		printf("\n");
-		printf("Net_Conf():\n");
-		printf("    retry_cnt = [%d]\n", (int)net_timeout.retry_cnt);
-		printf("    time_msec = [%d] (time_100us = [%d])\n", (int)net_timeout.time_100us / 10, (int)net_timeout.time_100us);
-		printf("\n");
-	#endif
+    /** wizchip netconf */
+    ctlnetwork(CN_SET_NETINFO, (void*) &gHman_WIZNETINFO);
+	
+		HAL_Delay(10); //wait for 10ms
+		
+    Display_Net_Conf();
 }
 
 /**
@@ -186,9 +163,10 @@ static void PHYStatus_Check(void)
     do {
         ctlwizchip(CW_GET_PHYLINK, (void*) &tmp);
 
-        // if(tmp == PHY_LINK_OFF) {
-        // }
-    } while (tmp == PHY_LINK_OFF);
+        if(tmp == PHY_LINK_OFF) {
+
+        }
+    } while(tmp == PHY_LINK_OFF);
 }
 
 /**
@@ -203,9 +181,8 @@ static void my_ip_assign(void)
     gHman_WIZNETINFO.dhcp = NETINFO_DHCP;
     /** Network initialization */
     Net_Conf();      // apply from dhcp
-
 #if (W5500_DEBUG_PRINTF)
-    printf("DHCP LEASED TIME : %ld Sec.\r\n", getDHCPLeasetime());
+    uart_printf("DHCP LEASED TIME : %ld Sec.\r\n", getDHCPLeasetime());
 #endif
 }
 
@@ -215,10 +192,10 @@ static void my_ip_assign(void)
 static void my_ip_conflict(void)
 {
 #if (W5500_DEBUG_PRINTF)
-    printf("CONFLICT IP from DHCP\r\n");
+    uart_printf("CONFLICT IP from DHCP\r\n");
 #endif
-	//halt or reset or any...
-	//while(1); // this example is halt.
+    //halt or reset or any...
+    //while(1); // this example is halt. //todo??
 		ethernet_w5500_reset();
 }
 
@@ -227,45 +204,45 @@ static void my_ip_conflict(void)
 */
 void ethernet_w5500_reset(void)
 {
-	DHCP_stop();      // if restart, recall DHCP_init()
-	Net_Conf();   		// apply the default static network and print out netinfo to serial
-
-	// ReInit DHCP Client
-	// must be set the default mac before DHCP started.
-	setSHAR(gHman_WIZNETINFO.mac);
-	DHCP_init(SOCK_DHCP, gReadDATABUF);
+		DHCP_stop();      // if restart, recall DHCP_init()
+		Net_Conf();   		// apply the default static network and print out netinfo to serial
 	
-	// if you want different action instead defalut ip assign,update, conflict,
-	// if cbfunc == 0, act as default.
-	reg_dhcp_cbfunc(my_ip_assign, my_ip_assign, my_ip_conflict);
+		//
+    // ReInit DHCP Client
+    //
+    // must be set the default mac before DHCP started.
+    setSHAR(gHman_WIZNETINFO.mac);
+    DHCP_init(SOCK_DHCP, gReadDATABUF);
+		// if you want different action instead defalut ip assign,update, conflict,
+    // if cbfunc == 0, act as default.
+    reg_dhcp_cbfunc(my_ip_assign, my_ip_assign, my_ip_conflict);
 }
 
-/*
-	@brief: The ethernet tcp send function
-	@param[in]: *buf = pointer fo write buffer
-	@param[in]: size = write length.
+/**
+		@brief: The ethernet tcp send function
+		@param[in]: *buf = pointer fo write buffer
+		@param[in]: size = write length.
 */
 void ethernet_w5500_send_data(uint8_t buf[], uint16_t size)
 {
 	if(size > sizeof(gWriteDATABUF))
 		size = sizeof(gWriteDATABUF);
-
 	memcpy(gWriteDATABUF, buf, size);
 	ui16WriteLen = size;
 }
 
-/*
-	@brief: The ethernet tcp to reset send
+/**
+		@brief: The ethernet tcp to reset send
 */
 void ethernet_w5500_send_data_clear(void)
 {
 	ui16WriteLen = 0;
 }
 
-/*
-	@brief: The ethernet tcp receive function
-	@param[out]: *buf = pointer fo read buffer
-	@retval: read length. 0 = no data
+/**
+		@brief: The ethernet tcp receive function
+		@param[out]: *buf = pointer fo read buffer
+		@retval: read length. 0 = no data
 */
 uint16_t ethernet_w5500_rcv_data(uint8_t buf[])
 {
@@ -274,24 +251,22 @@ uint16_t ethernet_w5500_rcv_data(uint8_t buf[])
 		return 0;
 	
 	ui8NewReadData = 0; //mark data as read
-
 	//copy read data
 	memcpy(buf, gReadDATABUF, ui16ReadLen);
 	return ui16ReadLen;
 }
 
-/*
-	@brief: Check whether TCP is currently connected.
-	@retval: 0 = not connected. 1 = connected
+/**
+		@brief: Check whether TCP is currently connected.
+		@retval: 0 = not connected. 1 = connected
 */
 uint8_t isTCPConnected(void)
 {
 	return is_tcp_connected;
 }
-
-/*
-	@brief: The ethernet tcp check if there's new rx data
-	@retval: 0 = no new data, 1 = new data
+/**
+		@brief: The ethernet tcp check if there's new rx data
+		@retval: 0 = no new data, 1 = new data
 */
 uint8_t ethernet_w5500_new_rcv_data(void)
 {
@@ -303,160 +278,96 @@ void SetAutoKeepAlive(uint8_t sn, uint8_t time) // time > 0
     setSn_KPALVTR(sn, time);
 }
 
-/*
-	@brief: The ethernet tcp state to be run within the DHCP state (ethernet_w5500_state())
-	@param[in]: sn = socket number for TCP
-	@param[in]: *rbuf = pointer fo read buffer
-	@param[in]: *rLen = pointer fo read length. 0 = no new data
-	@param[in]: *wbuf = pointer fo write buffer
-	@param[in]: *wLen = pointer fo write length. 0 = no new data
-	@param[in]: *destip = pointer to the destination IPv4 address
-	@param[in]: destport = port number for the TCP socket
-	@retval[in]: 1 = ok. Rest = error code. Refer to socket.h
+/**
+		@brief: The ethernet tcp state to be run within the DHCP state (ethernet_w5500_state())
+		@param[in]: sn = socket number for TCP
+		@param[in]: *rbuf = pointer fo read buffer
+		@param[in]: *rLen = pointer fo read length. 0 = no new data 
+		@param[in]: *wbuf = pointer fo write buffer
+		@param[in]: *wLen = pointer fo write length. 0 = no new data 
+		@param[in]: *destip = pointer to the destination IPv4 address
+		@param[in]: destport = port number for the TCP socket
+		@retval[in]: 1 = ok. Rest = error code. Refer to socket.h
 */
 static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLen, uint8_t* wbuf, 
-										uint16_t *wLen, uint8_t* destip, uint16_t destport, int* sock_status)
+																	uint16_t *wLen, uint8_t* destip, uint16_t destport)
 {
     int32_t ret; // return value for SOCK_ERRORs
-    uint16_t size = 0, sentsize= 0;
+    uint16_t size = 0, sentsize=0;
 
     // Port number for TCP client (will be increased)
-    uint16_t any_port = 50000;
+    uint16_t any_port = 	50000;
 
-	#if W5500_DEBUG_PRINTF
-    	uint64_t dt_ret_msec;
-	#endif
-
-    if (wizphy_getphylink() == 0)
+    if(wizphy_getphylink() == 0)
+    {
         setSn_CR(sn,Sn_CR_CLOSE);
+    }
 
-    ///////////////////////////////////////////////////////////////////////////////////
     // Socket Status Transitions
-    // Check the W5500 Socket n status register
-    // (Sn_SR, The 'Sn_SR' controlled by Sn_CR command or Packet send/recv status):
-    ///////////////////////////////////////////////////////////////////////////////////
-
-    switch (getSn_SR(sn)) {
-		case SOCK_ESTABLISHED:
-			*sock_status = SOCK_ESTABLISHED;
-
-			if (getSn_IR(sn) & Sn_IR_CON) {	// Socket n interrupt register mask; TCP CON interrupt = connection with peer is successful
-				setSn_IR(sn, Sn_IR_CON);  // this interrupt should be write the bit cleared to '1'
-				is_tcp_connected = 1; //indicate TCP connected
-			}
-
-			#if W5500_DEBUG_PRINTF
-				printf("SOCK_ESTABLISHED, sn = [%d]: ", sn);
-
-				uint8_t sn_mask = getSn_IR(sn) & Sn_IR_CON; // TODO: make sure type cast is correct
-				if (sn_mask)
-					printf("Connected to %d.%d.%d.%d : %d\r\n", destip[0], destip[1], destip[2], destip[3], destport);
-				else
-					printf("NULL MASK\r\n");
-			#endif
-
-			// Data Transaction Parts; Handle the [data receive and send] process
-			*rLen = 0; //reset read length
-
-			if ((size = getSn_RX_RSR(sn)) > 0) { // Sn_RX_RSR: Socket n Received Size Register, Receiving data length
-
-				if(size > DATA_BUF_SIZE)
-					size = DATA_BUF_SIZE; // DATA_BUF_SIZE means user defined buffer size (array)
-
-				ret = recv(sn, rbuf, size); // Data Receive process (H/W Rx socket buffer -> User's buffer)
+    // Check the W5500 Socket n status register (Sn_SR, The 'Sn_SR' controlled by Sn_CR command or Packet send/recv status)
+    switch(getSn_SR(sn)) {
+    case SOCK_ESTABLISHED :
+        if(getSn_IR(sn) & Sn_IR_CON) {	// Socket n interrupt register mask; TCP CON interrupt = connection with peer is successful
+#if (W5500_DEBUG_PRINTF)
+            uart_printf("%d:Connected to - %d.%d.%d.%d : %d\r\n",sn, destip[0], destip[1], destip[2], destip[3], destport);
+#endif
+            setSn_IR(sn, Sn_IR_CON);  // this interrupt should be write the bit cleared to '1'
 					
-				if(ret <= 0)
-					return ret; // If the received data length <= 0, receive failed and process end
+						is_tcp_connected = 1; //indicate TCP connected
+        }
 
-				*rLen = size; //update read length
-				ui8NewReadData = 1;
-			}
-
-			// Send data if there's data to be written
-			sentsize = 0;
-			while((*wLen != sentsize) && (*wLen > 0)) {
-				ret = send(sn, wbuf+sentsize, *wLen-sentsize); // Data send process (User's buffer -> Destination through H/W Tx socket buffer)
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        // Data Transaction Parts; Handle the [data receive and send] process
+        //////////////////////////////////////////////////////////////////////////////////////////////
+				*rLen = 0; //reset read length
+        if((size = getSn_RX_RSR(sn)) > 0) { // Sn_RX_RSR: Socket n Received Size Register, Receiving data length
+            if(size > DATA_BUF_SIZE) size = DATA_BUF_SIZE; // DATA_BUF_SIZE means user defined buffer size (array)
+            ret = recv(sn, rbuf, size); // Data Receive process (H/W Rx socket buffer -> User's buffer)
+            if(ret <= 0) return ret; // If the received data length <= 0, receive failed and process end
+						*rLen = size; //update read length
+						ui8NewReadData = 1;
+        }
 				
-				if (ret < 0) { // Send Error occurred (sent data length < 0)
-					close(sn); // socket close
-					return ret;
+				// Send data if there's data to be written
+				sentsize = 0;
+				while((*wLen != sentsize) && (*wLen > 0)) {
+						ret = send(sn, wbuf+sentsize, *wLen-sentsize); // Data send process (User's buffer -> Destination through H/W Tx socket buffer)
+						if(ret < 0) { // Send Error occurred (sent data length < 0)
+								close(sn); // socket close
+								return ret;
+						}
+						sentsize += ret; // Don't care SOCKERR_BUSY, because it is zero.
 				}
-				sentsize += ret; // Don't care SOCKERR_BUSY, because it is zero.
-			}
-			break;
+        //////////////////////////////////////////////////////////////////////////////////////////////
+        break;
 
-		case SOCK_CLOSE_WAIT:
-			*sock_status = SOCK_CLOSE_WAIT;
-
-			ret = disconnect(sn);
-
-			#if W5500_DEBUG_PRINTF
-				printf("SOCK_CLOSE_WAIT, sn = [%d] ", sn);
-				if (ret != SOCK_OK)
-					printf("ret = [%d] != SOCK_OK \r\n", ret);
-				else
-					printf("ret = [%d] == SOCK_OK\r\n", ret);
-			#endif
-
-			if (ret != SOCK_OK)
-				return ret;
+    case SOCK_CLOSE_WAIT :
+        if((ret=disconnect(sn)) != SOCK_OK) return ret;
 		
-			is_tcp_connected = 0; //indicate TCP disconnected
-			break;
+				is_tcp_connected = 0; //indicate TCP disconnected
+#if (W5500_DEBUG_PRINTF)
+        uart_printf("%d:Socket Closed\r\n", sn);
+#endif
+        break;
 
-		case SOCK_INIT:
-			*sock_status = SOCK_INIT;
+    case SOCK_INIT :
+#if (W5500_DEBUG_PRINTF)
+        uart_printf("%d:Try to connect to the %d.%d.%d.%d : %d\r\n", sn, destip[0], destip[1], destip[2], destip[3], destport);
+#endif
+				is_tcp_connected = 0; //indicate TCP disconnected
+        if( (ret = connect(sn, destip, destport)) != SOCK_OK) return ret;	//	Try to TCP connect to the TCP server (destination)
+        break;
 
-			is_tcp_connected = 0; //indicate TCP disconnected
+    case SOCK_CLOSED:
+        close(sn);
+				is_tcp_connected = 0; //indicate TCP disconnected
+        if((ret=socket(sn, Sn_MR_TCP, any_port++, 0x00)) != sn) return ret; // TCP socket open with 'any_port' port number
 
-			#if W5500_DEBUG_PRINTF
-				dt_ret_msec = getUpTime();
-			#endif
+        SetAutoKeepAlive(sn, 1); // set Auto keepalive 10sec(2*5)
 
-			ret = connect(sn, destip, destport);
-
-			#if W5500_DEBUG_PRINTF
-				dt_ret_msec = getUpTime() - dt_ret_msec;
-
-				printf("SOCK_INIT, sn = [%d]: trying to connect to %d.%d.%d.%d : %d, dt_ret_msec = [%d] ",
-						sn,
-						destip[0], destip[1], destip[2], destip[3], destport,
-						(int)dt_ret_msec);
-
-				if (ret != SOCK_OK)
-					printf("ret (socket result) = [%d] != SOCK_OK \r\n", ret);
-				else
-					printf("ret (socket result) = [%d] == SOCK_OK\r\n", ret);
-			#endif
-
-			if (ret != SOCK_OK)
-				return ret;	//	Try to TCP connect to the TCP server (destination)
-			break;
-
-		case SOCK_CLOSED:
-			*sock_status = SOCK_CLOSED;
-
-			close(sn);
-			is_tcp_connected = 0; //indicate TCP disconnected
-			ret = socket(sn, Sn_MR_TCP, any_port++, 0x00);
-
-			#if W5500_DEBUG_PRINTF
-				printf("SOCK_CLOSED, sn = [%d] ", sn);
-				if (ret != sn)
-					printf("ret = [%d] != sn \r\n", ret);
-				else
-					printf("ret = [%d] == sn \r\n", ret);
-			#endif
-
-			if (ret != sn)
-				return ret; // TCP socket open with 'any_port' port number
-
-			SetAutoKeepAlive(sn, 0); // set Auto keepalive 5 sec (1*5)
-			break;
-
-		default:
-			*sock_status = -1;
-			break;
+        break;
+    default:
+        break;
     }
     return 1;
 }
@@ -464,105 +375,121 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 /**
 		@brief: The ethernet state which check for DHCP and TCP state
 */
-int32_t ethernet_w5500_state(int* sock_status)
+void ethernet_w5500_state(void)
 {
     int32_t ret;
-	// uint16_t index;
-
+//		uint16_t index;
     //this keep checking the TCP port. Needs to be included.
-    if (PHYStatus_check_flag) {
+    if(PHYStatus_check_flag) {
         PHYStatus_check_flag = false;
         PHYStatus_Check();
     }
-
 #if (DHCP_SERV_EN) //---else if DHCP_SERV_EN == 1---//
     switch(DHCP_run()) {
-		case DHCP_IP_ASSIGN:
-		case DHCP_IP_CHANGED:
-			// if this block empty, act with default_ip_assign & default_ip_update */
-			break;
+    case DHCP_IP_ASSIGN:
+    case DHCP_IP_CHANGED:
+        /** If this block empty, act with default_ip_assign & default_ip_update */
 
-		case DHCP_IP_LEASED:
-			//
-			// TO DO NETWORK APPs.
-			//
+        break;
+    case DHCP_IP_LEASED:
+        //
+        // TO DO NETWORK APPs.
+        //
 
-			//find and set server IP
-			memcpy(destination_ip, &gHman_WIZNETINFO.ip, sizeof(destination_ip));
-			destination_ip[3] = 1;
-
-			// test rapid data dump
-			if ((ret = ethernet_w5500_tcp_state(SOCK_TCPS, gReadDATABUF, &ui16ReadLen,
-					gWriteDATABUF, &ui16WriteLen, destination_ip, PORT_TCPS, sock_status)) < 0) {
-
-				if (W5500_DEBUG_PRINTF)
-					printf("SOCKET ERROR : %ld\r\n", ret);
-			}
-			break;
-
-		case DHCP_FAILED:
-			// Example pseudo code:
-			// The below code can be replaced your code or omitted.
-			// if omitted, retry to process DHCP
-			my_dhcp_retry++;
-
-			if(my_dhcp_retry > MY_MAX_DHCP_RETRY) {
-				if (W5500_DEBUG_PRINTF)
-					printf(">> DHCP %d Failed\r\n", my_dhcp_retry);
+        //find and set server IP
+        memcpy(destination_ip, &gHman_WIZNETINFO.ip, sizeof(destination_ip));
+        destination_ip[3] = 1;
 				
-				my_dhcp_retry = 0;
-				ethernet_w5500_reset();
-			}
-			break;
+				// test rapid data dump
+				if ((ret = ethernet_w5500_tcp_state(SOCK_TCPS, gReadDATABUF, &ui16ReadLen, 
+										gWriteDATABUF, &ui16WriteLen, destination_ip, PORT_TCPS)) < 0) 
+				{
+#if (W5500_DEBUG_PRINTF)
+            uart_printf("SOCKET ERROR : %ld\r\n", ret);
+#endif
+        }
+										
+#if (W5500_DEBUG_PRINTF)
+//				if(ui16ReadLen > 0) //print rx data
+//				{
+//					uart_printf("Rx data:");
+//					for(index = 0; index < ui16ReadLen; index++)
+//						uart_send_byte_block(gReadDATABUF[index]);
+//					uart_printf("\r\n");
+//				}
+#endif			
 			
-		default:
-			break;
+        break;
+    case DHCP_FAILED:
+        /** ===== Example pseudo code =====  */
+        // The below code can be replaced your code or omitted.
+        // if omitted, retry to process DHCP
+        my_dhcp_retry++;
+        if(my_dhcp_retry > MY_MAX_DHCP_RETRY) {
+#if (W5500_DEBUG_PRINTF)
+            uart_printf(">> DHCP %d Failed\r\n", my_dhcp_retry);
+#endif					
+            my_dhcp_retry = 0;
+            ethernet_w5500_reset();
+        }
+        break;
+    default:
+        break;
     }
-#else	// DHCP_SERV_EN == 0
-	//find and set server IP
-	memcpy(destination_ip, &gHman_WIZNETINFO.ip, sizeof(destination_ip));
-	destination_ip[3] = 1;
+#else		//---else if DHCP_SERV_EN == 0---//
+				//find and set server IP
+        memcpy(destination_ip, &gHman_WIZNETINFO.ip, sizeof(destination_ip));
+        destination_ip[3] = 1;
+				
+				// test rapid data dump
+				if ((ret = ethernet_w5500_tcp_state(SOCK_TCPS, gReadDATABUF, &ui16ReadLen, 
+										gWriteDATABUF, &ui16WriteLen, destination_ip, PORT_TCPS)) < 0) 
+				{
+#if (W5500_DEBUG_PRINTF)
+            uart_printf("SOCKET ERROR : %ld\r\n", ret);
+#endif
+        }
+										
+#if (W5500_DEBUG_PRINTF)
+//				if(ui16ReadLen > 0) //print rx data
+//				{
+//					uart_printf("Rx data:");
+//					for(index = 0; index < ui16ReadLen; index++)
+//						uart_send_byte_block(gReadDATABUF[index]);
+//					uart_printf("\r\n");
+//				}
+#endif	
 
-	// test rapid data dump
-	ret = ethernet_w5500_tcp_state(SOCK_TCPS, gReadDATABUF, &ui16ReadLen,
-			gWriteDATABUF, &ui16WriteLen, destination_ip, PORT_TCPS, sock_status);
-	/*
-	if (ret != SOCK_OK) {
-		if (W5500_DEBUG_PRINTF)
-			printf("ethernet_w5500_state(): SOCKET ERROR [%ld] \r\n", ret);
-	}
-	*/
 #endif //end of DHCP_SERV_EN
-
-	// Clear TCP send data whether it has been sent or not:
-	ethernet_w5500_send_data_clear();
-
-	return ret;
+		//clear TCP send data whether it has been sent or not.
+		ethernet_w5500_send_data_clear();
 }
 
-/*
-	@brief: Init the ethernet system and W5500 chip
-	@retval: 0 = OK. Non-zero = error;
+/**
+		@brief: Init the ethernet system and W5500 chip
+    @retval: 0 = OK. Non-zero = error;
 */
 uint8_t ethernet_w5500_sys_init(void)
 {
-    // init W5500 chip
+    //init W5500 chip
     W5500_Chip_Init();
 
+    //
     // Init DHCP Client
-    // must be set the default mac before DHCP started:
+    //
+    // must be set the default mac before DHCP started.
     setSHAR(gHman_WIZNETINFO.mac);
-
-#if (DHCP_SERV_EN)
+#if (DHCP_SERV_EN) //---else if DHCP_SERV_EN == 1---//
     DHCP_init(SOCK_DHCP, gReadDATABUF);
-
     // if you want different action instead defalut ip assign,update, conflict,
     // if cbfunc == 0, act as default.
     reg_dhcp_cbfunc(my_ip_assign, my_ip_assign, my_ip_conflict);
 #endif
-
     Net_Conf();
+
+    /** PHY Status check enable */
     PHYStatus_check_enable = true;
+
     return HAL_OK;
 }
 /** [] END OF FILE */

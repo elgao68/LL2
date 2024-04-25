@@ -107,7 +107,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	// Real-time counters and timers:
-	double T_RUN_MAX;
+	double T_RUN_MAX = 1000;
 	double t_ref = 0;
 
 	int rt_step_i = 0; // real-time step counter
@@ -145,7 +145,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 		// uart rx state check:
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		// uart_rx_data_state();
+		uart_rx_data_state();
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Ethernet connection:

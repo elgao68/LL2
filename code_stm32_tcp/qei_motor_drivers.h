@@ -41,7 +41,7 @@ uint8_t motor_qei_sys_start(void);
 void qei_count_R_reset(void);
 /* 	@brief: Read Radial QEI count
 */
-int32_t qei_count_L_read(void);
+int32_t qei_count_R_read(void);
 
 
 /* 	@brief: Reset Phi QEI count
@@ -49,7 +49,7 @@ int32_t qei_count_L_read(void);
 void qei_count_P_reset(void);
 /* 	@brief: Read Phi QEI count
 */
-int32_t qei_count_R_read(void);
+int32_t qei_count_P_read(void);
 
 void r_brakes_enable();
 void p_brakes_enable();
@@ -64,8 +64,8 @@ uint8_t p_brakes (bool disengage);
 bool force_sensors_read(ADC_HandleTypeDef* hadc, uint32_t* left_x, uint32_t * left_y, uint32_t* right_x, uint32_t * right_y);
 bool current_sensors_read(ADC_HandleTypeDef* hadc, uint32_t* r, uint32_t * p);
 
+void motor_P_move(uint32_t dac_in, bool dir, bool en);
 void motor_R_move(uint32_t dac_in, bool dir, bool en);
-void motor_L_move(uint32_t dac_in, bool dir, bool en);
 
 #endif
 

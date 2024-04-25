@@ -149,7 +149,7 @@ main(void) {
 
 	uint8_t startup_status = 0;
 
-	// startup_status = uart_sys_init();
+	startup_status = uart_sys_init();
 
 	printf("\n");
 	printf("System starting up!\r\n");

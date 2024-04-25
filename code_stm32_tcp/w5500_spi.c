@@ -86,9 +86,9 @@ void wizchip_burst_write(uint8_t* pBuf, uint16_t len)
 */
 void W5500_Chip_Init(void)
 {
-	//this 2 dimension array set the sockets to 2kb or 2048bytes of mem each.
-	//W5500 has a total of 16kb for tx and rx, so each socket can only be allocated
-	//max of 2kb.
+		//this 2 dimension array set the sockets to 2kb or 2048bytes of mem each.
+		//W5500 has a total of 16kb for tx and rx, so each socket can only be allocated
+		//max of 2kb.
     uint8_t memsize[2][8] = { { 2, 2, 2, 2, 2, 2, 2, 2 }, { 2, 2, 2, 2, 2, 2, 2, 2 } };
 
     //ensure the CSpin deselected
@@ -104,10 +104,10 @@ void W5500_Chip_Init(void)
         printf("WIZCHIP Initialized fail.\r\n");
         while (1);
     }
-    /*
-	do {
-		if (ctlwizchip(CW_GET_PHYLINK, (void*) &tmp) == -1)
-			printf("Unknown PHY Link stauts.\r\n");
-	} while (tmp == PHY_LINK_OFF);
+    /**
+    	do {
+    		if (ctlwizchip(CW_GET_PHYLINK, (void*) &tmp) == -1)
+    			printf("Unknown PHY Link stauts.\r\n");
+    	} while (tmp == PHY_LINK_OFF);
     */
 }

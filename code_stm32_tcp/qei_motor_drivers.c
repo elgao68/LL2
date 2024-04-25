@@ -64,8 +64,8 @@ static uint64_t P_brakes_powersavetimer = 0;
 uint8_t motor_qei_sys_start(void)
 {
 	//set to 0
+    motor_P_move(0,false,false);
     motor_R_move(0,false,false);
-    motor_L_move(0,false,false);
 	
 	//start QEI
 	if(HAL_TIM_Encoder_Start(QEI_P, TIM_CHANNEL_ALL) != HAL_OK)
@@ -96,7 +96,7 @@ void qei_count_R_reset(void)
 }
 /* 	@brief: Read Radial QEI count
 */
-int32_t qei_count_L_read(void)
+int32_t qei_count_R_read(void)
 {
 	uint16_t tmp;
 	int32_t ret_val;
@@ -135,7 +135,7 @@ void qei_count_P_reset(void)
 
 /* 	@brief: Read Phi QEI count
 */
-int32_t qei_count_R_read(void)
+int32_t qei_count_P_read(void)
 {
 	uint16_t tmp;
 	int32_t ret_val;
@@ -324,16 +324,39 @@ bool current_sensors_read(ADC_HandleTypeDef* hadc, uint32_t* r, uint32_t * p)
 	return true;
 }
 
-void motor_R_move(uint32_t dac_in, bool dir, bool en)
-{
-	Right_Motor_SetValue (dac_in);
-	Right_Motor_Enable (en);
-	Right_Motor_Direction (dir);
+void Radial_Motor_SetValue (uint32_t dac_in){
+	Left_Motor_SetValue(dac_in);
+}
+void Radial_Motor_Enable (bool en){
+	Left_Motor_Enable(en);
+}
+void Radial_Motor_Direction (bool dir){
+	Left_Motor_Direction(dir);
 }
 
-void motor_L_move(uint32_t dac_in, bool dir, bool en)
+void Angular_Motor_SetValue (uint32_t dac_in){
+	Right_Motor_SetValue(dac_in);
+}
+void Angular_Motor_Enable (bool en){
+	Right_Motor_Enable(en);
+}
+void Angular_Motor_Direction (bool dir){
+	Right_Motor_Direction(dir);
+}
+
+
+
+
+void motor_P_move(uint32_t dac_in, bool dir, bool en)
 {
-	Left_Motor_SetValue (dac_in);
-	Left_Motor_Enable (en);
-	Left_Motor_Direction (dir);
+	Angular_Motor_SetValue (dac_in);
+	Angular_Motor_Enable (en);
+	Angular_Motor_Direction (dir);
+}
+
+void motor_R_move(uint32_t dac_in, bool dir, bool en)
+{
+	Radial_Motor_SetValue (dac_in);
+	Radial_Motor_Enable (en);
+	Radial_Motor_Direction (dir);
 }

@@ -85,7 +85,7 @@ void ethernet_w5500_reset(void);
 /**
 		@brief: The ethernet state which check for DHCP and TCP state
 */
-int32_t ethernet_w5500_state(int* sock_status);
+void ethernet_w5500_state(void);
 
 /**  @brief: Init the etherner system
     
