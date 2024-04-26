@@ -19,7 +19,7 @@
 #include "timer.h"
 
 #if (MOTOR_DRIVER_OPS)
-	#include "qei_motor_drivers.h"
+	#include <qei_motor_drivers_LL2.h>
 #endif
 
 //Serial Number

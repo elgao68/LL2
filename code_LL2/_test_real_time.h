@@ -58,8 +58,8 @@ static uint32_t current_sensor_R = 0;
 
 // Motor driver feedback related:
 // static uint8_t tcpTxData[292];
+// static uint64_t L_brakes_powersavetimer = 0;
 // static uint64_t R_brakes_powersavetimer = 0;
-// static uint64_t P_brakes_powersavetimer = 0;
 
 // Dynamic system mode: unconstrained / constrained:
 #define USE_ADMITT_MODEL_CONSTR_RT	0

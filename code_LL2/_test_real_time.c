@@ -320,7 +320,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						clear_ctrl_params();
 
 						// disable motor
-						motor_R_move(0, false, false);
+						motor_L_move(0, false, false);
 						motor_L_move(0, false, false);
 
 						// restart
@@ -357,7 +357,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								/////////////////////////////////////////////////////////////////////////////////////
 
 								motor_alert = set_LL_mech_readings(&LL_mech_readings, up_time,
-										qei_count_L_read(), qei_count_R_read(),
+										qei_count_L_read(), qei_count_L_read(),
 										current_sensor_L, current_sensor_R,
 										force_end_in_x_sensor, force_end_in_y_sensor,
 										IS_CALIBRATION);
@@ -422,11 +422,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 										stop_exercise(&LL_motors_settings);
 
 										// Disable motors:
-										motor_R_move(0, false, false);
+										motor_L_move(0, false, false);
 										motor_L_move(0, false, false);
 									}
 									else {
-										motor_R_move(LL_motors_settings.right.dac_in, LL_motors_settings.right.motor_direction,
+										motor_L_move(LL_motors_settings.right.dac_in, LL_motors_settings.right.motor_direction,
 											LL_motors_settings.right.en_motor_driver);
 										motor_L_move(LL_motors_settings.left.dac_in, LL_motors_settings.left.motor_direction,
 											LL_motors_settings.left.en_motor_driver);
@@ -480,7 +480,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								clear_ctrl_params();
 
 								// Set the motors to 0 and disable the motor driver
-								motor_R_move(0, false, false);
+								motor_L_move(0, false, false);
 								motor_L_move(0, false, false);
 
 							} // end if (LL_sys_info.exercise_state == RUNNING) (case: !RUNNING)

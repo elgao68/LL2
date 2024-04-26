@@ -11,8 +11,6 @@
 #define LEFT_MD_CHANNEL DAC_CHANNEL_2
 #define RIGHT_MD_CHANNEL DAC_CHANNEL_1
 
-
-
 bool Read_Haptic_Button(void){
 	return HAL_GPIO_ReadPin(SIG_EMGC_GPIO_Port, SIG_EMGC_Pin);
 }

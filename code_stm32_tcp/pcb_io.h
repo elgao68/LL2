@@ -10,7 +10,7 @@
 //#define FS_ANALOGOUT_HANDLE	&hadc3
 #define MD_ANALOGIN_HANDLE	&hdac
 //#define ETHERNET_SPI_HANDLE	&hspi3
-//#define QEI_RIGHT_HANDLE	&htim2
+//#define QEI_LIGHT_HANDLE	&htim2
 //#define QEI_LEFT_HANDLE	&htim4
 //#define TIMER_HANDLE	&htim9
 //#define UART_HANDLE	&huart3

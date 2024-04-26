@@ -21,13 +21,13 @@
 #include <lowerlimb_config.h>
 #include <traj_ctrl_params_nml.h>
 #include <motor_algo_ll2.h>
+#include <qei_motor_drivers_LL2.h>
 #include "stm32f4xx_hal.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "common.h"
 #include "w5500_app.h"
 #include "transition_mode.h"
-#include "qei_motor_drivers.h"
 
 ///////////////////////////////////////////////////////
 // CONTROL / SIMULATION SETTINGS - GAO

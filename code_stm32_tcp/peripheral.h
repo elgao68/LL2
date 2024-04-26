@@ -8,8 +8,8 @@
 #ifndef PERIPHERAL_H
 #define PERIPHERAL_H
 
+#include <qei_motor_drivers_LL2.h>
 #include "led.h"
-#include "qei_motor_drivers.h"
 
 //#include "uart_driver.c"
 //#include "timer.c"

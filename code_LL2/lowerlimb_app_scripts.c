@@ -445,8 +445,8 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 				uint8_t calib_prot_req = lowerlimb_sys_info.calib_prot_req;
 
 				if (calib_prot_req == CalibEncoders) {	//Calibrate Left Motor
+					qei_count_L_reset();
 					qei_count_R_reset();
-					qei_count_P_reset();
 
 					//send resp
 					send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
@@ -475,8 +475,8 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 				}
 				else if (calib_prot_req == CalibEncodersFS) {	//Calibrate Both Motors
 					//Reset Encoder
+					qei_count_L_reset();
 					qei_count_R_reset();
-					qei_count_P_reset();
 
 					//Zero calib Force Sensor
 					for (int i = 1; i <= 50; i++) {

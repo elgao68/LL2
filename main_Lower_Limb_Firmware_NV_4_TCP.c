@@ -17,7 +17,6 @@
 #include <string.h>
 #include "timer.h"
 #include "uart_driver.h"
-#include "qei_motor_drivers.h"
 #include "w5500_spi.h"
 #include "wizchip_conf.h"
 #include "dhcp.h"
@@ -26,10 +25,13 @@
 
 #include <_std_c.h>
 #include <admitt_model_params.h>
-// #include <motor_algo_ll2.h>
+#include <motor_algo_ll2.h>
 #include <nml.h>
 #include <nml_util.h>
 #include <traj_ctrl_params_nml.h>
+#include <lowerlimb_config.h>
+#include <lowerlimb_app.h>
+#include <qei_motor_drivers_LL2.h>
 
 #include "_test_simulation.h"
 // #include "_test_real_time.h"
@@ -46,50 +48,32 @@
 #define VER_P		0x00
 
 ////////////////////////////////////////////////////////////////////////////////
-// Private variables:
+// STM32 I/O variables:
+////////////////////////////////////////////////////////////////////////////////
+
+ADC_HandleTypeDef hadc1;
+ADC_HandleTypeDef hadc3;
+DAC_HandleTypeDef hdac;
+SPI_HandleTypeDef hspi3;
+TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim4;
+TIM_HandleTypeDef htim9;
+UART_HandleTypeDef huart3;
+
+////////////////////////////////////////////////////////////////////////////////
+// REAL-TIME PROCESS TIME STEP:
 ////////////////////////////////////////////////////////////////////////////////
 
 #define DT_STEP_MSEC 5
 
-ADC_HandleTypeDef hadc1;
-ADC_HandleTypeDef hadc3;
+////////////////////////////////////////////////////////////////////////////////
+// Private variables:
+////////////////////////////////////////////////////////////////////////////////
 
-DAC_HandleTypeDef hdac;
-
-SPI_HandleTypeDef hspi3;
-
-TIM_HandleTypeDef htim2;
-TIM_HandleTypeDef htim4;
-TIM_HandleTypeDef htim9;
-
-UART_HandleTypeDef huart3;
-
-uint64_t ethernet_test_nextTime = 0;
-static uint64_t algo_nextTime = 0;
-
-static uint64_t brakes_nextTime = 0;
-static uint64_t uart_output_nextTime = 0;
-static uint8_t current_paramas_index = 0;
-static uint8_t rx_data[30];
-
-// TODO: remove at a later date:
-#define USE_TCP_APP_DISTAL       0
-
-#if USE_TCP_APP_DISTAL
-	#include "distal_config.h"
-	#include "distal_tcp_app.h"
-
-	static distal_sys_info_t LL_sys_info;
-#else
-	#include "lowerlimb_config.h"
-	#include "lowerlimb_app.h"
-
-	static lowerlimb_sys_info_t LL_sys_info;
-
-	static lowerlimb_mech_readings_t   LL_mech_readings;
-	static lowerlimb_motors_settings_t LL_motors_settings;
-	static lowerlimb_ref_kinematics_t	ref_kinematics;
-#endif
+static lowerlimb_sys_info_t LL_sys_info;
+static lowerlimb_mech_readings_t   LL_mech_readings;
+static lowerlimb_motors_settings_t LL_motors_settings;
+static lowerlimb_ref_kinematics_t	ref_kinematics;
 
 static traj_ctrl_params_t		traj_ctrl_params;
 static admitt_model_params_t	admitt_model_params;
@@ -97,31 +81,15 @@ static admitt_model_params_t	admitt_model_params;
 static uint16_t cmd_code  = 0;
 static uint8_t  app_state = 0;
 
-void
-set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
-	if (uptime >= *brakes_next_time) {
-		*brakes_next_time = uptime + 1; // 1kHz
+static uint64_t algo_nextTime = 0;
 
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Code to Engage & Disengage Brake of the Radial Axis
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		set_r_brake_status(r_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Code to Engage & Disengage Brake of the Rotational Axis
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		set_p_brake_status(p_brakes(get_p_brake_cmd() && Read_Haptic_Button()));
-	}
-}
-
-// static distal_motors_settings_t current_motors_settings;
-// static distal_mech_readings_t current_mech_readings;
-// static distal_calib_t curHmanCalibStatus;
-
-// static uint64_t expire_nextTime = 0;
-// static uint8_t prev_fifo_size = 0;
+/*
+uint64_t ethernet_test_nextTime = 0;
+static uint64_t brakes_nextTime = 0;
+static uint64_t uart_output_nextTime = 0;
+static uint8_t current_paramas_index = 0;
+static uint8_t rx_data[30];
+*/
 
 ////////////////////////////////////////////////////////////////////////////////
 // STM32 PRIVATE FUNCTIONS - VERY IMPORTANT:
@@ -167,7 +135,6 @@ void set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time);
 
 int main(void)
 {
-	/* USER CODE BEGIN 1 */
 	uint8_t motor_result = 0;
 	uint8_t motor_alert = 0;
 	uint8_t prevConnected = 0;
@@ -199,54 +166,86 @@ int main(void)
 	MX_ADC3_Init();
 	MX_DAC_Init();
 
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Check if you're only running "scratch" code:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	#if TEST_OPTION == _TEST_SCRATCH
+		test_scratch();
+		return 0;
+	#endif
+
+	/////////////////////////////////////////////////////////////////////////////////////
 	//start UART sys
-	/* MINIMAL
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	/*
+	uint8_t startup_status = 0;
+
 	startup_status = uart_sys_init();
-	uart_printf("System starting up!\r\n");
+
+	printf("\n");
+	printf("System starting up!\r\n");
 	*/
 
-	//start 1ms timer
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Start 1ms timer
+	/////////////////////////////////////////////////////////////////////////////////////
+
 	startup_status = startBaseTimer();
-	if (startup_status) {
-		uart_printf("Base Timer init err!\r\n");
-	}
 
-	/* MINIMAL
+	if (startup_status)
+		printf("Base Timer init error!\r\n");
+
+	/////////////////////////////////////////////////////////////////////////////////////
 	//start motor driver
+	/////////////////////////////////////////////////////////////////////////////////////
+
 	startup_status = motor_qei_sys_start();
-	if (startup_status) {
-		uart_printf("Motor PWM and QEI init err!\r\n");
-	}
-	uart_printf("System startup success!\r\n");
 
-	//disable motor
-	motor_P_move(0, false, false);
-	motor_R_move(0, false, false);
+	if (startup_status)
+		printf("Motor PWM and QEI init err!\r\n");
 
-	//start motor algo
-	init_motor_algo();
-	*/
+	printf("System startup success!\r\n");
 
-	//set up ethernet
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Set up Ethernet:
+	/////////////////////////////////////////////////////////////////////////////////////
+
 	Ethernet_Reset(true);
-	HAL_Delay(100);
+	HAL_Delay(1000);
 	Ethernet_Reset(false);
 	HAL_Delay(1000);
 	set_ethernet_w5500_mac(0x00, 0x0a, 0xdc, 0xab, 0xcd, 0xef);
 	ethernet_w5500_sys_init();
 
-	// Hman TCP APP
-	#if USE_TCP_APP_DISTAL
-		distal_tcp_init_app_state(0, VER_H, VER_L, VER_P);
-	#else
-		app_state = lowerlimb_app_state_initialize(0, VER_H, VER_L, VER_P, &LL_motors_settings);
-	#endif
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Start DAC ports:
+	/////////////////////////////////////////////////////////////////////////////////////
 
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_1);
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
 
-	///Cycle LED
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Cycle LED
+	/////////////////////////////////////////////////////////////////////////////////////
+
 	Cycle_LED_Init();
+	LED_sys_state_off();
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Launch test script:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	#if TEST_OPTION == _TEST_REAL_TIME
+		// test_real_time(&hadc1, &hadc3);
+	#elif TEST_OPTION == _TEST_SIMULATION
+		test_simulation();
+	#elif TEST_OPTION == _TEST_ODE_INT
+		test_ode_int();
+	#elif TEST_OPTION == _TEST_MATR_INV
+		test_matr_inv();
+	#endif
 
 	while (1) {
 
@@ -263,16 +262,7 @@ int main(void)
 		/////////////////////////////////////////////////////////////////////////////
 		/////////////////////////////////////////////////////////////////////////////
 
-		#if USE_TCP_APP_DISTAL
-			LL_sys_info = distal_tcp_app_state(Read_Haptic_Button(), motor_alert);
-		#else
-			LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert, &traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
-		#endif
-
-		/* MINIMAL
-		//clear motor_alert after sending into tcp app state
-		motor_alert = 0;
-		*/
+		LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert, &traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
 
 		//if system is on or off?
 		if (LL_sys_info.system_state == ON) {
@@ -285,120 +275,15 @@ int main(void)
 				Right_LED_function (Red);
 			}
 
-			/* MINIMAL
-			// Brakes status:
-			if (getUpTime() >= brakes_nextTime) {
-				brakes_nextTime = getUpTime() + 1; //1kHz
-
-				set_brakes_timed(getUpTime(), &brakes_nextTime);
-			}
-
-			//udpate safety
-			set_safetyOff(LL_sys_info.safetyOFF);
-			*/
-
 			//check activity state
 			switch (LL_sys_info.activity_state) {
 				case IDLE: {
-					/* MINIMAL
-					//clear motor algo readings and settings
-					clear_distal_mech_readings();
-					clear_distal_motors_settings();
-					clear_ctrl_params();
-
-					//disable motor
-					motor_P_move(0, false, false);
-					motor_R_move(0, false, false);
-
-					//restart
-					init_motor_algo();
-
-					//restart calibration state
-					//reset_calibration_state();
-					 */
-
 					break;
 				}
 
 				case EXERCISE: {
 					if (getUpTime() >= algo_nextTime) {
-						algo_nextTime = getUpTime() + DT_STEP_MSEC; //200Hz
-
-						/* MINIMAL
-						if ((LL_sys_info.activity_state == EXERCISE)
-								&& (LL_sys_info.exercise_state == RUNNING)) {
-
-							//Retrieve Force Sensor Readings
-							force_sensors_read(&hadc3, &X_force_sensor, &Y_force_sensor, &Dummy_X_force_sensor, &Dummy_Y_force_sensor);
-							current_sensors_read(&hadc1, &R_current_sensor, &P_current_sensor);
-
-							//update motor driver algo
-							motor_result = update_motor_algo(LL_sys_info.exercise_mode, qei_count_R_read(),
-									qei_count_P_read(), X_force_sensor, Y_force_sensor,
-									R_current_sensor, P_current_sensor,
-									get_r_brake_cmd(), get_p_brake_cmd(), getUpTime(), 1);
-
-							//update motor alert
-							if (motor_result == 0xF0)
-								motor_alert = 1;
-							else if (motor_result == 0xF1)
-								motor_alert = 2;
-							else
-								motor_alert = 0;
-
-							//reset
-							motor_result = 0;
-
-							//update feedback array in Hman TCP
-							get_distal_mech_readings(&current_mech_readings); //get latest algo settings
-							get_distal_motors_settings(&current_motors_settings); //get latest algo settings
-
-							//check if need to end exercise
-							if ((motor_alert == 1) || (motor_alert == 2)) {
-								stop_exercise();
-
-								//disable motor
-								motor_P_move(0, false, false);
-								motor_R_move(0, false, false);
-							} else {
-								motor_P_move(current_motors_settings.right.dac_in, current_motors_settings.right.motor_direction,
-										current_motors_settings.right.en_motor_driver);
-								motor_R_move(current_motors_settings.left.dac_in, current_motors_settings.left.motor_direction,
-										current_motors_settings.left.en_motor_driver);
-							}
-
-							//Distal Force Sensor - Change only when updating TCP Protocol
-							//Input Brakes info from TCP System Info
-							set_distal_exercise_feedback_info(current_mech_readings.coord.x,
-									current_mech_readings.coord.y,
-									current_mech_readings.left.qei_count,
-									current_mech_readings.right.qei_count,
-									current_mech_readings.velocity.x,
-									current_mech_readings.velocity.y,
-									current_motors_settings.left.volt,
-									current_motors_settings.right.volt,
-									current_mech_readings.left.currsens_amps,
-									current_mech_readings.right.currsens_amps,
-									current_mech_readings.Xforce, //X-axis Force Sensor
-									current_mech_readings.Yforce, //Y-axis Force Sensor
-									current_motors_settings.force.x,
-									current_motors_settings.force.y,
-									current_motors_settings.force_magnitude);
-						}
-						*/
-
-						/* MINIMAL
-						else {
-							// reset
-							clear_distal_mech_readings();
-							clear_distal_motors_settings();
-							clear_ctrl_params();
-
-							//Set the motors to 0 and disable the motor driver
-							motor_P_move(0, false, false);
-							motor_R_move(0, false, false);
-						}
-						*/
+						algo_nextTime = getUpTime() + DT_STEP_MSEC;
 					}
 					break;
 				}
@@ -414,41 +299,14 @@ int main(void)
 			HAL_GPIO_WritePin(L_RED_GPIO_Port, L_RED_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(R_RED_GPIO_Port, R_RED_Pin, GPIO_PIN_RESET);
 
-			/* MINIMAL
-			//reset
-			clear_distal_mech_readings();
-			clear_distal_motors_settings();
-			clear_ctrl_params();
-			reset_force_sensor_calib_data();
-
-			//disable motor
-			motor_P_move(0, false, false);
-			motor_R_move(0, false, false);
-			*/
-
+			l_brakes(false);
 			r_brakes(false);
-			p_brakes(false);
-
-			/* MINIMAL
-			//restart
-			init_motor_algo();
-			*/
 		}
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		//check if need to dump UART FIFO
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		/* MINIMAL
-		if (prev_fifo_size != rx_fifo_size()) {
-			prev_fifo_size = rx_fifo_size();
-			expire_nextTime = getUpTime() + 1000;
-		}
-		if ((getUpTime() >= expire_nextTime) && (rx_fifo_size() > 0)) {
-			rx_fifo_clear();
-			prev_fifo_size = 0;
-		}
-		*/
 	}
 }
 
@@ -490,7 +348,6 @@ LED_sys_state_off() {
 	Right_LED_function(Yellow);
 }
 
-/*
 void
 set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 	if (uptime >= *brakes_next_time) {
@@ -500,15 +357,12 @@ set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 		// Code to Engage & Disengage Brake of the Radial Axis
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		set_l_brake_status(r_brakes(get_l_brake_cmd() && Read_Haptic_Button()));
+		set_l_brake_status(l_brakes(get_l_brake_cmd() && Read_Haptic_Button()));
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Code to Engage & Disengage Brake of the Rotational Axis
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		set_r_brake_status(p_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
+		set_r_brake_status(r_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
 	}
 }
-*/
-
-
