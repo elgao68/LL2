@@ -23,7 +23,7 @@
 #include "stm32f4xx_hal.h"
 #include "timer.h"
 #include "uart_driver.h"
-#include "qei_motor_drivers.h"
+#include "qei_motor_drivers_LL2.h"
 #include "w5500_spi.h"
 #include "wizchip_conf.h"
 #include "dhcp.h"
@@ -35,13 +35,11 @@
 // USER CODE BEGIN PV
 ////////////////////////////////////////////////////////////////////////////////
 
-// TCP ethernet related - Demo Firmware Version
-
+// TCP ethernet related - Demo Firmware Version:
 #define VER_H		0x00
 #define VER_L		0x00
 #define VER_P		0x00
 
-#define INTERVAL_5MS		5
 // uint64_t ethernet_test_nextTime = 0;
 
 static uint64_t algo_nextTime = 0;

@@ -114,11 +114,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	int c_i       = 0; // general-purpose counter
 
 	// TCP communication checks:
-	const int N_STEP_FLASH = 10;
-
-	int ret_i   = 0;
-	int flash_i = N_STEP_FLASH/2;
-
 	int32_t ret_tcp_msg      = 0;
 	uint64_t dt_ret_tcp_msec = 0;
 
@@ -155,12 +150,27 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			dt_ret_tcp_msec = getUpTime(); //  tests time elapsed waiting for ethernet_w5500_state() to return
 		#endif
 
-		// ret_tcp_msg = ethernet_w5500_state(&sock_status);
-		ethernet_w5500_state();
+		ret_tcp_msg = ethernet_w5500_state(&sock_status);
 
 		#if USE_ITM_TCP_CHECK
 			dt_ret_tcp_msec = getUpTime() - dt_ret_tcp_msec;
+
+			if (sock_status != SOCK_ESTABLISHED) { // (ret_tcp_msg < 0)
+				// Current socket state:
+				printf("ethernet_w5500_state(): SOCKET STATUS [0x%02x]\n", sock_status);
+
+				// Current TCP return message and time:
+				printf("rt_step_i [%d]: cmd_code = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code, ret_tcp_msg, (int)dt_ret_tcp_msec);
+				ret_i = 0;
+			}
 		#endif
+
+		////////////////////////////////////////////////////////////////////////////////////////
+		// GET TCP/IP APP STATE - GAO
+		////////////////////////////////////////////////////////////////////////////////////////
+
+		LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
+				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Execute real-time step:
@@ -173,49 +183,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			algo_nextTime = up_time + DT_STEP_MSEC;
 
 			/////////////////////////////////////////////////////////////////////////////////////
-			// Ethernet check:
-			/////////////////////////////////////////////////////////////////////////////////////
-
-			#if USE_ITM_TCP_CHECK
-				if (sock_status != SOCK_ESTABLISHED) { // (ret_tcp_msg < 0)
-					// Current socket state:
-					printf("ethernet_w5500_state(): SOCKET STATUS [0x%02x]\n", sock_status);
-
-					// Current TCP return message and time:
-					printf("rt_step_i [%d]: cmd_code = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code, ret_tcp_msg, (int)dt_ret_tcp_msec);
-					ret_i = 0;
-				}
-
-				if (rt_step_i > 0 && (rt_step_i % N_STEP_FLASH) == 0) {
-					if (sock_status == SOCK_ESTABLISHED) { // ret_tcp_msg > 0
-						Left_LED_function(Blue);
-						Right_LED_function(Blue);
-					}
-					else {
-						Left_LED_function(Red);
-						Right_LED_function(Red);
-					}
-
-					flash_i = 0;
-				}
-				else if (flash_i == N_STEP_FLASH/2) {
-					Left_LED_function(0);
-					Right_LED_function(0);
-				}
-
-				flash_i++;
-			#endif
-
-			/*
-			////////////////////////////////////////////////////////////////////////////////////////
-			// GET TCP/IP APP STATE - GAO
-			////////////////////////////////////////////////////////////////////////////////////////
-
-			LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
-					&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
-
-			/////////////////////////////////////////////////////////////////////////////////////
-			// Clear motor_alert after sending into tcp app state:
+			// Clear motor_alert after sending into TCP/IP APP state:
 			/////////////////////////////////////////////////////////////////////////////////////
 
 			motor_alert = 0;
@@ -286,17 +254,19 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			if (LL_sys_info.system_state == ON) {
 
 				/////////////////////////////////////////////////////////////////////////////////////
-				// Check emergency signal GPIOG GPIO_PIN_14
+				// Update LEDs state:
 				/////////////////////////////////////////////////////////////////////////////////////
 
-				#if !USE_ITM_TCP_CHECK
-					cycle_haptic_buttons();
-				#endif
+				cycle_haptic_buttons();
+
+				/////////////////////////////////////////////////////////////////////////////////////
+				// Check emergency signal GPIOG GPIO_PIN_14
+				/////////////////////////////////////////////////////////////////////////////////////
 
 				set_brakes_timed(up_time, &brakes_nextTime);
 
 				/////////////////////////////////////////////////////////////////////////////////////
-				// update safety
+				// Update safety:
 				/////////////////////////////////////////////////////////////////////////////////////
 
 				set_safetyOff(LL_sys_info.safetyOFF);
@@ -307,188 +277,200 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				/////////////////////////////////////////////////////////////////////////////////////
 				/////////////////////////////////////////////////////////////////////////////////////
 
-				switch (LL_sys_info.activity_state) {
+				if (LL_sys_info.activity_state == IDLE) {
 
 					/////////////////////////////////////////////////////////////////////////////////////
 					// IDLE state:
 					/////////////////////////////////////////////////////////////////////////////////////
 
-					case IDLE:
-						// clear motor algo readings and settings
-						clear_lowerlimb_mech_readings(&LL_mech_readings);
-						clear_lowerlimb_motors_settings(&LL_motors_settings);
-						clear_ctrl_params();
+					/*
+					// Clear motor algo readings and settings:
+					clear_lowerlimb_mech_readings(&LL_mech_readings);
+					clear_lowerlimb_motors_settings(&LL_motors_settings);
+					clear_ctrl_params();
 
-						// disable motor
-						motor_L_move(0, false, false);
-						motor_L_move(0, false, false);
+					// Disable motors:
+					motor_L_move(0, false, false);
+					motor_R_move(0, false, false);
 
-						// restart
-						init_motor_algo(&LL_mech_readings, &LL_motors_settings);
+					// Restart motor algorithm:
+					init_motor_algo(&LL_mech_readings, &LL_motors_settings);
 
-						// Reset calibration state:
-						// reset_calibration_state();
+					// Reset calibration state:
+					// reset_calibration_state();
+					*/
+				} // end if (LL_sys_info.activity_state == IDLE)
 
-						break;
+				else if (LL_sys_info.activity_state == CALIB) {
 
 					/////////////////////////////////////////////////////////////////////////////////////
 					// CALIBRATION state:
 					/////////////////////////////////////////////////////////////////////////////////////
 
-					case CALIB: // To-do (REMOVED)
-						break;
+				} // end if (LL_sys_info.activity_state == CALIB)
+
+				else if (LL_sys_info.activity_state == EXERCISE) {
 
 					/////////////////////////////////////////////////////////////////////////////////////
 					// EXERCISE state:
 					/////////////////////////////////////////////////////////////////////////////////////
 
-					case EXERCISE:
-							if (LL_sys_info.exercise_state == RUNNING) {
+					if (LL_sys_info.exercise_state == RUNNING) {
+						/*
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Retrieve force sensor readings:
+						/////////////////////////////////////////////////////////////////////////////////////
 
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Retrieve force sensor readings:
-								/////////////////////////////////////////////////////////////////////////////////////
+						force_sensors_read(hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor, &dum_force_end_in_x, &dum_force_end_in_y);
+						current_sensors_read(hadc1, &current_sensor_L, &current_sensor_R);
 
-								force_sensors_read(hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor, &dum_force_end_in_x, &dum_force_end_in_y);
-								current_sensors_read(hadc1, &current_sensor_L, &current_sensor_R);
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Get lower-limb robot sensor readings:
+						/////////////////////////////////////////////////////////////////////////////////////
 
-								/////////////////////////////////////////////////////////////////////////////////////
-							    // Get lower-limb robot sensor readings:
-								/////////////////////////////////////////////////////////////////////////////////////
+						motor_alert = set_LL_mech_readings(&LL_mech_readings, up_time,
+								qei_count_L_read(), qei_count_L_read(),
+								current_sensor_L, current_sensor_R,
+								force_end_in_x_sensor, force_end_in_y_sensor,
+								IS_CALIBRATION);
 
-								motor_alert = set_LL_mech_readings(&LL_mech_readings, up_time,
-										qei_count_L_read(), qei_count_L_read(),
-										current_sensor_L, current_sensor_R,
-										force_end_in_x_sensor, force_end_in_y_sensor,
-										IS_CALIBRATION);
+						#if OVERR_FORCE_SENSORS_CALIB_1
+							LL_mech_readings.Xforce = 0; // 0.1*cos(2*PI*t_ref + PI/2);
+							LL_mech_readings.Yforce = 0; // 0.1*cos(2*PI*t_ref);
+						#endif
 
-								#if OVERR_FORCE_SENSORS_CALIB_1
-									LL_mech_readings.Xforce = 0; // 0.1*cos(2*PI*t_ref + PI/2);
-									LL_mech_readings.Yforce = 0; // 0.1*cos(2*PI*t_ref);
-								#endif
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Extract measured end-effector forces:
+						/////////////////////////////////////////////////////////////////////////////////////
 
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Extract measured end-effector forces:
-								/////////////////////////////////////////////////////////////////////////////////////
+						F_end_m[IDX_X] = (double)LL_mech_readings.Xforce;
+						F_end_m[IDX_Y] = (double)LL_mech_readings.Yforce;
 
-								F_end_m[IDX_X] = (double)LL_mech_readings.Xforce;
-								F_end_m[IDX_Y] = (double)LL_mech_readings.Yforce;
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Extract measured position and velocity from sensor readings:
+						/////////////////////////////////////////////////////////////////////////////////////
 
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Extract measured position and velocity from sensor readings:
-								/////////////////////////////////////////////////////////////////////////////////////
+						p_m[IDX_X]     = (double)LL_mech_readings.coord.x;
+						p_m[IDX_Y]     = (double)LL_mech_readings.coord.y;
 
-								p_m[IDX_X]     = (double)LL_mech_readings.coord.x;
-								p_m[IDX_Y]     = (double)LL_mech_readings.coord.y;
+						dt_p_m[IDX_X]  = (double)LL_mech_readings.velocity.x;
+						dt_p_m[IDX_Y]  = (double)LL_mech_readings.velocity.y;
 
-								dt_p_m[IDX_X]  = (double)LL_mech_readings.velocity.x;
-								dt_p_m[IDX_Y]  = (double)LL_mech_readings.velocity.y;
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Motor algorithm computation:
+						/////////////////////////////////////////////////////////////////////////////////////
 
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Motor algorithm computation:
-								/////////////////////////////////////////////////////////////////////////////////////
+						traj_ref_step_active_elliptic(
+								p_ref, dt_p_ref,
+								&phi_ref, &dt_phi_ref,
+								u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
+								traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR_RT);
 
-								traj_ref_step_active_elliptic(
-										p_ref, dt_p_ref,
-										&phi_ref, &dt_phi_ref,
-										u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
-										traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR_RT);
+						// Set reference kinematics struct:
+						for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
+							ref_kinematics.p_ref[c_i]    = p_ref[c_i];
+							ref_kinematics.dt_p_ref[c_i] = dt_p_ref[c_i];
+						}
 
-								// Set reference kinematics struct:
-								for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
-									ref_kinematics.p_ref[c_i]    = p_ref[c_i];
-									ref_kinematics.dt_p_ref[c_i] = dt_p_ref[c_i];
-								}
+						ref_kinematics.phi_ref    = phi_ref;
+						ref_kinematics.dt_phi_ref = dt_phi_ref;
 
-								ref_kinematics.phi_ref    = phi_ref;
-								ref_kinematics.dt_phi_ref = dt_phi_ref;
+						/////////////////////////////////////////////////////////////////////////////////////
+						// UPDATE MOTOR SETTINGS - GAO:
+						/////////////////////////////////////////////////////////////////////////////////////
 
-								/////////////////////////////////////////////////////////////////////////////////////
-								// UPDATE MOTOR SETTINGS - GAO:
-								/////////////////////////////////////////////////////////////////////////////////////
+						// Clear motors settings:
+						clear_lowerlimb_motors_settings(&LL_motors_settings);
 
-								// Clear motors settings:
-							    clear_lowerlimb_motors_settings(&LL_motors_settings);
+						set_LL_motor_settings(&LL_motors_settings, force_end_cmd);
 
-								set_LL_motor_settings(&LL_motors_settings, force_end_cmd);
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Send motor commands:
+						/////////////////////////////////////////////////////////////////////////////////////
 
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Send motor commands:
-								/////////////////////////////////////////////////////////////////////////////////////
+						if (MOTOR_TORQUE_ON) {
+							// Check if need to end exercise:
+							if ((motor_alert == 1) || (motor_alert == 2)) {
+								stop_exercise(&LL_motors_settings);
 
-								if (MOTOR_TORQUE_ON) {
-									// Check if need to end exercise:
-									if ((motor_alert == 1) || (motor_alert == 2)) {
-										stop_exercise(&LL_motors_settings);
-
-										// Disable motors:
-										motor_L_move(0, false, false);
-										motor_L_move(0, false, false);
-									}
-									else {
-										motor_L_move(LL_motors_settings.right.dac_in, LL_motors_settings.right.motor_direction,
-											LL_motors_settings.right.en_motor_driver);
-										motor_L_move(LL_motors_settings.left.dac_in, LL_motors_settings.left.motor_direction,
-											LL_motors_settings.left.en_motor_driver);
-									}
-								}
-
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Distal Force Sensor - Change only when updating TCP Protocol
-								// Input Brakes info from TCP System Info
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
-
-								/////////////////////////////////////////////////////////////////////////////////////
-								// Update step time:
-								/////////////////////////////////////////////////////////////////////////////////////
-
-								t_ref = dt_k*rt_step_i;
-
-								// Check uptime after computations:
-								up_time_end = getUpTime();
-
-								// ITM console output:
-								#if USE_ITM_OUT_RT_CHECK
-									if ((up_time_end - up_time) > DT_STEP_MSEC) {
-
-										printf("____________________________\n");
-										printf("rt_step_i [%d]: t_ref = %f\tDT MSEC = %d\n",
-											rt_step_i,
-											t_ref,
-											(int)(up_time_end - up_time));
-										printf("____________________________\n");
-									}
-									else if (rt_step_i % (DT_DISP_MSEC_REALTIME/(int)(1000*dt_k)) == 0)
-										printf("%d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f\n",
-											rt_step_i,
-											t_ref,
-											(int)(up_time_end - up_time),
-											phi_ref,
-											dt_phi_ref,
-											p_ref[IDX_X],
-											p_ref[IDX_Y],
-											dt_p_ref[IDX_X],
-											dt_p_ref[IDX_Y]);
-								#endif
-							} // end if (LL_sys_info.exercise_state == ) (case: RUNNING)
+								// Disable motors:
+								motor_L_move(0, false, false);
+								motor_L_move(0, false, false);
+							}
 							else {
-								// reset
-								clear_lowerlimb_mech_readings(&LL_mech_readings);
-								clear_lowerlimb_motors_settings(&LL_motors_settings);
-								clear_ctrl_params();
+								motor_L_move(LL_motors_settings.right.dac_in, LL_motors_settings.right.motor_direction,
+									LL_motors_settings.right.en_motor_driver);
+								motor_L_move(LL_motors_settings.left.dac_in, LL_motors_settings.left.motor_direction,
+									LL_motors_settings.left.en_motor_driver);
+							}
+						}
 
-								// Set the motors to 0 and disable the motor driver
-								motor_L_move(0, false, false);
-								motor_L_move(0, false, false);
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Distal Force Sensor - Change only when updating TCP Protocol
+						// Input Brakes info from TCP System Info
+						/////////////////////////////////////////////////////////////////////////////////////
 
-							} // end if (LL_sys_info.exercise_state == RUNNING) (case: !RUNNING)
-					} // switch (LL_sys_info.activity_state)
-			} // if (LL_sys_info.system_state == ON)
-			else {
-				// LED_sys_state_off();
-			}
+						send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
+
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Update step time:
+						/////////////////////////////////////////////////////////////////////////////////////
+
+						t_ref = dt_k*rt_step_i;
+
+						// Check uptime after computations:
+						up_time_end = getUpTime();
+
+						// ITM console output:
+						#if USE_ITM_OUT_RT_CHECK
+							if ((up_time_end - up_time) > DT_STEP_MSEC) {
+
+								printf("____________________________\n");
+								printf("rt_step_i [%d]: t_ref = %f\tDT MSEC = %d\n",
+									rt_step_i,
+									t_ref,
+									(int)(up_time_end - up_time));
+								printf("____________________________\n");
+							}
+							else if (rt_step_i % (DT_DISP_MSEC_REALTIME/(int)(1000*dt_k)) == 0)
+								printf("%d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f\n",
+									rt_step_i,
+									t_ref,
+									(int)(up_time_end - up_time),
+									phi_ref,
+									dt_phi_ref,
+									p_ref[IDX_X],
+									p_ref[IDX_Y],
+									dt_p_ref[IDX_X],
+									dt_p_ref[IDX_Y]);
+						#endif
+						*/
+					} // end if (LL_sys_info.exercise_state == RUNNING)
+
+					else { // LL_sys_info.exercise_state != RUNNING
+						/*
+						// reset
+						clear_lowerlimb_mech_readings(&LL_mech_readings);
+						clear_lowerlimb_motors_settings(&LL_motors_settings);
+						clear_ctrl_params();
+
+						// Set the motors to 0 and disable the motor driver
+						motor_L_move(0, false, false);
+						motor_L_move(0, false, false);
+						*/
+
+					} // end LL_sys_info.exercise_state != RUNNING
+
+				} // end if (LL_sys_info.activity_state == EXERCISE)
+
+			} // end if (LL_sys_info.system_state == ON)
+
+			else { // LL_sys_info.system_state != ON
+				LED_sys_state_off();
+
+				l_brakes(false);
+				r_brakes(false);
+			} // end LL_sys_info.system_state != ON
 
 			/////////////////////////////////////////////////////////////////////////////////////
 			// indicate system was TCP connected
@@ -510,14 +492,12 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// 	prev_fifo_size = 0;
 			// }
 
-			*/
-
 			/////////////////////////////////////////////////////////////////////////////////////
-			// Increase step counter:
+			// Increase real-time step counter:
 			/////////////////////////////////////////////////////////////////////////////////////
 
 			rt_step_i++;
 
-		} // if (up_time >= algo_nextTime)
+		} // end if (up_time >= algo_nextTime)
 	} while (t_ref <= T_RUN_MAX);
 }

@@ -35,7 +35,7 @@
 
 #define SET_CTRL_PARAMETERS  1
 
-#define USE_ITM_TCP_CHECK 1
+#define USE_ITM_TCP_CHECK 0
 
 ///////////////////////////////////////////////////////
 // TYPE DEFINITIONS:

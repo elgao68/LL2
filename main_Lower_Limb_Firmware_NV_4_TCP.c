@@ -34,18 +34,10 @@
 #include <qei_motor_drivers_LL2.h>
 
 #include "_test_simulation.h"
-// #include "_test_real_time.h"
-// #include "_test_scratch.h"
-// #include "_test_ode_int.h"
+#include "_test_real_time.h"
+#include "_test_scratch.h"
+#include "_test_ode_int.h"
 #include "_test_matr_inv.h"
-
-////////////////////////////////////////////////////////////////////////////////
-// Demo Firmware Version:
-////////////////////////////////////////////////////////////////////////////////
-
-#define VER_H		0x00
-#define VER_L		0x00
-#define VER_P		0x00
 
 ////////////////////////////////////////////////////////////////////////////////
 // STM32 I/O variables:
@@ -65,31 +57,6 @@ UART_HandleTypeDef huart3;
 ////////////////////////////////////////////////////////////////////////////////
 
 #define DT_STEP_MSEC 5
-
-////////////////////////////////////////////////////////////////////////////////
-// Private variables:
-////////////////////////////////////////////////////////////////////////////////
-
-static lowerlimb_sys_info_t LL_sys_info;
-static lowerlimb_mech_readings_t   LL_mech_readings;
-static lowerlimb_motors_settings_t LL_motors_settings;
-static lowerlimb_ref_kinematics_t	ref_kinematics;
-
-static traj_ctrl_params_t		traj_ctrl_params;
-static admitt_model_params_t	admitt_model_params;
-
-static uint16_t cmd_code  = 0;
-static uint8_t  app_state = 0;
-
-static uint64_t algo_nextTime = 0;
-
-/*
-uint64_t ethernet_test_nextTime = 0;
-static uint64_t brakes_nextTime = 0;
-static uint64_t uart_output_nextTime = 0;
-static uint8_t current_paramas_index = 0;
-static uint8_t rx_data[30];
-*/
 
 ////////////////////////////////////////////////////////////////////////////////
 // STM32 PRIVATE FUNCTIONS - VERY IMPORTANT:
@@ -135,9 +102,6 @@ void set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time);
 
 int main(void)
 {
-	uint8_t motor_result = 0;
-	uint8_t motor_alert = 0;
-	uint8_t prevConnected = 0;
 	uint8_t startup_status = 0;
 
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -181,7 +145,6 @@ int main(void)
 
 	/*
 	uint8_t startup_status = 0;
-
 	startup_status = uart_sys_init();
 
 	printf("\n");
@@ -196,6 +159,8 @@ int main(void)
 
 	if (startup_status)
 		printf("Base Timer init error!\r\n");
+	else
+		printf("Base Timer init OK\r\n");
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	//start motor driver
@@ -204,9 +169,16 @@ int main(void)
 	startup_status = motor_qei_sys_start();
 
 	if (startup_status)
-		printf("Motor PWM and QEI init err!\r\n");
+		printf("Motor PWM and QEI init error!\r\n");
+	else
+		printf("Motor PWM and QEI init OK\r\n");
 
-	printf("System startup success!\r\n");
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Disable motors:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	motor_L_move(0, false, false);
+	motor_R_move(0, false, false);
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Set up Ethernet:
@@ -227,7 +199,7 @@ int main(void)
 	HAL_DAC_Start(&hdac, DAC_CHANNEL_2);
 
 	/////////////////////////////////////////////////////////////////////////////////////
-	// Cycle LED
+	// Cycle LEDs:
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	Cycle_LED_Init();
@@ -238,7 +210,7 @@ int main(void)
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	#if TEST_OPTION == _TEST_REAL_TIME
-		// test_real_time(&hadc1, &hadc3);
+		test_real_time(&hadc1, &hadc3);
 	#elif TEST_OPTION == _TEST_SIMULATION
 		test_simulation();
 	#elif TEST_OPTION == _TEST_ODE_INT
@@ -246,68 +218,6 @@ int main(void)
 	#elif TEST_OPTION == _TEST_MATR_INV
 		test_matr_inv();
 	#endif
-
-	while (1) {
-
-		//uart rx state check
-		uart_rx_data_state();
-
-		//ethernet check
-		static int sock_status;
-		ethernet_w5500_state(&sock_status);
-
-		/////////////////////////////////////////////////////////////////////////////
-		/////////////////////////////////////////////////////////////////////////////
-		// TCP APP STATE: HERE'S THE TCP CONNECTION PROBLEM!!!
-		/////////////////////////////////////////////////////////////////////////////
-		/////////////////////////////////////////////////////////////////////////////
-
-		LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert, &traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
-
-		//if system is on or off?
-		if (LL_sys_info.system_state == ON) {
-			//check emergency signal GPIOG GPIO_PIN_14
-			if (Read_Haptic_Button()) {
-				Left_LED_function (Blue);
-				Right_LED_function (Blue);
-			} else {
-				Left_LED_function (Red);
-				Right_LED_function (Red);
-			}
-
-			//check activity state
-			switch (LL_sys_info.activity_state) {
-				case IDLE: {
-					break;
-				}
-
-				case EXERCISE: {
-					if (getUpTime() >= algo_nextTime) {
-						algo_nextTime = getUpTime() + DT_STEP_MSEC;
-					}
-					break;
-				}
-			}
-
-			//indicate system was TCP connected
-			prevConnected = 1;
-
-		} else {//disconnected
-			//set all LED to OFF
-			HAL_GPIO_WritePin(L_BLUE_GPIO_Port, L_BLUE_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(R_BLUE_GPIO_Port, R_BLUE_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(L_RED_GPIO_Port, L_RED_Pin, GPIO_PIN_RESET);
-			HAL_GPIO_WritePin(R_RED_GPIO_Port, R_RED_Pin, GPIO_PIN_RESET);
-
-			l_brakes(false);
-			r_brakes(false);
-		}
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		//check if need to dump UART FIFO
-		/////////////////////////////////////////////////////////////////////////////////////
-
-	}
 }
 
 /////////////////////////////////////////////////////////////////////////////
