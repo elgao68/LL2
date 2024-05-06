@@ -169,7 +169,13 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 		// GET TCP/IP APP STATE - GAO
 		////////////////////////////////////////////////////////////////////////////////////////
 
+		/*
 		LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
+				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
+	    */
+
+		// Template function for the firmware state machine:
+		LL_sys_info = lowerlimb_app_state_template(Read_Haptic_Button(), motor_alert,
 				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
 
 		/////////////////////////////////////////////////////////////////////////////////////

@@ -30,7 +30,7 @@
 #include <nml_util.h>
 #include <traj_ctrl_params_nml.h>
 #include <lowerlimb_config.h>
-#include <lowerlimb_app.h>
+// #include <lowerlimb_app.h>
 #include <qei_motor_drivers_LL2.h>
 
 #include "_test_simulation.h"

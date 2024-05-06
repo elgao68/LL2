@@ -32,18 +32,18 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 	return 0;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
+// TCP/IP APP STATE - GAO
+////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////
+
 /**
  @brief: Run in the main().
  @param[in]: ui8EBtnState = emergency button (1 = normal, 0 = asserted)
  @param[in]: ui8Alert = alert msg from motor algo (0 = no alert, 1 = sampling alert, 2 = RT vel alert)
  @retval: lowerlimb_sys_info_t
  */
-
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
-// TCP/IP APP STATE - GAO
-////////////////////////////////////////////////////////////////////////////////////////
-////////////////////////////////////////////////////////////////////////////////////////
 
 lowerlimb_sys_info_t
 lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
@@ -113,15 +113,16 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 	float force_end_in_y_sensor_f = 0;
 
 	// Counters:
-	int step_i = 0;
+	static int step_i = 0;
 
 	//reset
 	lowerlimb_sys_info.app_status = 0;
 	lowerlimb_sys_info.calib_prot_req = 0;
 
-	//**********************************
-	//update system operation status
-	//**********************************
+	////////////////////////////////////
+	// Update system operation status
+	////////////////////////////////////
+
 	if (lowerlimb_sys_info.operation_state == 0)
 		lowerlimb_sys_info.operation_state |= OPS_STATUS_NORMAL_MASK;
 
@@ -138,14 +139,16 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 	else
 		lowerlimb_sys_info.operation_state &= ~OPS_STATUS_EBTN_PRESSED_MASK;
 
-	//**********************************
-	//Update local Unix time
-	//**********************************
+	////////////////////////////////////
+	// Update local Unix time
+	////////////////////////////////////
+
 	update_unix_time();
 
-	//**********************************
+	////////////////////////////////////
 	// Check if TCP connected
-	//**********************************
+	////////////////////////////////////
+
 	if (isTCPConnected() == 0) //disconnected
 			{
 		//set activity to IDLE
@@ -160,15 +163,17 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 		return lowerlimb_sys_info;
 	}
 
-	//**********************************
+	////////////////////////////////////
 	// Parsing and executing TCP messages
-	//**********************************
+	////////////////////////////////////
 
 	//check if there's new message
 	if (ethernet_w5500_new_rcv_data()) {
-		//*******************************
+
+		/////////////////////////////////
 		//get tcp data
-		//*******************************
+		/////////////////////////////////
+
 		memset(tcpRxData, 0, sizeof(tcpRxData));
 		tcpRxLen = ethernet_w5500_rcv_data(tcpRxData);
 
@@ -184,9 +189,11 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 			lowerlimb_sys_info.app_status = 1;
 			return lowerlimb_sys_info;
 		}
-		//*******************************
-		//error checksum comparison
-		//*******************************
+
+		/////////////////////////////////
+		// Error checksum comparison
+		/////////////////////////////////
+
 		tmp_chksum = 0;
 		for (n_cnt = 2; n_cnt < checkSum_index; n_cnt++) {
 			tmp_chksum ^= tcpRxData[n_cnt];
@@ -199,9 +206,10 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 			return lowerlimb_sys_info;
 		}
 
-		//*******************************
-		//check if command message. Rest is discarded
-		//*******************************
+		/////////////////////////////////
+		// Check if command message. Rest is discarded
+		/////////////////////////////////
+
 		if (tcpRxData[msgId_index] != CMD_MSG_TYPE) {
 			lowerlimb_sys_info.app_status = 2;
 			return lowerlimb_sys_info;
@@ -219,25 +227,27 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 		rxPayload = ((uint16_t) tcpRxData[payloadLen_index] << 8)
 				+ (uint16_t) tcpRxData[payloadLen_index + 1];
 
-		//rxPayload = tcpRxData[5];
+		// rxPayload = tcpRxData[5];
 
 		//////////////////////////////////////////////////////////////////////////////////////
 		// Console output:
 		//////////////////////////////////////////////////////////////////////////////////////
 
-		/*
-		#if USE_ITM_TCP_CHECK
-			if (step_i % 1000 == 0)
-				printf("step_i [%d]: cmd_code = [%d]\n", step_i, cmd_code);
+		#if USE_ITM_CMD_CHECK
+			static cmd_code_prev = 0;
 
+			if (cmd_code != cmd_code_prev) {
+				printf("step_i [%d]: cmd = [%s]\n", step_i, CMD_STR[cmd_code]);
+				cmd_code_prev = cmd_code;
+			}
 			step_i++;
 		#endif
-		*/
 
 	    //////////////////////////////////////////////////////////////////////////////////////
 		// VALIDATE PAYLOAD SIZES:
 	    //////////////////////////////////////////////////////////////////////////////////////
 
+		// Messages with payload size 1:
 		if (cmd_code == START_SYS_CMD		||
 			cmd_code == STOP_SYS_CMD		||
 			cmd_code == RESET_SYS_CMD		||
@@ -252,46 +262,34 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 					&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
 						return lowerlimb_sys_info;
 
-		if (cmd_code == START_RESUME_EXE_CMD)
-			if (!valid_app_status(rxPayload, 11,
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
-					return lowerlimb_sys_info;
+		// Messages with other payload sizes:
 
-		if (cmd_code == SET_CTRLPARAMS)
-			if (!valid_app_status(rxPayload, sizeof(fbgain) + sizeof(ffgain) + sizeof(compgain),
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
-					return lowerlimb_sys_info;
-
-
-		if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD	||
-			cmd_code == SET_TARG_PARAM_ADMCTRL_CMD		||
-			cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD)
-				if (!valid_app_status(rxPayload, 65,
-					&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
-						return lowerlimb_sys_info;
 
 	    //////////////////////////////////////////////////////////////////////////////////////
 		// CHECK IF SYSTEM IS ACTIVE:
 	    //////////////////////////////////////////////////////////////////////////////////////
 
+		/*
 		if (cmd_code == AUTO_CALIB_MODE_CMD ||
-			cmd_code == PAUSE_EXE_CMD ||
-			cmd_code == STOP_EXE_CMD ||
-			cmd_code == TOGGLE_SAFETY_CMD ||
-			cmd_code == BRAKES_CMD ||
-			cmd_code == START_RESUME_EXE_CMD ||
-			cmd_code == SET_CTRLPARAMS ||
-			cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
-			cmd_code == SET_TARG_PARAM_ADMCTRL_CMD ||
-			cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD)
-				if (!valid_app_status(lowerlimb_sys_info.system_state, ON,
-					&lowerlimb_sys_info.app_status, cmd_code, ERR_SYSTEM_OFF, ERR_OFFSET))
-						return lowerlimb_sys_info;
+		cmd_code == PAUSE_EXE_CMD ||
+		cmd_code == STOP_EXE_CMD ||
+		cmd_code == TOGGLE_SAFETY_CMD ||
+		cmd_code == BRAKES_CMD ||
+		cmd_code == START_RESUME_EXE_CMD ||
+		cmd_code == SET_CTRLPARAMS ||
+		cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
+		cmd_code == SET_TARG_PARAM_ADMCTRL_CMD ||
+		cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD)
+			if (!valid_app_status(lowerlimb_sys_info.system_state, ON,
+				&lowerlimb_sys_info.app_status, cmd_code, ERR_SYSTEM_OFF, ERR_OFFSET))
+					return lowerlimb_sys_info;
+		 */
 
 	    //////////////////////////////////////////////////////////////////////////////////////
 		// VALIDATE CONTROL MODES:
 		//////////////////////////////////////////////////////////////////////////////////////
 
+		/*
 		uint8_t exercise_mode = 0;
 
 		if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD)
@@ -318,6 +316,7 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 								return lowerlimb_sys_info;
 			}
 		}
+		*/
 
 	    //////////////////////////////////////////////////////////////////////////////////////
 		// VALIDATE SYS COMMANDS:
@@ -494,7 +493,7 @@ lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 					//send resp
 					send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
 
-					//reset acitivity to IDLE
+					// reset acitivity to IDLE
 					set_activity_idle();
 				}
 				else if (calib_prot_req == AutoCalibEncodersFS) {	//Auto Calibrate Both Axis

@@ -33,14 +33,19 @@
 // CONTROL / SIMULATION SETTINGS - GAO
 ///////////////////////////////////////////////////////
 
+#define USE_ITM_CMD_CHECK    1
 #define SET_CTRL_PARAMETERS  1
 
-#define USE_ITM_TCP_CHECK 0
-
 ///////////////////////////////////////////////////////
-// TYPE DEFINITIONS:
+///////////////////////////////////////////////////////
+// TYPE DEFINITIONS (OLD FIRMWARE):
+///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 
+#define LEN_STR_MAX   35
+#define LEN_CMD_LIST 19
+
+// Commands enumeration:
 enum {
 	NO_CMD = 0,
 	SET_UNIX_CMD = 1,
@@ -62,7 +67,29 @@ enum {
 	SET_TARG_PARAM_ADMCTRL_CMD = 17,
 	SET_TARG_PARAM_ATRAJCTRL_CMD = 18,
 };
-//command
+
+// Command strings (must match commands enumeration):
+static char CMD_STR[LEN_CMD_LIST][LEN_STR_MAX] = {
+	"NO_CMD",
+	"SET_UNIX_CMD",
+	"START_SYS_CMD",
+	"STOP_SYS_CMD",
+	"RESET_SYS_CMD",
+	"READ_DEV_ID_CMD",
+	"READ_SYS_INFO_CMD",
+	"AUTO_CALIB_MODE_CMD",
+	"SET_TARG_PARAM_IMPCTRL_CMD",
+	"START_RESUME_EXE_CMD",
+	"PAUSE_EXE_CMD",
+	"STOP_EXE_CMD",
+	"TOGGLE_SAFETY_CMD",
+	"BRAKES_CMD",
+	"SET_OFFSET_CMD",
+	"SET_CTRLPARAMS",
+	"SET_TARG_PARAM_PTRAJCTRL_CMD",
+	"SET_TARG_PARAM_ADMCTRL_CMD",
+	"SET_TARG_PARAM_ATRAJCTRL_CMD"
+};
 
 enum {
 	OFF = 0, ON
@@ -110,9 +137,133 @@ typedef enum {
 //TCP message ID
 #define CMD_MSG_TYPE							0x01
 #define RESP_MSG_TYPE							0x02
-#define ERROR_MSG_TYPE						0x03
+#define ERROR_MSG_TYPE							0x03
 
-//Error code
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+// MESSAGES & STATES: TYPE DEFINITIONS (NEW FIRMWARE):
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
+// App messages (internal)	MSG_APP				
+#define	OFFS_MSG_APP		400		
+#define	LEN_MSG_APP		4		
+enum MSG_APP {	
+	MSG_APP_EXERCISE_ON	=	401	,	
+	MSG_APP_SELECT_EXERCISE	=	402	,	
+	MSG_APP_SELECT_PATIENT	=	403	,	
+	MSG_FW_ADJUST_EXERCISE	=	404	};	
+					
+// Firmware messages (internal)	MSG_FW				
+#define	OFFS_MSG_FW		500		
+#define	LEN_MSG_FW		3		
+enum MSG_FW {	
+	MSG_FW_CALIBRATING	=	501	,	
+	MSG_FW_EXERCISE_ON	=	502	,	
+	MSG_FW_STDBY_START_POINT	=	503	};	
+					
+// TCP messages	MSG_TCP				
+#define	OFFS_MSG_TCP		600		
+#define	LEN_MSG_TCP		13		
+enum MSG_TCP {	
+	MSG_TCP_calibrate_done	=	601	,	// dist_x, dist_y
+	MSG_TCP_calibrate_robot	=	602	,	
+	MSG_TCP_connect_done	=	603	,	
+	MSG_TCP_connect_to_robot	=	604	,	
+	MSG_TCP_F_therapy_change	=	605	,	
+	MSG_TCP_go_to_exercise	=	606	,	// F_therapy
+	MSG_TCP_move_to_start	=	607	,	// EX_MODE, EX_TYPE, speed_ex, point_ex_start, point_ex_end
+	MSG_TCP_move_to_start_done	=	608	,	
+	MSG_TCP_pedal_travel	=	609	,	
+	MSG_TCP_robot_shutdown	=	610	,	
+	MSG_TCP_start_exercise	=	611	,	
+	MSG_TCP_stdby_start_point	=	612	,	
+	MSG_TCP_stop_exercise	=	613	};	
+					
+					
+// App states	ST_APP				
+#define	OFFS_ST_APP		700		
+#define	LEN_ST_APP		6		
+enum ST_APP {	
+	ST_APP_ADJUST_EXERCISE	=	701	,	
+	ST_APP_EXERCISE_ON	=	702	,	
+	ST_APP_SELECT_EXERCISE	=	703	,	
+	ST_APP_SELECT_PATIENT	=	704	,	
+	ST_APP_STDBY_CALIBRATE	=	705	,	
+	ST_APP_STDBY_CONNECT	=	706	};	
+					
+// Firmware states	ST_FW				
+#define	OFFS_ST_FW		800		
+#define	LEN_ST_FW		5		
+enum ST_FW {	
+	ST_FW_ADJUST_EXERCISE	=	801	,	
+	ST_FW_CALIBRATING	=	802	,	
+	ST_FW_CONNECTING	=	803	,	
+	ST_FW_EXERCISE_ON	=	804	,	
+	ST_FW_STDBY_START_POINT	=	805	};	
+
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+// MESSAGES & STATES STRINGS (NEW FIRMWARE):
+///////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
+
+// App messages (internal)	MSG_APP	
+static char STR_MSG_APP[LEN_MSG_APP][LEN_STR_MAX] = {	"MSG_APP_EXERCISE_ON"	,
+	"MSG_APP_SELECT_EXERCISE"	,
+	"MSG_APP_SELECT_PATIENT"	,
+	"MSG_FW_ADJUST_EXERCISE"	};
+		
+		
+		
+// Firmware messages (internal)	MSG_FW	
+static char STR_MSG_FW[LEN_MSG_FW][LEN_STR_MAX] = {	"MSG_FW_CALIBRATING"	,
+	"MSG_FW_EXERCISE_ON"	,
+	"MSG_FW_STDBY_START_POINT"	};
+		
+		
+		
+// TCP messages	MSG_TCP	
+static char STR_MSG_TCP[LEN_MSG_TCP][LEN_STR_MAX] = {	"MSG_TCP_calibrate_done"	,
+	"MSG_TCP_calibrate_robot"	,
+	"MSG_TCP_connect_done"	,
+	"MSG_TCP_connect_to_robot"	,
+	"MSG_TCP_F_therapy_change"	,
+	"MSG_TCP_go_to_exercise"	,
+	"MSG_TCP_move_to_start"	,
+	"MSG_TCP_move_to_start_done"	,
+	"MSG_TCP_pedal_travel"	,
+	"MSG_TCP_robot_shutdown"	,
+	"MSG_TCP_start_exercise"	,
+	"MSG_TCP_stdby_start_point"	,
+	"MSG_TCP_stop_exercise"	};
+		
+		
+		
+		
+// App states	ST_APP	
+static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {	"ST_APP_ADJUST_EXERCISE"	,
+	"ST_APP_EXERCISE_ON"	,
+	"ST_APP_SELECT_EXERCISE"	,
+	"ST_APP_SELECT_PATIENT"	,
+	"ST_APP_STDBY_CALIBRATE"	,
+	"ST_APP_STDBY_CONNECT"	};
+		
+		
+		
+// Firmware states	ST_FW	
+static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {	"ST_FW_ADJUST_EXERCISE"	,
+	"ST_FW_CALIBRATING"	,
+	"ST_FW_CONNECTING"	,
+	"ST_FW_EXERCISE_ON"	,
+	"ST_FW_STDBY_START_POINT"	};
+
+
+
+///////////////////////////////////////////////////////
+//Error codes
+///////////////////////////////////////////////////////
+
 #define ERR_GENERAL_NOK						0x0000
 #define ERR_SYSTEM_OFF						0x0001
 #define ERR_EXERCISE_NOT_RUNNING	0x0003
@@ -128,7 +279,10 @@ typedef enum {
 
 #define ERR_OFFSET                      3
 
+///////////////////////////////////////////////////////
 //type of operation states
+///////////////////////////////////////////////////////
+
 #define OPS_STATUS_NORMAL_MASK			0x01
 #define OPS_STATUS_EBTN_PRESSED_MASK	0x02
 #define OPS_STATUS_SAMPLING_ALERT_MASK	0x04
@@ -139,9 +293,9 @@ typedef struct {
 	bool r_brake_disengage;
 } lowerlimb_brakes_command_t;
 
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 // System info message struct - GAO
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 
 typedef struct {
 	uint8_t device_id[14];
@@ -173,9 +327,9 @@ typedef struct {
 	exercise_mode_t exercise_mode;
 } lowerlimb_sys_info_t;	//System Info
 
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 // Data logging message struct - GAO
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 
 typedef struct {
 	uint32_t timestamp;
@@ -200,9 +354,9 @@ typedef struct {
 	uint8_t r_brake_status;
 } lowerlimb_exercise_feedback_params_t;
 
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 // Messaging variables:
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 
 static lowerlimb_sys_info_t lowerlimb_sys_info;
 //static uint64_t ui64CalibNextTime = 0;
@@ -217,9 +371,9 @@ extern ADC_HandleTypeDef hadc3;
 static uint8_t PREAMP_TCP[2] = { 0x48, 0x4D };
 static uint8_t POSTAMP_TCP[2] = { 0x68, 0x6D };
 
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 // Messaging functions:
-///////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////
 
 /**
  @brief: Send calibration response message
@@ -280,8 +434,12 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
  @param[in]: ui8Alert = alert msg from motor algo (0 = no alert, 1 = sampling alert, 2 = RT vel alert)
  @retval: 0 = success, 1 = failed
  */
-lowerlimb_sys_info_t lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert,
-		traj_ctrl_params_t* traj_ctrl_params, admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy);
+lowerlimb_sys_info_t lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy);
+
+// Template function for the firmware state machine:
+lowerlimb_sys_info_t lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy);
 
 ///////////////////////////////////////////////////////////////////////
 // Helper functions:
