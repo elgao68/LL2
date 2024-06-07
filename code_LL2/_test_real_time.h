@@ -68,6 +68,8 @@ static uint32_t current_sensor_R = 0;
 // Force sensors override:
 #define OVERR_FORCE_SENSORS_CALIB_1		1 // ensure calibration mode 1 is selected
 
+#define USE_APP_STATE_TEMPLATE			1
+
 ////////////////////////////////////////////////////////////////////////////////
 // Declare helper functions (see main.c):
 ////////////////////////////////////////////////////////////////////////////////
@@ -77,9 +79,6 @@ cycle_haptic_buttons();
 
 void
 LED_sys_state_off();
-
-void
-set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare tester function:

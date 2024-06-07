@@ -179,8 +179,7 @@ enum MSG_TCP {
 	MSG_TCP_start_exercise	=	611	,	
 	MSG_TCP_stdby_start_point	=	612	,	
 	MSG_TCP_stop_exercise	=	613	};	
-					
-					
+
 // App states	ST_APP				
 #define	OFFS_ST_APP		700		
 #define	LEN_ST_APP		6		
@@ -209,22 +208,23 @@ enum ST_FW {
 ///////////////////////////////////////////////////////
 
 // App messages (internal)	MSG_APP	
-static char STR_MSG_APP[LEN_MSG_APP][LEN_STR_MAX] = {	"MSG_APP_EXERCISE_ON"	,
+static char STR_MSG_APP[LEN_MSG_APP][LEN_STR_MAX] = {
+	"MSG_APP_EXERCISE_ON"	,
 	"MSG_APP_SELECT_EXERCISE"	,
 	"MSG_APP_SELECT_PATIENT"	,
-	"MSG_FW_ADJUST_EXERCISE"	};
-		
+	"MSG_APP_ADJUST_EXERCISE"	};
 		
 		
 // Firmware messages (internal)	MSG_FW	
-static char STR_MSG_FW[LEN_MSG_FW][LEN_STR_MAX] = {	"MSG_FW_CALIBRATING"	,
+static char STR_MSG_FW[LEN_MSG_FW][LEN_STR_MAX] = {
+	"MSG_FW_CALIBRATING"	,
 	"MSG_FW_EXERCISE_ON"	,
 	"MSG_FW_STDBY_START_POINT"	};
 		
-		
-		
+
 // TCP messages	MSG_TCP	
-static char STR_MSG_TCP[LEN_MSG_TCP][LEN_STR_MAX] = {	"MSG_TCP_calibrate_done"	,
+static char STR_MSG_TCP[LEN_MSG_TCP][LEN_STR_MAX] = {
+	"MSG_TCP_calibrate_done"	,
 	"MSG_TCP_calibrate_robot"	,
 	"MSG_TCP_connect_done"	,
 	"MSG_TCP_connect_to_robot"	,
@@ -239,8 +239,6 @@ static char STR_MSG_TCP[LEN_MSG_TCP][LEN_STR_MAX] = {	"MSG_TCP_calibrate_done"	,
 	"MSG_TCP_stop_exercise"	};
 		
 		
-		
-		
 // App states	ST_APP	
 static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {	"ST_APP_ADJUST_EXERCISE"	,
 	"ST_APP_EXERCISE_ON"	,
@@ -248,8 +246,7 @@ static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {	"ST_APP_ADJUST_EXERCISE"	,
 	"ST_APP_SELECT_PATIENT"	,
 	"ST_APP_STDBY_CALIBRATE"	,
 	"ST_APP_STDBY_CONNECT"	};
-		
-		
+
 		
 // Firmware states	ST_FW	
 static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {	"ST_FW_ADJUST_EXERCISE"	,
@@ -259,28 +256,45 @@ static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {	"ST_FW_ADJUST_EXERCISE"	,
 	"ST_FW_STDBY_START_POINT"	};
 
 
-
 ///////////////////////////////////////////////////////
-//Error codes
+// Error codes
 ///////////////////////////////////////////////////////
 
 #define ERR_GENERAL_NOK						0x0000
 #define ERR_SYSTEM_OFF						0x0001
-#define ERR_EXERCISE_NOT_RUNNING	0x0003
+#define ERR_EXERCISE_NOT_RUNNING			0x0003
 #define ERR_INVALID_UNIX					0x0004
-#define ERR_INVALID_TARGET_NUM		0x0005
-#define ERR_EXERCISE_ACTIVE				0x0006
+#define ERR_INVALID_TARGET_NUM				0x0005
+#define ERR_EXERCISE_ACTIVE					0x0006
 #define ERR_CALIB_ACTIVE					0x0007
-#define ERR_SYSTEM_ENCRYPTED			0x0008
-#define ERR_CALIBRATION_NEEDED		0x0009
-#define ERR_CHECKSUM_FAILED				0x000A
-#define ERR_INVALID_EXERCISE_MODE 0x000B
-#define ERR_UNKNOWN								0xBEEF
+#define ERR_SYSTEM_ENCRYPTED				0x0008
+#define ERR_CALIBRATION_NEEDED				0x0009
+#define ERR_CHECKSUM_FAILED					0x000A
+#define ERR_INVALID_EXERCISE_MODE 			0x000B
+#define ERR_UNKNOWN							0xBEEF
 
-#define ERR_OFFSET                      3
+#define LEN_ERR_LIST 	13
+
+static char ERR_STR[LEN_ERR_LIST][LEN_STR_MAX] = {
+	"ERR_GENERAL_NOK"	,
+	"ERR_SYSTEM_OFF"	,
+	"(EMPTY)",
+	"ERR_EXERCISE_NOT_RUNNING"	,
+	"ERR_INVALID_UNIX"	,
+	"ERR_INVALID_TARGET_NUM"	,
+	"ERR_EXERCISE_ACTIVE"	,
+	"ERR_CALIB_ACTIVE"	,
+	"ERR_SYSTEM_ENCRYPTED"	,
+	"ERR_CALIBRATION_NEEDED"	,
+	"ERR_CHECKSUM_FAILED"	,
+	"ERR_INVALID_EXERCISE_MODE"	,
+	"ERR_UNKNOWN"
+};
+
+#define ERR_OFFSET		3
 
 ///////////////////////////////////////////////////////
-//type of operation states
+// type of operation states
 ///////////////////////////////////////////////////////
 
 #define OPS_STATUS_NORMAL_MASK			0x01
@@ -288,10 +302,17 @@ static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {	"ST_FW_ADJUST_EXERCISE"	,
 #define OPS_STATUS_SAMPLING_ALERT_MASK	0x04
 #define OPS_STATUS_RT_VEL_ALERT_MASK	0x08
 
+///////////////////////////////////////////////////////
+// Brake states:
+///////////////////////////////////////////////////////
+
 typedef struct {
 	bool l_brake_disengage;
 	bool r_brake_disengage;
 } lowerlimb_brakes_command_t;
+
+#define ENGAGE_BRAKES		0
+#define DISENGAGE_BRAKES	1
 
 ///////////////////////////////////////////////////////
 // System info message struct - GAO
@@ -416,7 +437,6 @@ uint8_t send_lowerlimb_exercise_feedback_help(uint64_t up_time,
 								float fRefVel_x, float fRefVel_y,
 								float fRefPhase, float fRefFreq);
 
-
 ///////////////////////////////////////////////////////////////////////
 // TCP/IP scripts (see lowerlimb_tcp_scripts.c):
 ///////////////////////////////////////////////////////////////////////
@@ -478,6 +498,9 @@ bool get_r_brake_cmd(void);
 
 void set_l_brake_status(uint8_t status);
 void set_r_brake_status(uint8_t status);
+
+void set_brakes_simple();
+void set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time);
 
 void* memcpy_msb(void *pDest, const void *pSrc, unsigned long len);
 

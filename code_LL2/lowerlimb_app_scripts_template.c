@@ -11,7 +11,7 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
-// TCP/IP APP STATE - GAO
+// TCP/IP APP STATE - GAO - TEMPLATE:
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
 
@@ -117,8 +117,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 	// Check if TCP connected
 	////////////////////////////////////
 
-	if (isTCPConnected() == 0) //disconnected
-			{
+	if (isTCPConnected() == 0) { //disconnected
 		//set activity to IDLE
 		set_activity_idle();
 
@@ -232,13 +231,10 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 
 		// Payload size:
 
-		// Payload size:
-
 	    //////////////////////////////////////////////////////////////////////////////////////
 		// CHECK IF SYSTEM IS ACTIVE:
 	    //////////////////////////////////////////////////////////////////////////////////////
 
-		/*
 		if (cmd_code == AUTO_CALIB_MODE_CMD ||
 			cmd_code == PAUSE_EXE_CMD ||
 			cmd_code == STOP_EXE_CMD ||
@@ -252,7 +248,6 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				if (!valid_app_status(lowerlimb_sys_info.system_state, ON,
 					&lowerlimb_sys_info.app_status, cmd_code, ERR_SYSTEM_OFF, ERR_OFFSET))
 						return lowerlimb_sys_info;
-		*/
 
 	    //////////////////////////////////////////////////////////////////////////////////////
 		// VALIDATE CONTROL MODES:
@@ -292,7 +287,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 	    //////////////////////////////////////////////////////////////////////////////////////
 
 		/*
-		if (cmd_code ==  START_SYS_CMD) { //start system
+		if (cmd_code == START_SYS_CMD) { //start system
 			// Succeeded to set system ON
 			if (!valid_app_status(lowerlimb_sys_info.system_state, OFF,
 				&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
@@ -311,79 +306,88 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 	    //////////////////////////////////////////////////////////////////////////////////////
 
 		/*
-		if (cmd_code == STOP_EXE_CMD ||	cmd_code == SET_CTRLPARAMS) {
-			if (!valid_app_status(lowerlimb_sys_info.activity_state, CALIB,
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
+		if (cmd_code == STOP_EXE_CMD ||	cmd_code == SET_CTRLPARAMS)
+			if (	!valid_app_status(lowerlimb_sys_info.activity_state, CALIB,
+						&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET)
+				||	!valid_app_status(lowerlimb_sys_info.activity_state, IDLE,
+						&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET)
+				||  !valid_app_status(lowerlimb_sys_info.exercise_state, STOPPED,
+						&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) )
 					return lowerlimb_sys_info;
-			else if (!valid_app_status(lowerlimb_sys_info.activity_state, IDLE,
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
-					return lowerlimb_sys_info;
-
-			if (!valid_app_status(lowerlimb_sys_info.exercise_state, STOPPED,
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
-					return lowerlimb_sys_info;
-		}
 		*/
 
 	    //////////////////////////////////////////////////////////////////////////////////////
 		// EXECUTE COMMAND:
 	    //////////////////////////////////////////////////////////////////////////////////////
 
-		if (cmd_code == SET_UNIX_CMD) { //set unix
-			/*
-			//pack UNIX
-			ui64_tmp = 0;
-			memcpy_msb(&ui64_tmp, &tcpRxData[payloadStart_index], sizeof(lowerlimb_sys_info.unix));
+		// CMD 01: START_SYS_CMD
+		// CMD 02: BRAKES_CMD
+		// CMD 03: AUTO_CALIB_MODE_CMD
+		// CMD 04: START_RESUME_EXE_CMD
+		// CMD 05: STOP_EXE_CMD
+		// CMD 06: STOP_SYS_CMD
 
-			//check if UNIX is valid
-			if (!valid_app_status(set_unix_time(ui64_tmp), 0,
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_INVALID_UNIX, ERR_OFFSET))
-					return lowerlimb_sys_info;
-			*/
-			send_OK_resp(cmd_code);
-		}
+		///////////////////////////////////////////////////////////////////////////
+		// CMD 01: START_SYS_CMD
+		///////////////////////////////////////////////////////////////////////////
 
-		else if (cmd_code == START_SYS_CMD) { //start system
-			/*
+		if (cmd_code == START_SYS_CMD) { //start system
+
 			reset_lowerlimb_sys_info();
 
 			lowerlimb_sys_info.system_state = ON;
 			lowerlimb_sys_info.activity_state = IDLE;
 			lowerlimb_sys_info.exercise_state = STOPPED;
-			*/
+
 			send_OK_resp(cmd_code);
 		}
 
-		else if (cmd_code == STOP_SYS_CMD) { //stop system
-			/*
-			lowerlimb_sys_info.system_state = OFF;
-			lowerlimb_sys_info.activity_state = IDLE;
-			lowerlimb_sys_info.exercise_state = STOPPED;
+		///////////////////////////////////////////////////////////////////////////
+		// CMD 02: BRAKES_CMD
+		///////////////////////////////////////////////////////////////////////////
 
-			//Reset brake command
-			lowerlimb_brakes_command.l_brake_disengage = false;
-			lowerlimb_brakes_command.r_brake_disengage = false;
-			*/
+		else if (cmd_code == BRAKES_CMD) {
+			#if USE_ITM_CMD_CHECK
+				printf("   BRAKES_CMD data: [%d]\n", tcpRxData[rx_payload_index]);
+			#endif
+
+			if (tcpRxData[rx_payload_index] == 0x01) {
+				lowerlimb_brakes_command.l_brake_disengage = true;
+				lowerlimb_brakes_command.r_brake_disengage = true;
+
+				/*
+				l_brakes_disable();
+				l_brakes_disable();
+				*/
+				l_brakes(DISENGAGE_BRAKES);
+				r_brakes(DISENGAGE_BRAKES);
+			}
+			else {
+				lowerlimb_brakes_command.l_brake_disengage = false;
+				lowerlimb_brakes_command.r_brake_disengage = false;
+
+				/*
+				l_brakes_enable();
+				r_brakes_enable();
+				*/
+				l_brakes(ENGAGE_BRAKES);
+				r_brakes(ENGAGE_BRAKES);
+			}
+
 			send_OK_resp(cmd_code);
+
+			#if USE_ITM_CMD_CHECK
+				printf("   brakes disengaged: [");
+				if (lowerlimb_brakes_command.l_brake_disengage)
+					printf("TRUE] \n");
+				else
+					printf("FALSE] \n");
+			#endif
 		}
 
-		else if (cmd_code == RESET_SYS_CMD) { //restart system
-			send_OK_resp(cmd_code);
-			/*
-			HAL_Delay(100); //wait for msg to be transmitted
-			HAL_NVIC_SystemReset(); //reset MCU
-			*/
-		}
-
-		else if (cmd_code == READ_DEV_ID_CMD) { //read device ID
-			// send resp message with device ID
-			send_resp_msg(cmd_code, lowerlimb_sys_info.device_id, sizeof(lowerlimb_sys_info.device_id));
-		}
-
-		else if (cmd_code == READ_SYS_INFO_CMD) { //read system info
-			// pack data
-			send_lowerlimb_sys_info(&lowerlimb_sys_info, tmp_resp_msg, cmd_code);
-		}
+		///////////////////////////////////////////////////////////////////////////
+		// CMD 03: AUTO_CALIB_MODE_CMD
+		///////////////////////////////////////////////////////////////////////////
 
 		else if (cmd_code == AUTO_CALIB_MODE_CMD) { //enter calibration
 			/*
@@ -487,60 +491,9 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 			*/
 		}
 
-		else if (cmd_code == PAUSE_EXE_CMD) { //pause exercise
-			/*
-			// only can paused if exercise_state is in RUNNING mode:
-			if (lowerlimb_sys_info.activity_state == EXERCISE &&
-				lowerlimb_sys_info.exercise_state == RUNNING) {
-					lowerlimb_sys_info.exercise_state = PAUSED;
-					// send OK resp
-					send_OK_resp(cmd_code);
-			}
-			else {
-				//return error message
-				send_error_msg(cmd_code, ERR_EXERCISE_NOT_RUNNING);
-				lowerlimb_sys_info.app_status = ERR_EXERCISE_NOT_RUNNING + 3;
-				return lowerlimb_sys_info;
-			}
-			*/
-		}
-
-		else if (cmd_code == STOP_EXE_CMD) { //stop exercise
-			/*
-			// set activity to IDLE
-			lowerlimb_sys_info.activity_state = IDLE;
-
-			// set exercise_state to STOPPED
-			lowerlimb_sys_info.exercise_state = STOPPED;
-
-			// reset
-			clear_lowerlimb_motors_settings(LL_motors_settings);
-
-			*/
-			send_OK_resp(cmd_code);
-		}
-
-		else if (cmd_code == TOGGLE_SAFETY_CMD) { //enable/disable safety features
-			/*
-			lowerlimb_sys_info.safetyOFF = tcpRxData[rx_payload_index];
-			 */
-			send_OK_resp(cmd_code);
-		}
-
-		else if (cmd_code == BRAKES_CMD) {
-			/*
-			if (tcpRxData[rx_payload_index] == 0x01) {
-				lowerlimb_brakes_command.l_brake_disengage = true;
-				lowerlimb_brakes_command.r_brake_disengage = true;
-			}
-			else {
-				lowerlimb_brakes_command.l_brake_disengage = false;
-				lowerlimb_brakes_command.r_brake_disengage = false;
-			}
-
-			*/
-			send_OK_resp(cmd_code);
-		}
+		///////////////////////////////////////////////////////////////////////////
+		// CMD 04: START_RESUME_EXE_CMD
+		///////////////////////////////////////////////////////////////////////////
 
 		else if (cmd_code == START_RESUME_EXE_CMD) { //start/resume exercise ; rxPayload == 11
 			/*
@@ -619,6 +572,102 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				return lowerlimb_sys_info;
 			}
 			*/
+			send_OK_resp(cmd_code);
+		}
+
+		///////////////////////////////////////////////////////////////////////////
+		// CMD 05: STOP_EXE_CMD
+		///////////////////////////////////////////////////////////////////////////
+
+		else if (cmd_code == STOP_EXE_CMD) { //stop exercise
+			/*
+			// set activity to IDLE
+			lowerlimb_sys_info.activity_state = IDLE;
+
+			// set exercise_state to STOPPED
+			lowerlimb_sys_info.exercise_state = STOPPED;
+
+			// reset
+			clear_lowerlimb_motors_settings(LL_motors_settings);
+
+			*/
+			send_OK_resp(cmd_code);
+		}
+
+		///////////////////////////////////////////////////////////////////////////
+		// CMD 06: STOP_SYS_CMD
+		///////////////////////////////////////////////////////////////////////////
+
+		else if (cmd_code == STOP_SYS_CMD) { //stop system
+			lowerlimb_sys_info.system_state = OFF;
+			lowerlimb_sys_info.activity_state = IDLE;
+			lowerlimb_sys_info.exercise_state = STOPPED;
+
+			//Reset brake command
+			lowerlimb_brakes_command.l_brake_disengage = false;
+			lowerlimb_brakes_command.r_brake_disengage = false;
+
+			send_OK_resp(cmd_code);
+		}
+
+		///////////////////////////////////////////////////////////////////////////
+		// CMD OTHER:
+		///////////////////////////////////////////////////////////////////////////
+
+		else if (cmd_code == SET_UNIX_CMD) { //set unix
+			/*
+			//pack UNIX
+			ui64_tmp = 0;
+			memcpy_msb(&ui64_tmp, &tcpRxData[payloadStart_index], sizeof(lowerlimb_sys_info.unix));
+
+			//check if UNIX is valid
+			if (!valid_app_status(set_unix_time(ui64_tmp), 0,
+				&lowerlimb_sys_info.app_status, cmd_code, ERR_INVALID_UNIX, ERR_OFFSET))
+					return lowerlimb_sys_info;
+			*/
+			send_OK_resp(cmd_code);
+		}
+
+		else if (cmd_code == RESET_SYS_CMD) { //restart system
+			send_OK_resp(cmd_code);
+			/*
+			HAL_Delay(100); //wait for msg to be transmitted
+			HAL_NVIC_SystemReset(); //reset MCU
+			*/
+		}
+
+		else if (cmd_code == READ_DEV_ID_CMD) { //read device ID
+			// send resp message with device ID
+			send_resp_msg(cmd_code, lowerlimb_sys_info.device_id, sizeof(lowerlimb_sys_info.device_id));
+		}
+
+		else if (cmd_code == READ_SYS_INFO_CMD) { //read system info
+			// pack data
+			send_lowerlimb_sys_info(&lowerlimb_sys_info, tmp_resp_msg, cmd_code);
+		}
+
+		else if (cmd_code == PAUSE_EXE_CMD) { //pause exercise
+			/*
+			// only can paused if exercise_state is in RUNNING mode:
+			if (lowerlimb_sys_info.activity_state == EXERCISE &&
+				lowerlimb_sys_info.exercise_state == RUNNING) {
+					lowerlimb_sys_info.exercise_state = PAUSED;
+					// send OK resp
+					send_OK_resp(cmd_code);
+			}
+			else {
+				//return error message
+				send_error_msg(cmd_code, ERR_EXERCISE_NOT_RUNNING);
+				lowerlimb_sys_info.app_status = ERR_EXERCISE_NOT_RUNNING + 3;
+				return lowerlimb_sys_info;
+			}
+			*/
+		}
+
+		else if (cmd_code == TOGGLE_SAFETY_CMD) { //enable/disable safety features
+			/*
+			lowerlimb_sys_info.safetyOFF = tcpRxData[rx_payload_index];
+			 */
 			send_OK_resp(cmd_code);
 		}
 

@@ -94,7 +94,6 @@ int _write(int32_t file, uint8_t *ptr, int32_t len); // use this to send output 
 // int __io_putchar(int ch);
 void cycle_haptic_buttons();
 void LED_sys_state_off();
-void set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time);
 
 /////////////////////////////////////////////////////////////////////////////
 // MAIN():
@@ -256,23 +255,4 @@ void
 LED_sys_state_off() {
 	Left_LED_function(Yellow);
 	Right_LED_function(Yellow);
-}
-
-void
-set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
-	if (uptime >= *brakes_next_time) {
-		*brakes_next_time = uptime + 1; // 1kHz
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Code to Engage & Disengage Brake of the Radial Axis
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		set_l_brake_status(l_brakes(get_l_brake_cmd() && Read_Haptic_Button()));
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Code to Engage & Disengage Brake of the Rotational Axis
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		set_r_brake_status(r_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
-	}
 }

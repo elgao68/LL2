@@ -9,29 +9,6 @@
 
 #include "lowerlimb_app.h"
 
-/**
- @brief: Start in the APP.
- @retval: 0 = success, 1 = failed
- */
-uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
-		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings) {
-	//Zero information
-	reset_lowerlimb_sys_info();
-	if (stop_exercise(LL_motors_settings) != 0)
-		return 1;
-
-	//set sys info
-	lowerlimb_sys_info.unix = init_unix;
-	lowerlimb_sys_info.fw_maj_ver = maj_ver;
-	lowerlimb_sys_info.fw_min_ver = min_ver;
-	lowerlimb_sys_info.fw_patch_ver = patch_ver;
-
-	lowerlimb_brakes_command.l_brake_disengage = false;
-	lowerlimb_brakes_command.r_brake_disengage = false;
-
-	return 0;
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////
 // TCP/IP APP STATE - GAO

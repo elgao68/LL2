@@ -36,6 +36,33 @@ const uint8_t DEVICE_SERIAL_ID[25] = { 'D', 'C', '-', 'V', '1', '0', 'M', '2',
 		'2', '0', '0', '1', '-', 'A' };
 
 ///////////////////////////////////////////////////////////////////////
+// State initialization function:
+///////////////////////////////////////////////////////////////////////
+
+/**
+ @brief: Start in the APP.
+ @retval: 0 = success, 1 = failed
+ */
+uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
+		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings) {
+	//Zero information
+	reset_lowerlimb_sys_info();
+	if (stop_exercise(LL_motors_settings) != 0)
+		return 1;
+
+	//set sys info
+	lowerlimb_sys_info.unix = init_unix;
+	lowerlimb_sys_info.fw_maj_ver = maj_ver;
+	lowerlimb_sys_info.fw_min_ver = min_ver;
+	lowerlimb_sys_info.fw_patch_ver = patch_ver;
+
+	lowerlimb_brakes_command.l_brake_disengage = false;
+	lowerlimb_brakes_command.r_brake_disengage = false;
+
+	return 0;
+}
+
+///////////////////////////////////////////////////////////////////////
 // Messaging functions:
 ///////////////////////////////////////////////////////////////////////
 
@@ -450,6 +477,15 @@ uint8_t valid_app_status(uint8_t property, uint8_t value, uint16_t* app_status, 
 	if (property != value) {
 		send_error_msg(cmd_code, ERR_CODE);
 		*app_status = ERR_CODE + err_offset;
+
+		#if USE_ITM_CMD_CHECK
+			if (ERR_CODE > LEN_ERR_LIST - 1)
+				ERR_CODE = LEN_ERR_LIST - 1;
+
+			printf("\n");
+			printf("valid_app_status() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_CODE]);
+		#endif
+
 		return 0;
 	}
 	else
@@ -580,6 +616,22 @@ void set_l_brake_status(uint8_t status) {
 
 void set_r_brake_status(uint8_t status) {
 	lowerlimb_sys_info.r_brake_status = status;
+}
+
+void
+set_brakes_simple() {
+	set_l_brake_status(l_brakes(get_l_brake_cmd()));
+	set_r_brake_status(r_brakes(get_r_brake_cmd()));
+}
+
+void
+set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
+	if (uptime >= *brakes_next_time) {
+		*brakes_next_time = uptime + 1; // 1kHz
+
+		set_l_brake_status(l_brakes(get_l_brake_cmd() && Read_Haptic_Button()));
+		set_r_brake_status(r_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
+	}
 }
 
 /**

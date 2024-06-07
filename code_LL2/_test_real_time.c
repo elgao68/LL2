@@ -102,6 +102,9 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	uint16_t cmd_code = 0;
 	uint8_t  app_state = 0;
 
+	uint8_t system_state_prev = LL_sys_info.system_state; // tracks change of system state
+	bool brake_cmd;
+
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Counters and timers:
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -135,48 +138,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	/////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	do {
-		/////////////////////////////////////////////////////////////////////////////////////
-		// uart rx state check:
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		uart_rx_data_state();
-
-		/////////////////////////////////////////////////////////////////////////////////////
-		// Ethernet connection:
-		/////////////////////////////////////////////////////////////////////////////////////
-
-		#if USE_ITM_TCP_CHECK
-			dt_ret_tcp_msec = getUpTime(); //  tests time elapsed waiting for ethernet_w5500_state() to return
-		#endif
-
-		ret_tcp_msg = ethernet_w5500_state(&sock_status);
-
-		#if USE_ITM_TCP_CHECK
-			dt_ret_tcp_msec = getUpTime() - dt_ret_tcp_msec;
-
-			if (sock_status != SOCK_ESTABLISHED) { // (ret_tcp_msg < 0)
-				// Current socket state:
-				printf("ethernet_w5500_state(): SOCKET STATUS [0x%02x]\n", sock_status);
-
-				// Current TCP return message and time:
-				printf("rt_step_i [%d]: cmd_code = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code, ret_tcp_msg, (int)dt_ret_tcp_msec);
-				ret_i = 0;
-			}
-		#endif
-
-		////////////////////////////////////////////////////////////////////////////////////////
-		// GET TCP/IP APP STATE - GAO
-		////////////////////////////////////////////////////////////////////////////////////////
-
-		/*
-		LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
-				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
-	    */
-
-		// Template function for the firmware state machine:
-		LL_sys_info = lowerlimb_app_state_template(Read_Haptic_Button(), motor_alert,
-				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
+	while (t_ref <= T_RUN_MAX) {
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Execute real-time step:
@@ -189,6 +151,52 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			algo_nextTime = up_time + DT_STEP_MSEC;
 
 			/////////////////////////////////////////////////////////////////////////////////////
+			// uart rx state check:
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			// uart_rx_data_state();
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			// Ethernet connection:
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			#if USE_ITM_TCP_CHECK
+				dt_ret_tcp_msec = getUpTime(); //  tests time elapsed waiting for ethernet_w5500_state() to return
+			#endif
+
+			ret_tcp_msg = ethernet_w5500_state(&sock_status);
+
+			#if USE_ITM_TCP_CHECK
+				dt_ret_tcp_msec = getUpTime() - dt_ret_tcp_msec;
+
+				if (sock_status != SOCK_ESTABLISHED) { // (ret_tcp_msg < 0)
+					// Current socket state:
+					printf("ethernet_w5500_state(): SOCKET STATUS [0x%02x]\n", sock_status);
+
+					// Current TCP return message and time:
+					printf("rt_step_i [%d]: cmd_code = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code, ret_tcp_msg, (int)dt_ret_tcp_msec);
+					ret_i = 0;
+				}
+			#endif
+
+			////////////////////////////////////////////////////////////////////////////////////////
+			// GET TCP/IP APP STATE - GAO
+			////////////////////////////////////////////////////////////////////////////////////////
+
+			#if USE_APP_STATE_TEMPLATE
+				// Template function for the firmware state machine:
+				LL_sys_info = lowerlimb_app_state_template(Read_Haptic_Button(), motor_alert,
+						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
+			#else
+				LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
+						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
+			#endif
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			// Execute real-time step (MOVED):
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			/////////////////////////////////////////////////////////////////////////////////////
 			// Clear motor_alert after sending into TCP/IP APP state:
 			/////////////////////////////////////////////////////////////////////////////////////
 
@@ -199,12 +207,14 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			////////////////////////////////////////////////////////////////////////////////////////
 
 			#if OVERR_DYN_PARAMS_RT
-				// traj_ctrl_params.cycle_period = 3.0;
-				// traj_ctrl_params.exp_blend_time = 3.0;
-				// traj_ctrl_params.semiaxis_x = 0.15;
-				// traj_ctrl_params.semiaxis_y = 0.08;
-				// traj_ctrl_params.rot_angle = 0;
-				// traj_ctrl_params.cycle_dir = 1;
+				/*
+				traj_ctrl_params.cycle_period = 3.0;
+				traj_ctrl_params.exp_blend_time = 3.0;
+				traj_ctrl_params.semiaxis_x = 0.15;
+				traj_ctrl_params.semiaxis_y = 0.08;
+				traj_ctrl_params.rot_angle = 0;
+				traj_ctrl_params.cycle_dir = 1;
+				*/
 
 				static double damp_ratio = 0.2;
 				static double w_n        = 2*PI*1.0; // natural frequency
@@ -269,7 +279,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Check emergency signal GPIOG GPIO_PIN_14
 				/////////////////////////////////////////////////////////////////////////////////////
 
-				set_brakes_timed(up_time, &brakes_nextTime);
+				// set_brakes_timed(up_time, &brakes_nextTime);
 
 				/////////////////////////////////////////////////////////////////////////////////////
 				// Update safety:
@@ -471,15 +481,15 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 			} // end if (LL_sys_info.system_state == ON)
 
-			else { // LL_sys_info.system_state != ON
+			else {
 				LED_sys_state_off();
 
-				l_brakes(false);
-				r_brakes(false);
+				l_brakes(ENGAGE_BRAKES);
+				r_brakes(ENGAGE_BRAKES);
 			} // end LL_sys_info.system_state != ON
 
 			/////////////////////////////////////////////////////////////////////////////////////
-			// indicate system was TCP connected
+			// Indicate system was TCP connected
 			/////////////////////////////////////////////////////////////////////////////////////
 
 			prevConnected = 1;
@@ -488,15 +498,23 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// Check if need to dump UART FIFO
 			/////////////////////////////////////////////////////////////////////////////////////
 
-			// if (prev_fifo_size != rx_fifo_size()) {
-			// 	prev_fifo_size = rx_fifo_size();
-			// 	expire_nextTime = up_time + DT_EXPIRE_MSEC;
-			// }
+			/*
+			if (prev_fifo_size != rx_fifo_size()) {
+				prev_fifo_size = rx_fifo_size();
+				expire_nextTime = up_time + DT_EXPIRE_MSEC;
+			}
 
-			// if ((up_time >= expire_nextTime) && (rx_fifo_size() > 0)) {
-			// 	rx_fifo_clear();
-			// 	prev_fifo_size = 0;
-			// }
+			if ((up_time >= expire_nextTime) && (rx_fifo_size() > 0)) {
+				rx_fifo_clear();
+				prev_fifo_size = 0;
+			}
+			*/
+
+			/////////////////////////////////////////////////////////////////////////////////////
+			// Track change of system states:
+			/////////////////////////////////////////////////////////////////////////////////////
+
+			system_state_prev = LL_sys_info.system_state;
 
 			/////////////////////////////////////////////////////////////////////////////////////
 			// Increase real-time step counter:
@@ -505,5 +523,5 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			rt_step_i++;
 
 		} // end if (up_time >= algo_nextTime)
-	} while (t_ref <= T_RUN_MAX);
+	}
 }
