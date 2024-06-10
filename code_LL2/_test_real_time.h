@@ -62,13 +62,21 @@ static uint32_t current_sensor_R = 0;
 // Dynamic system mode: unconstrained / constrained:
 #define USE_ADMITT_MODEL_CONSTR_RT	0
 #define OVERR_DYN_PARAMS_RT			1
+#define OVERR_FORCE_SENSORS_CALIB	0
+#define USE_APP_STATE_TEMPLATE		1
 
-#define DT_EXPIRE_MSEC		 	1000
+// Motor torque activation (VERY IMPORTANT):
+#define MOTOR_TORQUE_ON				0
 
-// Force sensors override:
-#define OVERR_FORCE_SENSORS_CALIB_1		1 // ensure calibration mode 1 is selected
+// Assorted timers:
+#define DT_EXPIRE_MSEC				1000
+#define DT_DISP_MSEC_REALTIME		1000
+#define DT_DISP_MSEC_GUI_PARAMS		2000
 
-#define USE_APP_STATE_TEMPLATE			1
+// ITM Data Console switches:
+#define USE_ITM_OUT_RT_CHECK		1
+#define USE_ITM_OUT_GUI_PARAMS		0
+#define USE_ITM_TCP_CHECK		    0
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare helper functions (see main.c):

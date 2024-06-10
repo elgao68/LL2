@@ -91,41 +91,64 @@ static char CMD_STR[LEN_CMD_LIST][LEN_STR_MAX] = {
 	"SET_TARG_PARAM_ATRAJCTRL_CMD"
 };
 
+// system_state:
 enum {
 	OFF = 0, ON
 };
-//system_state
 
+#define LEN_SYS_STATE 2
+static char SYS_STATE_STR[LEN_SYS_STATE][LEN_STR_MAX] = {
+	"OFF",
+	"ON"
+};
+
+// activity_state:
 enum {
 	IDLE = 0, CALIB = 1, EXERCISE
 };
-//activity_state
 
+#define LEN_ACTIV_STATE 3
+static char ACTIV_STATE_STR[LEN_ACTIV_STATE][LEN_STR_MAX] = {
+	"IDLE",
+	"CALIB",
+	"EXERCISE"
+};
+
+// general yes or no:
 enum {
 	NO = 0, YES
 };
-//general yes or no
 
+// calibration result:
 enum {
 	FAILED = 0, PASSED
 };
-//calibration result
 
+// exercise_state:
 enum {
 	STOPPED = 0, RUNNING = 1, PAUSED = 2, SETUP = 3,
 };
-//exercise_state
 
+#define LEN_EXERC_STATE 4
+static char EXERC_STATE_STR[LEN_EXERC_STATE][LEN_STR_MAX] = {
+	"STOPPED",
+	"RUNNING",
+	"PAUSED",
+	"SETUP"
+};
+
+// emergency_state:
 enum {
 	NORMAL = 0, WARNING = 1, ALERT
 };
-//emergency_state
 
+
+// brakes_state:
 enum {
 	ENGAGE = 0, POWERSAVE = 1, DISENGAGE = 2
 };
-//brakes_state
 
+// calibration modes:
 typedef enum {
   CalibEncoders = 1,
   CalibForceSensor = 2,
@@ -133,6 +156,16 @@ typedef enum {
   AutoCalibEncodersFS = 4,
   StopCalib = 255
 } Calib_protocol;
+
+
+#define LEN_CALIB_MODES 4
+static char CALIB_MODE_STR[LEN_CALIB_MODES][LEN_STR_MAX] = {
+	" ",
+	"CalibEncoders",
+	"CalibForceSensor",
+	"CalibEncodersFS",
+	"AutoCalibEncodersFS"
+};
 
 //TCP message ID
 #define CMD_MSG_TYPE							0x01

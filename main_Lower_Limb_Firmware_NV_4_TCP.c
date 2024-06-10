@@ -78,14 +78,6 @@ UART_HandleTypeDef huart3;
 
 #define TEST_OPTION			 _TEST_REAL_TIME
 
-#define DT_DISP_MSEC_GUI_PARAMS		2000
-#define DT_DISP_MSEC_REALTIME		1000
-
-#define USE_ITM_OUT_GUI_PARAMS		0
-#define USE_ITM_TCP_CHECK		    1
-#define USE_ITM_OUT_RT_CHECK		1
-#define USE_ITM_OUT_SIM				0
-
 /////////////////////////////////////////////////////////////////////////////
 // HELPER FUNCTIONS - DECLARATIONS - GAO
 /////////////////////////////////////////////////////////////////////////////
@@ -183,9 +175,9 @@ int main(void)
 	// Set up Ethernet:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	Ethernet_Reset(true);
+	EtherneRESET_TRAJ_TIMER(true);
 	HAL_Delay(1000);
-	Ethernet_Reset(false);
+	EtherneRESET_TRAJ_TIMER(false);
 	HAL_Delay(1000);
 	set_ethernet_w5500_mac(0x00, 0x0a, 0xdc, 0xab, 0xcd, 0xef);
 	ethernet_w5500_sys_init();

@@ -70,6 +70,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 	float F_assist_resist;
 	float Fx_offset;
 	float Fy_offset;
+	*/
 
 	//Force Sensor
 	uint32_t force_end_in_x_sensor = 0;
@@ -78,12 +79,18 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 	uint32_t dum_force_end_in_y = 0;
 	float force_end_in_x_sensor_f = 0;
 	float force_end_in_y_sensor_f = 0;
-	*/
 
 	// Counters:
 	static int step_i = 0;
 
-	//reset
+	// Auxiliary variables:
+	#if USE_ITM_CMD_CHECK
+		uint8_t idx_sys_state   = lowerlimb_sys_info.system_state;
+		uint8_t idx_activ_state = lowerlimb_sys_info.activity_state;
+		uint8_t idx_exerc_state = lowerlimb_sys_info.exercise_state;
+	#endif
+
+	// Reset:
 	lowerlimb_sys_info.app_status = 0;
 	lowerlimb_sys_info.calib_prot_req = 0;
 
@@ -166,8 +173,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 			tmp_chksum ^= tcpRxData[n_cnt];
 		}
 
-		if (tmp_chksum != tcpRxData[checkSum_index])  //failed comparison
-				{
+		if (tmp_chksum != tcpRxData[checkSum_index]) { //failed comparison
 			send_error_msg(cmd_code, ERR_CHECKSUM_FAILED);
 			lowerlimb_sys_info.app_status = ERR_CHECKSUM_FAILED + 3;
 			return lowerlimb_sys_info;
@@ -204,7 +210,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 			static int cmd_code_prev = 0;
 
 			if (cmd_code != cmd_code_prev) {
-				printf("step_i [%d]: cmd = [%s]\n", step_i, CMD_STR[cmd_code]);
+				printf("step_i [%d]: cmd = [%s]\n\n", step_i, CMD_STR[cmd_code]);
 				cmd_code_prev = cmd_code;
 			}
 			step_i++;
@@ -320,12 +326,14 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 		// EXECUTE COMMAND:
 	    //////////////////////////////////////////////////////////////////////////////////////
 
-		// CMD 01: START_SYS_CMD
-		// CMD 02: BRAKES_CMD
-		// CMD 03: AUTO_CALIB_MODE_CMD
-		// CMD 04: START_RESUME_EXE_CMD
-		// CMD 05: STOP_EXE_CMD
-		// CMD 06: STOP_SYS_CMD
+		/*
+		CMD 01: START_SYS_CMD
+		CMD 02: BRAKES_CMD
+		CMD 03: AUTO_CALIB_MODE_CMD
+		CMD 04: START_RESUME_EXE_CMD
+		CMD 05: STOP_EXE_CMD
+		CMD 06: STOP_SYS_CMD
+		*/
 
 		///////////////////////////////////////////////////////////////////////////
 		// CMD 01: START_SYS_CMD
@@ -355,10 +363,6 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				lowerlimb_brakes_command.l_brake_disengage = true;
 				lowerlimb_brakes_command.r_brake_disengage = true;
 
-				/*
-				l_brakes_disable();
-				l_brakes_disable();
-				*/
 				l_brakes(DISENGAGE_BRAKES);
 				r_brakes(DISENGAGE_BRAKES);
 			}
@@ -366,10 +370,6 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				lowerlimb_brakes_command.l_brake_disengage = false;
 				lowerlimb_brakes_command.r_brake_disengage = false;
 
-				/*
-				l_brakes_enable();
-				r_brakes_enable();
-				*/
 				l_brakes(ENGAGE_BRAKES);
 				r_brakes(ENGAGE_BRAKES);
 			}
@@ -379,9 +379,9 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 			#if USE_ITM_CMD_CHECK
 				printf("   brakes disengaged: [");
 				if (lowerlimb_brakes_command.l_brake_disengage)
-					printf("TRUE] \n");
+					printf("TRUE] \n\n");
 				else
-					printf("FALSE] \n");
+					printf("FALSE] \n\n");
 			#endif
 		}
 
@@ -390,16 +390,32 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 		///////////////////////////////////////////////////////////////////////////
 
 		else if (cmd_code == AUTO_CALIB_MODE_CMD) { //enter calibration
-			/*
+
+			#if USE_ITM_CMD_CHECK
+				printf("   BEFORE: \n");
+				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("\n");
+			#endif
+
 			if (lowerlimb_sys_info.activity_state == EXERCISE) {
+				#if USE_ITM_CMD_CHECK
+					printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_EXERCISE_ACTIVE]);
+				#endif
 				send_error_msg(cmd_code, ERR_EXERCISE_ACTIVE);
+
 				lowerlimb_sys_info.app_status = ERR_EXERCISE_ACTIVE + 3;
 				return lowerlimb_sys_info;
 			}
 			else if (lowerlimb_sys_info.activity_state == CALIB) {
 				//check if the request is to terminate ongoing calibration
 				if (tcpRxData[rx_payload_index] != 255) {
+					#if USE_ITM_CMD_CHECK
+						printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_CALIB_ACTIVE]);
+					#endif
 					send_error_msg(cmd_code, ERR_CALIB_ACTIVE);
+
 					lowerlimb_sys_info.app_status = ERR_CALIB_ACTIVE + 3;
 					return lowerlimb_sys_info;
 				}
@@ -409,17 +425,54 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				lowerlimb_sys_info.activity_state = CALIB;
 			}
 			else {
+				#if USE_ITM_CMD_CHECK
+					printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_GENERAL_NOK]);
+				#endif
 				send_error_msg(cmd_code, ERR_GENERAL_NOK);
+
 				lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
 				return lowerlimb_sys_info;
 			}
 
 			lowerlimb_sys_info.calib_prot_req = tcpRxData[rx_payload_index];
 
-			// switch ((Calib_protocol)lowerlimb_sys_info.calib_prot_req)
 			uint8_t calib_prot_req = lowerlimb_sys_info.calib_prot_req;
 
-			if (calib_prot_req == CalibEncoders) {	//Calibrate Left Motor
+			#if USE_ITM_CMD_CHECK
+				if (calib_prot_req < LEN_CALIB_MODES)
+					printf("   calib_prot_req: [%s]\n\n", CALIB_MODE_STR[calib_prot_req]);
+				else if (calib_prot_req == StopCalib)
+					printf("   calib_prot_req: [STOP CALIB]\n\n");
+			#endif
+
+			if (calib_prot_req == CalibEncodersFS) { // Calibrate Both Motors
+				//Reset Encoder
+				qei_count_L_reset();
+				qei_count_R_reset();
+
+				// Zero calib Force Sensor
+				for (int i = 1; i <= 50; i++) {
+					force_sensors_read(&hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor,
+							&dum_force_end_in_x, &dum_force_end_in_y);
+
+					force_end_in_x_sensor_f += (float) force_end_in_x_sensor * 3.3f / 4095.0f;
+					force_end_in_y_sensor_f += (float) force_end_in_y_sensor * 3.3f / 4095.0f;
+				}
+
+				force_end_in_x_sensor_f = force_end_in_x_sensor_f / 50.0f;
+				force_end_in_y_sensor_f = force_end_in_y_sensor_f / 50.0f;
+
+				set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
+
+				//send resp
+				send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
+
+				// reset activity to IDLE:
+				// set_activity_idle(); // possible bug!
+				lowerlimb_sys_info.activity_state = IDLE;
+			}
+			/*
+			else if (calib_prot_req == CalibEncoders) {	//Calibrate Left Motor
 				qei_count_L_reset();
 				qei_count_R_reset();
 
@@ -448,30 +501,6 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				//reset acitivity to IDLE
 				set_activity_idle();
 			}
-			else if (calib_prot_req == CalibEncodersFS) {	//Calibrate Both Motors
-				//Reset Encoder
-				qei_count_L_reset();
-				qei_count_R_reset();
-
-				//Zero calib Force Sensor
-				for (int i = 1; i <= 50; i++) {
-					force_sensors_read(&hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor,
-					&dum_force_end_in_x, &dum_force_end_in_y);
-					force_end_in_x_sensor_f += (float) force_end_in_x_sensor * 3.3f / 4095.0f;
-					force_end_in_y_sensor_f += (float) force_end_in_y_sensor * 3.3f / 4095.0f;
-				}
-
-				force_end_in_x_sensor_f = force_end_in_x_sensor_f / 50.0f;
-				force_end_in_y_sensor_f = force_end_in_y_sensor_f / 50.0f;
-
-				set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
-
-				//send resp
-				send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
-
-				//reset acitivity to IDLE
-				set_activity_idle();
-			}
 			else if (calib_prot_req == AutoCalibEncodersFS) {	//Auto Calibrate Both Axis
 				//To be implemented later
 				send_error_msg(cmd_code, ERR_GENERAL_NOK);
@@ -482,30 +511,50 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 0, 0);
 
 				// go back to idle
-				lowerlimb_sys_info.activity_state = IDLE;
-				// set_activity_idle();
+				set_activity_idle();
 			}
-			else {
+			else
 				send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			}
 			*/
+
+			#if USE_ITM_CMD_CHECK
+				idx_sys_state   = lowerlimb_sys_info.system_state;
+				idx_activ_state = lowerlimb_sys_info.activity_state;
+				idx_exerc_state = lowerlimb_sys_info.exercise_state;
+
+				printf("   AFTER: \n");
+				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("\n");
+			#endif
 		}
 
 		///////////////////////////////////////////////////////////////////////////
 		// CMD 04: START_RESUME_EXE_CMD
 		///////////////////////////////////////////////////////////////////////////
 
-		else if (cmd_code == START_RESUME_EXE_CMD) { //start/resume exercise ; rxPayload == 11
-			/*
+		else if (cmd_code == START_RESUME_EXE_CMD) {
+
+			#if USE_ITM_CMD_CHECK
+				printf("   BEFORE: \n");
+				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("\n");
+			#endif
+
+			// start/resume exercise ; rxPayload == 11
+
 			//reset emergency alerts if any
 			reset_emergency_alerts();
 
-			// If exercise_state in paused state, resume exercise.
-			// If activity is in IDLE state, start exercise to SETUP state.
-			// Rest are errors.
+			// If exercise_state in paused state, resume exercise (TODO: REVISE)
+			// If activity is in IDLE state, start exercise to SETUP state (TODO: REVISE)
+			// Rest are errors (TODO: REVISE)
 
 			if (lowerlimb_sys_info.activity_state == IDLE) {
-				// check if device has been calibrated:
+				// Check if device has been calibrated:
 				if (!valid_app_status(lowerlimb_sys_info.isCalibrated, NO,
 					&lowerlimb_sys_info.app_status, cmd_code, ERR_CALIBRATION_NEEDED, ERR_OFFSET))
 						return lowerlimb_sys_info;
@@ -514,6 +563,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				lowerlimb_sys_info.exercise_mode = (exercise_mode_t)tcpRxData[rx_payload_index];
 				rx_payload_index += 1;
 
+				/*
 				if (lowerlimb_sys_info.exercise_mode == ImpedanceCtrl) {
 				}
 				else if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
@@ -527,6 +577,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 					lowerlimb_sys_info.app_status = ERR_INVALID_EXERCISE_MODE + 3;
 					return lowerlimb_sys_info;
 				}
+				*/
 
 				// Clear motor settings since each start exercise is considered a fresh start:
 				clear_lowerlimb_motors_settings(LL_motors_settings);
@@ -536,6 +587,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 
 				rx_payload_index += 1;
 
+				/*
 				if (tcpRxData[rx_payload_index] == 0x01) {
 					lowerlimb_brakes_command.l_brake_disengage = true;
 					lowerlimb_brakes_command.r_brake_disengage = true;
@@ -544,35 +596,56 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 					lowerlimb_brakes_command.l_brake_disengage = false;
 					lowerlimb_brakes_command.r_brake_disengage = false;
 				}
+				*/
 
 				// set activity to exercise
 				lowerlimb_sys_info.activity_state = EXERCISE;
 
-				// exercise state goes to SETUP
-				lowerlimb_sys_info.exercise_state = SETUP;
-			}
-			else if (lowerlimb_sys_info.activity_state == CALIB) {
-				// send active calibration error message:
-				send_error_msg(cmd_code, ERR_CALIB_ACTIVE);
-				lowerlimb_sys_info.app_status = ERR_CALIB_ACTIVE + 3;
-				return lowerlimb_sys_info;
+				// exercise state goes to SETUP:
+				lowerlimb_sys_info.exercise_state = SETUP; // can we switch to RUNNING directly?
 			}
 			else if (lowerlimb_sys_info.activity_state == EXERCISE) {
 				if (!valid_app_status(lowerlimb_sys_info.exercise_state, PAUSED,
 					&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
 						return lowerlimb_sys_info;
 
-				// if paused, set to running
+				// if NOT paused, set to running
 				lowerlimb_sys_info.exercise_state = RUNNING;
 			}
+			else if (lowerlimb_sys_info.activity_state == CALIB) {
+				// send active calibration error message:
+				#if USE_ITM_CMD_CHECK
+					printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_CALIB_ACTIVE]);
+				#endif
+				send_error_msg(cmd_code, ERR_CALIB_ACTIVE);
+
+				lowerlimb_sys_info.app_status = ERR_CALIB_ACTIVE + 3;
+				return lowerlimb_sys_info;
+			}
 			else {
-				// cover the rest with general NOK
+				// cover the rest with general NOK:
+				#if USE_ITM_CMD_CHECK
+					printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_GENERAL_NOK]);
+				#endif
 				send_error_msg(cmd_code, ERR_GENERAL_NOK);
+
 				lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
 				return lowerlimb_sys_info;
 			}
-			*/
+
 			send_OK_resp(cmd_code);
+
+			#if USE_ITM_CMD_CHECK
+				idx_sys_state   = lowerlimb_sys_info.system_state;
+				idx_activ_state = lowerlimb_sys_info.activity_state;
+				idx_exerc_state = lowerlimb_sys_info.exercise_state;
+
+				printf("   AFTER: \n");
+				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("\n");
+			#endif
 		}
 
 		///////////////////////////////////////////////////////////////////////////
@@ -580,18 +653,37 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 		///////////////////////////////////////////////////////////////////////////
 
 		else if (cmd_code == STOP_EXE_CMD) { //stop exercise
-			/*
-			// set activity to IDLE
+
+			#if USE_ITM_CMD_CHECK
+				printf("   BEFORE: \n");
+				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("\n");
+			#endif
+
+			// set activity to IDLE:
 			lowerlimb_sys_info.activity_state = IDLE;
 
-			// set exercise_state to STOPPED
+			// set exercise_state to STOPPED:
 			lowerlimb_sys_info.exercise_state = STOPPED;
 
-			// reset
+			// reset:
 			clear_lowerlimb_motors_settings(LL_motors_settings);
 
-			*/
 			send_OK_resp(cmd_code);
+
+			#if USE_ITM_CMD_CHECK
+				idx_sys_state   = lowerlimb_sys_info.system_state;
+				idx_activ_state = lowerlimb_sys_info.activity_state;
+				idx_exerc_state = lowerlimb_sys_info.exercise_state;
+
+				printf("   AFTER: \n");
+				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("\n");
+			#endif
 		}
 
 		///////////////////////////////////////////////////////////////////////////
@@ -599,7 +691,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 		///////////////////////////////////////////////////////////////////////////
 
 		else if (cmd_code == STOP_SYS_CMD) { //stop system
-			lowerlimb_sys_info.system_state = OFF;
+			lowerlimb_sys_info.system_state   = OFF;
 			lowerlimb_sys_info.activity_state = IDLE;
 			lowerlimb_sys_info.exercise_state = STOPPED;
 
@@ -629,11 +721,11 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 		}
 
 		else if (cmd_code == RESET_SYS_CMD) { //restart system
-			send_OK_resp(cmd_code);
 			/*
 			HAL_Delay(100); //wait for msg to be transmitted
 			HAL_NVIC_SystemReset(); //reset MCU
 			*/
+			send_OK_resp(cmd_code);
 		}
 
 		else if (cmd_code == READ_DEV_ID_CMD) { //read device ID
@@ -667,7 +759,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 		else if (cmd_code == TOGGLE_SAFETY_CMD) { //enable/disable safety features
 			/*
 			lowerlimb_sys_info.safetyOFF = tcpRxData[rx_payload_index];
-			 */
+			*/
 			send_OK_resp(cmd_code);
 		}
 

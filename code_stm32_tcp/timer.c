@@ -73,7 +73,7 @@ uint8_t startBaseTimer(void)
 {
     //start timer
     ui64UpTimeMS = 0;
-    if(HAL_TIM_Base_Start_IT(distal_htim) != HAL_OK){
+    if (HAL_TIM_Base_Start_IT(distal_htim) != HAL_OK) {
         /* PWM Generation Error */
         Error_Handler();
 				return HAL_ERROR;

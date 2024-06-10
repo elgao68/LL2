@@ -9,7 +9,7 @@
 
 #include <ode_solvers_nml.h>
 
-#define USE_ITM_OUT_ODE	1
+#define USE_ITM_OUT_ODE		0
 
 #define ORD_4	4
 
@@ -53,39 +53,39 @@ solve_ode_sys_rectang_nml(nml_mat* y_f, nml_mat* y_o, double T,
 	nml_mat_cp_ref(y_f, y_o);
 	nml_mat_add_r( y_f, delta_y);
 
-#if USE_ITM_OUT_ODE
-	int DECIM_DISP_ODE = DECIM_DISP_GENERAL;
-	int c_i;
+	#if USE_ITM_OUT_ODE
+		int DECIM_DISP_ODE = 200;
+		int c_i;
 
-	// if ((step_ode % DECIM_DISP_ODE) == 0) {
-		printf("____________________________\n");
-		printf("solve_ode_sys_rectang_nml [%d]: dt = [%f]\t t = [%f]\t F_end = [%f, %f]\n",
-			step_ode, T, T*(double)step_ode, ode_params.par_dbl[IDX_X], ode_params.par_dbl[IDX_Y]);
+		if ((step_ode % DECIM_DISP_ODE) == 0) {
+			printf("____________________________\n");
+			printf("solve_ode_sys_rectang_nml [%d]: dt = [%f]\t t = [%f]\t F_end = [%f, %f]\n",
+				step_ode, T, T*(double)step_ode, ode_params.par_dbl[IDX_X], ode_params.par_dbl[IDX_Y]);
 
-		printf("\n");
-		printf("y_o = [");
-		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
-			printf("%f\t", y_o->data[c_i][0]);
+			printf("\n");
+			printf("y_o = [");
+			for (c_i = 0; c_i < ode_params.DIM; c_i++) {
+				printf("%f\t", y_o->data[c_i][0]);
+			}
+			printf("]\n");
+
+			printf("\n");
+			printf("delta_y = ["); // was dt_y
+			for (c_i = 0; c_i < ode_params.DIM; c_i++) {
+				printf("%f\t", delta_y->data[c_i][0]); // was dt_y
+			}
+			printf("]\n");
+
+			printf("\n");
+			printf("y_f = [");
+			for (c_i = 0; c_i < ode_params.DIM; c_i++) {
+				printf("%f\t", y_f->data[c_i][0]);
+			}
+			printf("]\n");
+
+			printf("\n");
 		}
-		printf("]\n");
-
-		printf("\n");
-		printf("delta_y = ["); // was dt_y
-		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
-			printf("%f\t", delta_y->data[c_i][0]); // was dt_y
-		}
-		printf("]\n");
-
-		printf("\n");
-		printf("y_f = [");
-		for (c_i = 0; c_i < ode_params.DIM; c_i++) {
-			printf("%f\t", y_f->data[c_i][0]);
-		}
-		printf("]\n");
-
-		printf("\n");
-	// }
-#endif
+	#endif
 
 	// Increase counter:
 	step_ode++;

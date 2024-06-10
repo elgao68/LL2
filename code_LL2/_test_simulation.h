@@ -17,6 +17,8 @@
 #include "traj_ctrl_params_nml.h"
 #include "stm32f4xx_hal.h"
 
+#define USE_ITM_OUT_SIM	 0
+
 void test_simulation();
 
 #endif /* CODE_LL2__TEST_SIMULATION_H_ */

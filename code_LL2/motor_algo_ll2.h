@@ -143,7 +143,7 @@ void traj_ref_step_active_elliptic(
 		double p_ref[],	double dt_p_ref[],
 		double* phi_ref, double* dt_phi_ref,
 		double u_t_ref[], double dt_k, double F_end_m[], double z_intern_o_dbl[],
-		traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR);
+		traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR, uint8_t RESET_TRAJ_TIMER);
 
 /////////////////////////////////////////////////////////////////////////////////////
 // FUNCTION DECLARATIONS, DYNAMIC SYSTEMS - GAO

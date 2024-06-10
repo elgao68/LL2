@@ -49,7 +49,7 @@ static admitt_model_params_t admitt_model_params_local;
 
 #define DT_DISP_MSEC_ALGO		1000
 
-#define USE_ITM_OUT_TRAJ_REF		0
+#define USE_ITM_OUT_TRAJ_REF		1
 #define USE_ITM_OUT_ADMITT_MODEL	0
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -60,7 +60,7 @@ void traj_ref_step_active_elliptic(
 	double p_ref[],	double dt_p_ref[],
 	double* phi_ref, double* dt_phi_ref,
 	double u_t_ref[], double dt_k, double F_end_m[], double z_intern_o_dbl[],
-	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR) {
+	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR, uint8_t RESET_TRAJ_TIMER) {
 
     /////////////////////////////////////////////////////////////////////////////////////
     // Declare static matrices:
@@ -137,6 +137,9 @@ void traj_ref_step_active_elliptic(
 
 	static int step_int = 0; // algorithm step counter
 
+	if (RESET_TRAJ_TIMER)
+		step_int = 0;
+
 	/////////////////////////////////////////////////////////////////////////////////////
     // Step time:
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -147,7 +150,7 @@ void traj_ref_step_active_elliptic(
     //  Adjusted trajectory path parameters:
     /////////////////////////////////////////////////////////////////////////////////////
 
-	const int USE_ADJ_TRAJ_PARAMS = 0;
+	const int USE_ADJ_TRAJ_PARAMS = 1;
 
 	double ax_x_adj;
 	double ax_y_adj;
@@ -205,30 +208,32 @@ void traj_ref_step_active_elliptic(
 	nml_mat_cp_ref(z_intern_prev[DELAY_1], z_intern);
 
 	// ITM console output:
-	if (step_int == 0) {
-		printf("\n");
-		printf("T_cycle = %f\n", T_cycle);
-		printf("T_exp   = %f\n", T_exp);
-		printf("ax_x    = %f\n", ax_x);
-		printf("ax_y    = %f\n", ax_y);
-		printf("ax_ang  = %f\n", ax_ang);
-		printf("cycle_dir  = %f\n", (double)cycle_dir);
-		printf("\n");
-	}
-
-#if USE_ITM_OUT_TRAJ_REF
-	if (step_int % (DT_DISP_MSEC_ALGO/(int)(1000*dt_k)) == 0) {
-		printf("%d\tF_end = [%f\t%f]\t z = [",
-			step_int,
-			F_end_m[IDX_X], F_end_m[IDX_Y]);
-
-		for (int r_i = 0; r_i < 2*N_COORD_EXT; r_i++) {
-			printf("%f\t", z_intern->data[r_i][0]);
+	#if USE_ITM_OUT_TRAJ_REF
+		if (step_int == 0) {
+			printf("   traj_ref_step_active_elliptic(): \n");
+			printf("   T_cycle = %f\n", T_cycle);
+			printf("   T_exp   = %f\n", T_exp);
+			printf("   ax_x    = %f\n", ax_x);
+			printf("   ax_y    = %f\n", ax_y);
+			printf("   ax_ang  = %f\n", ax_ang);
+			printf("   cycle_dir  = %f\n", (double)cycle_dir);
+			printf("\n");
 		}
 
-		printf("]\n");
-	}
-#endif
+		/*
+		if (step_int % (DT_DISP_MSEC_ALGO/(int)(1000*dt_k)) == 0) {
+			printf("%d\tF_end = [%f\t%f]\t z = [",
+				step_int,
+				F_end_m[IDX_X], F_end_m[IDX_Y]);
+
+			for (int r_i = 0; r_i < 2*N_COORD_EXT; r_i++) {
+				printf("%f\t", z_intern->data[r_i][0]);
+			}
+
+			printf("]\n\n");
+		}
+		*/
+	#endif
 
     /////////////////////////////////////////////////////////////////////////////////////
     // Obtain reference trajectory position and velocity:

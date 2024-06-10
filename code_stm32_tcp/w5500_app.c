@@ -364,9 +364,9 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 
 				uint8_t sn_mask = getSn_IR(sn) & Sn_IR_CON; // TODO: make sure type cast is correct
 				if (sn_mask)
-					printf("Connected to %d.%d.%d.%d : %d\r\n", destip[0], destip[1], destip[2], destip[3], destport);
+					printf("Connected to %d.%d.%d.%d : %d\r\n\n", destip[0], destip[1], destip[2], destip[3], destport);
 				else
-					printf("NULL MASK\r\n");
+					printf("NULL MASK\r\n\n");
 			}
 
 			// Data Transaction Parts; Handle the [data receive and send] process

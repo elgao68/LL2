@@ -69,7 +69,7 @@ void Right_Motor_Direction (bool input);
 
 //Ethernet IO
 void Ethernet_ChipSelect (bool input);
-void Ethernet_Reset (bool input);
+void EtherneRESET_TRAJ_TIMER (bool input);
 
 #endif
 
