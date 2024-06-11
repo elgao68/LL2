@@ -16,7 +16,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 void
-test_simulation() {
+test_sim_traject() {
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// TRAJECTORY VARIABLES:
@@ -116,8 +116,8 @@ test_simulation() {
 		// Run simulation:
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		t_ref  = dt_k*step_sim;
-		phi_ref = dt_phi_ref*t_ref;
+		t_ref    = dt_k*step_sim;
+		phi_ref  = dt_phi_ref*t_ref;
 
 		//  Adjusted trajectory path dimensions:
 		ax_x_adj = (1.0 - exp(-sig_exp*t_ref))*ax_x;
@@ -125,8 +125,8 @@ test_simulation() {
 
 		// Generate trajectory points:
 		traj_ellipse_help(phi_ref, dt_phi_ref, p_ref, dt_p_ref, u_t_ref,
-				A_con, b_con,
-				ax_x_adj, ax_y_adj, ax_ang);
+			A_con, b_con,
+			ax_x_adj, ax_y_adj, ax_ang);
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Simulation output:

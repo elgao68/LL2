@@ -17,8 +17,8 @@
 #include <nml.h>
 #include <nml_util.h>
 #include <traj_ctrl_params_nml.h>
-
 #include <string.h>
+
 #include "main.h"
 #include "stm32f4xx_hal.h"
 #include "timer.h"
@@ -60,7 +60,7 @@ static uint32_t current_sensor_R = 0;
 // static uint64_t R_brakes_powersavetimer = 0;
 
 // Dynamic system mode: unconstrained / constrained:
-#define USE_ADMITT_MODEL_CONSTR_RT	0
+#define USE_ADMITT_MODEL_CONSTR_RT	1
 #define OVERR_DYN_PARAMS_RT			1
 #define OVERR_FORCE_SENSORS_CALIB	0
 #define USE_APP_STATE_TEMPLATE		1
@@ -82,11 +82,9 @@ static uint32_t current_sensor_R = 0;
 // Declare helper functions (see main.c):
 ////////////////////////////////////////////////////////////////////////////////
 
-void
-cycle_haptic_buttons();
+void cycle_haptic_buttons();
 
-void
-LED_sys_state_off();
+void LED_sys_state_off();
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare tester function:

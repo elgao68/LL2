@@ -60,7 +60,7 @@ void traj_ref_step_active_elliptic(
 	double p_ref[],	double dt_p_ref[],
 	double* phi_ref, double* dt_phi_ref,
 	double u_t_ref[], double dt_k, double F_end_m[], double z_intern_o_dbl[],
-	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR, uint8_t RESET_TRAJ_TIMER) {
+	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR, uint8_t switch_traj) {
 
     /////////////////////////////////////////////////////////////////////////////////////
     // Declare static matrices:
@@ -97,8 +97,7 @@ void traj_ref_step_active_elliptic(
 
 	if (init_nml) {
 		// Admittance model state:
-		z_intern      = nml_mat_new(2*N_COORD_EXT, 1); // internal state
-
+		z_intern = nml_mat_new(2*N_COORD_EXT, 1); // internal state
 
 		for (i = 0; i < N_PREV_INT_STEPS; i++)
 			z_intern_prev[i] = nml_mat_new(2*N_COORD_EXT, 1); // internal state
@@ -132,13 +131,54 @@ void traj_ref_step_active_elliptic(
 	double sig_exp = 3.0/T_exp;
 
 	/////////////////////////////////////////////////////////////////////////////////////
-	// Set up counters:
+	// Additional parameters:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	const uint8_t USE_TRAJ_PARAMS_VARIABLE = 1;
+	static uint8_t initial = 1;
+
+	static double ax_x_adj;
+	static double ax_y_adj;
+
+	if (initial) {
+		if (USE_TRAJ_PARAMS_VARIABLE) {
+			ax_x_adj = 0;
+			ax_y_adj = 0;
+		}
+		else {
+			ax_x_adj = ax_x;
+			ax_y_adj = ax_y;
+		}
+
+		initial = 0;
+	}
+
+	static double ax_x_o;
+	static double ax_y_o;
+
+	static uint8_t traj_params_behav = TRAJ_PARAMS_CONST;
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Set up counters & behaviors:
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	static int step_int = 0; // algorithm step counter
 
-	if (RESET_TRAJ_TIMER)
+	if (switch_traj == SWITCH_TRAJ_START && traj_params_behav != TRAJ_PARAMS_GROW)	{
+		traj_params_behav = TRAJ_PARAMS_GROW;
+
 		step_int = 0;
+		ax_x_o = ax_x_adj;
+		ax_y_o = ax_y_adj;
+
+	}
+	else if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
+		traj_params_behav = TRAJ_PARAMS_DECAY;
+
+		step_int = 0;
+		ax_x_o = ax_x_adj;
+		ax_y_o = ax_y_adj;
+	}
 
 	/////////////////////////////////////////////////////////////////////////////////////
     // Step time:
@@ -150,18 +190,15 @@ void traj_ref_step_active_elliptic(
     //  Adjusted trajectory path parameters:
     /////////////////////////////////////////////////////////////////////////////////////
 
-	const int USE_ADJ_TRAJ_PARAMS = 1;
-
-	double ax_x_adj;
-	double ax_y_adj;
-
-	if (USE_ADJ_TRAJ_PARAMS) {
-		ax_x_adj = (1.0 - exp(-sig_exp*t_ref))*ax_x;
-		ax_y_adj = (1.0 - exp(-sig_exp*t_ref))*ax_y;
-	}
-	else {
-		ax_x_adj = ax_x;
-		ax_y_adj = ax_y;
+	if (USE_TRAJ_PARAMS_VARIABLE) {
+		if (traj_params_behav == TRAJ_PARAMS_GROW) {
+			ax_x_adj = (1.0 - exp(-sig_exp*t_ref))*(ax_x - ax_x_o) + ax_x_o;
+			ax_y_adj = (1.0 - exp(-sig_exp*t_ref))*(ax_y - ax_y_o) + ax_y_o;
+		}
+		else if (traj_params_behav == TRAJ_PARAMS_DECAY) {
+			ax_x_adj = exp(-sig_exp*t_ref)*ax_x_o;
+			ax_y_adj = exp(-sig_exp*t_ref)*ax_y_o;
+		}
 	}
 
     /////////////////////////////////////////////////////////////////////////////////////
@@ -272,7 +309,8 @@ void traj_ref_step_active_elliptic(
 // FUNCTION DEFINITIONS, DYNAMIC SYSTEMS - GAO
 /////////////////////////////////////////////////////////////////////////////////////
 
-void ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct ode_params) {
+void
+ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct ode_params) {
 
     /////////////////////////////////////////////////////////////////////////////////////
     // Declare static matrices:
@@ -302,9 +340,6 @@ void ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct od
 		M_sys_q  = nml_mat_new(N_COORD_EXT, N_COORD_EXT);
 		B_sys_q  = nml_mat_new(N_COORD_EXT, N_COORD_EXT);
 		K_sys_q  = nml_mat_new(N_COORD_EXT, N_COORD_EXT);
-
-		// System output:
-		// dt_z_nml = nml_mat_new(2*N_COORD_EXT, 1); // TODO: remove at a later date
 
 		// Constraint matrix:
 		A_con    = nml_mat_new(N_CONSTR_TRAJ, N_COORD_EXT);
@@ -379,74 +414,74 @@ void ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct od
 
 	if (ode_params.USE_ODE_CONSTR)
 		dyn_sys_msd_nml_constr_lagr(
-				dt_z_nml, Q_in_nml, z_nml, F_end_in_nml, M_sys_q, B_sys_q, K_sys_q, q_eq_nml, A_con);
+			dt_z_nml, Q_in_nml, z_nml, F_end_in_nml, M_sys_q, B_sys_q, K_sys_q, q_eq_nml, A_con);
 	else
 		dyn_sys_msd_nml_unc(
-				dt_z_nml, Q_in_nml, z_nml, F_end_in_nml, M_sys_q, B_sys_q, K_sys_q, q_eq_nml);
+			dt_z_nml, Q_in_nml, z_nml, F_end_in_nml, M_sys_q, B_sys_q, K_sys_q, q_eq_nml);
 
 	// ITM console output:
-#if USE_ITM_OUT_ADMITT_MODEL
-	if (step_i == 0) {
-		printf("M_sys_q = [ ...\n");
-		for (r_i = 0; r_i < M_sys_q->num_rows; r_i++) {
-			for (c_i = 0; c_i < M_sys_q->num_cols; c_i++) {
-				printf("%f", M_sys_q->data[r_i][c_i]);
-				if (c_i < (M_sys_q->num_cols - 1))
-					printf(", ");
+	#if USE_ITM_OUT_ADMITT_MODEL
+		if (step_i == 0) {
+			printf("M_sys_q = [ ...\n");
+			for (r_i = 0; r_i < M_sys_q->num_rows; r_i++) {
+				for (c_i = 0; c_i < M_sys_q->num_cols; c_i++) {
+					printf("%f", M_sys_q->data[r_i][c_i]);
+					if (c_i < (M_sys_q->num_cols - 1))
+						printf(", ");
+					else
+						printf("\n");
+				}
+			}
+			printf("];\n\n");
+
+			printf("B_sys_q = [ ...\n");
+			for (r_i = 0; r_i < B_sys_q->num_rows; r_i++) {
+				for (c_i = 0; c_i < B_sys_q->num_cols; c_i++) {
+					printf("%f", B_sys_q->data[r_i][c_i]);
+					if (c_i < (B_sys_q->num_cols - 1))
+						printf(", ");
+					else
+						printf("\n");
+				}
+			}
+			printf("];\n\n");
+
+			printf("K_sys_q = [ ...\n");
+			for (r_i = 0; r_i < K_sys_q->num_rows; r_i++) {
+				for (c_i = 0; c_i < K_sys_q->num_cols; c_i++) {
+					printf("%f", K_sys_q->data[r_i][c_i]);
+					if (c_i < (K_sys_q->num_cols - 1))
+						printf(", ");
+					else
+						printf("\n");
+				}
+			}
+			printf("];\n\n");
+
+			printf("q_eq = [ ...\n");
+			for (r_i = 0; r_i < q_eq_nml->num_rows; r_i++) {
+				printf("%f", q_eq_nml->data[r_i][0]);
+				if (r_i < (q_eq_nml->num_rows - 1))
+					printf("; ");
 				else
-					printf("\n");
+					printf("]\n");
 			}
 		}
-		printf("];\n\n");
 
-		printf("B_sys_q = [ ...\n");
-		for (r_i = 0; r_i < B_sys_q->num_rows; r_i++) {
-			for (c_i = 0; c_i < B_sys_q->num_cols; c_i++) {
-				printf("%f", B_sys_q->data[r_i][c_i]);
-				if (c_i < (B_sys_q->num_cols - 1))
-					printf(", ");
-				else
-					printf("\n");
+		int DECIM_DISP_DT_Z = DECIM_DISP_GENERAL;
+
+		if ((step_i % DECIM_DISP_DT_Z) == 0) {
+			printf("____________________________\n");
+			printf("ode_admitt_model_nml: [%d]\tF_end_in_nml = [%f\t%f]\t dt_z = [",
+				step_i,
+				F_end_in_nml->data[IDX_X][0], F_end_in_nml->data[IDX_Y][0]);
+
+			for (c_i = 0; c_i < 2*N_COORD_EXT; c_i++) {
+				printf("%f\t", dt_z_nml->data[c_i][0]);
 			}
+			printf("]\n\n");
 		}
-		printf("];\n\n");
-
-		printf("K_sys_q = [ ...\n");
-		for (r_i = 0; r_i < K_sys_q->num_rows; r_i++) {
-			for (c_i = 0; c_i < K_sys_q->num_cols; c_i++) {
-				printf("%f", K_sys_q->data[r_i][c_i]);
-				if (c_i < (K_sys_q->num_cols - 1))
-					printf(", ");
-				else
-					printf("\n");
-			}
-		}
-		printf("];\n\n");
-
-		printf("q_eq = [ ...\n");
-		for (r_i = 0; r_i < q_eq_nml->num_rows; r_i++) {
-			printf("%f", q_eq_nml->data[r_i][0]);
-			if (r_i < (q_eq_nml->num_rows - 1))
-				printf("; ");
-			else
-				printf("]\n");
-		}
-	}
-
-	int DECIM_DISP_DT_Z = DECIM_DISP_GENERAL;
-
-	if ((step_i % DECIM_DISP_DT_Z) == 0) {
-		printf("____________________________\n");
-		printf("ode_admitt_model_nml: [%d]\tF_end_in_nml = [%f\t%f]\t dt_z = [",
-			step_i,
-			F_end_in_nml->data[IDX_X][0], F_end_in_nml->data[IDX_Y][0]);
-
-		for (c_i = 0; c_i < 2*N_COORD_EXT; c_i++) {
-			printf("%f\t", dt_z_nml->data[c_i][0]);
-		}
-		printf("]\n\n");
-	}
-#endif
+	#endif
 
 	step_i++;
 }

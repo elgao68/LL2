@@ -10,7 +10,7 @@
 #include <dynamic_systems_nml.h>
 
 #define USE_ITM_OUT_DYN_SYS_UNC		0
-#define USE_ITM_OUT_DYN_SYS_CON		1
+#define USE_ITM_OUT_DYN_SYS_CON		0
 
 void
 dyn_sys_msd_nml_unc(nml_mat* dt_z_unc, nml_mat* Q_in, nml_mat* z, nml_mat* u_in,
@@ -250,7 +250,7 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	// Constraint matrix transpose:
-	A_con_tr = nml_mat_transp(A_con);
+	nml_mat_transp_ref(A_con_tr, A_con);
 
 	// Zeros matrix:
 	nml_mat_all_set(zero_m, 0.0); // just to be sure
@@ -301,70 +301,70 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 		Q_in_ext->data[c_i][0] = Q_in->data[c_i][0];
 
 	// ITM console output:
-#if USE_ITM_OUT_DYN_SYS_CON
-	// if ((step_i % DECIM_DISP_CON) == 0) {
-		printf("____________________________\n");
-		printf("dyn_sys_msd_nml_constr_lagr [%d]:\n", step_i);
-		printf("\n");
-		printf("M_sys:\n");
-		for (r_i = 0; r_i < M_sys->num_rows; r_i++) {
-			for (c_i = 0; c_i < M_sys->num_cols; c_i++)
-				printf("%f\t", M_sys->data[r_i][c_i]);
+	#if USE_ITM_OUT_DYN_SYS_CON
+		// if ((step_i % DECIM_DISP_CON) == 0) {
+			printf("____________________________\n");
+			printf("dyn_sys_msd_nml_constr_lagr [%d]:\n", step_i);
 			printf("\n");
-		}
+			printf("M_sys:\n");
+			for (r_i = 0; r_i < M_sys->num_rows; r_i++) {
+				for (c_i = 0; c_i < M_sys->num_cols; c_i++)
+					printf("%f\t", M_sys->data[r_i][c_i]);
+				printf("\n");
+			}
 
-		printf("A_con:\n");
-		for (r_i = 0; r_i < A_con->num_rows; r_i++) {
-			for (c_i = 0; c_i < A_con->num_cols; c_i++)
-				printf("%f\t", A_con->data[r_i][c_i]);
+			printf("A_con:\n");
+			for (r_i = 0; r_i < A_con->num_rows; r_i++) {
+				for (c_i = 0; c_i < A_con->num_cols; c_i++)
+					printf("%f\t", A_con->data[r_i][c_i]);
+				printf("\n");
+			}
+
+			/*
+			printf("A_con_tr:\n");
+			for (r_i = 0; r_i < A_con_tr->num_rows; r_i++) {
+				for (c_i = 0; c_i < A_con_tr->num_cols; c_i++)
+					printf("%f\t", A_con_tr->data[r_i][c_i]);
+				printf("\n");
+			}
+			*/
+
 			printf("\n");
-		}
+			printf("mu:\n");
+			for (r_i = 0; r_i < mu->num_rows; r_i++) {
+				for (c_i = 0; c_i < mu->num_cols; c_i++)
+					printf("%f\t", mu->data[r_i][c_i]);
+				printf("\n");
+			}
 
-		/*
-		printf("A_con_tr:\n");
-		for (r_i = 0; r_i < A_con_tr->num_rows; r_i++) {
-			for (c_i = 0; c_i < A_con_tr->num_cols; c_i++)
-				printf("%f\t", A_con_tr->data[r_i][c_i]);
 			printf("\n");
-		}
-		*/
+			printf("inv mu:\n");
+			for (r_i = 0; r_i < inv_mu->num_rows; r_i++) {
+				for (c_i = 0; c_i < inv_mu->num_cols; c_i++)
+					printf("%f\t", inv_mu->data[r_i][c_i]);
+				printf("\n");
+			}
 
-		printf("\n");
-		printf("mu:\n");
-		for (r_i = 0; r_i < mu->num_rows; r_i++) {
-			for (c_i = 0; c_i < mu->num_cols; c_i++)
-				printf("%f\t", mu->data[r_i][c_i]);
+			/*
 			printf("\n");
-		}
+			printf("U initial:\n");
+			for (r_i = 0; r_i < U->num_rows; r_i++) {
+				for (c_i = 0; c_i < U->num_cols; c_i++)
+					printf("%f\t", U->data[r_i][c_i]);
+				printf("\n");
+			}
 
-		printf("\n");
-		printf("inv mu:\n");
-		for (r_i = 0; r_i < inv_mu->num_rows; r_i++) {
-			for (c_i = 0; c_i < inv_mu->num_cols; c_i++)
-				printf("%f\t", inv_mu->data[r_i][c_i]);
 			printf("\n");
-		}
+			printf("P initial:\n");
+			for (r_i = 0; r_i < P->num_rows; r_i++) {
+				for (c_i = 0; c_i < P->num_cols; c_i++)
+					printf("%f\t", P->data[r_i][c_i]);
+				printf("\n");
+			}
+			*/
 
-		/*
-		printf("\n");
-		printf("U initial:\n");
-		for (r_i = 0; r_i < U->num_rows; r_i++) {
-			for (c_i = 0; c_i < U->num_cols; c_i++)
-				printf("%f\t", U->data[r_i][c_i]);
-			printf("\n");
-		}
-
-		printf("\n");
-		printf("P initial:\n");
-		for (r_i = 0; r_i < P->num_rows; r_i++) {
-			for (c_i = 0; c_i < P->num_cols; c_i++)
-				printf("%f\t", P->data[r_i][c_i]);
-			printf("\n");
-		}
-		*/
-
-	// } // if ((step_i % DECIM_DISP_CON)
-#endif
+		// } // if ((step_i % DECIM_DISP_CON)
+	#endif
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Invert extended inertia matrix:
@@ -393,52 +393,52 @@ dyn_sys_msd_nml_constr_lagr(nml_mat* dt_z_con, nml_mat* Q_in, nml_mat* z, nml_ma
 	}
 
 	// ITM console output:
-#if USE_ITM_OUT_DYN_SYS_CON
-	// if ((step_i % DECIM_DISP_CON) == 0) {
-		printf("----------------------------\n");
-		printf("dyn_sys_msd_nml_constr_lagr [%d]:\n", step_i);
+	#if USE_ITM_OUT_DYN_SYS_CON
+		// if ((step_i % DECIM_DISP_CON) == 0) {
+			printf("----------------------------\n");
+			printf("dyn_sys_msd_nml_constr_lagr [%d]:\n", step_i);
 
-		printf("\n");
-		printf("Q_in_ext = [");
-		for (r_i = 0; r_i < Q_in_ext->num_rows; r_i++)
-			printf("%f\t", Q_in_ext->data[r_i][0]);
-		printf("]\n");
-
-		/*
-		printf("\n");
-		printf("L final:\n");
-		for (r_i = 0; r_i < L->num_rows; r_i++) {
-			for (c_i = 0; c_i < L->num_cols; c_i++)
-				printf("%f\t", L->data[r_i][c_i]);
 			printf("\n");
-		}
+			printf("Q_in_ext = [");
+			for (r_i = 0; r_i < Q_in_ext->num_rows; r_i++)
+				printf("%f\t", Q_in_ext->data[r_i][0]);
+			printf("]\n");
 
-		printf("\n");
-		printf("U final:\n");
-		for (r_i = 0; r_i < U->num_rows; r_i++) {
-			for (c_i = 0; c_i < U->num_cols; c_i++)
-				printf("%f\t", U->data[r_i][c_i]);
+			/*
 			printf("\n");
-		}
+			printf("L final:\n");
+			for (r_i = 0; r_i < L->num_rows; r_i++) {
+				for (c_i = 0; c_i < L->num_cols; c_i++)
+					printf("%f\t", L->data[r_i][c_i]);
+				printf("\n");
+			}
 
-		printf("\n");
-		printf("P final:\n");
-		for (r_i = 0; r_i < P->num_rows; r_i++) {
-			for (c_i = 0; c_i < P->num_cols; c_i++)
-				printf("%f\t", P->data[r_i][c_i]);
 			printf("\n");
-		}
-		*/
+			printf("U final:\n");
+			for (r_i = 0; r_i < U->num_rows; r_i++) {
+				for (c_i = 0; c_i < U->num_cols; c_i++)
+					printf("%f\t", U->data[r_i][c_i]);
+				printf("\n");
+			}
 
-		printf("\n");
-		printf("dt_v_lam = [");
-		for (r_i = 0; r_i < dt_v_lam->num_rows; r_i++)
-			printf("%f\t", dt_v_lam->data[r_i][0]);
-		printf("]\n");
+			printf("\n");
+			printf("P final:\n");
+			for (r_i = 0; r_i < P->num_rows; r_i++) {
+				for (c_i = 0; c_i < P->num_cols; c_i++)
+					printf("%f\t", P->data[r_i][c_i]);
+				printf("\n");
+			}
+			*/
 
-		printf("\n");
-	// } // end if ((step_i % DECIM_DISP_CON)
-#endif
+			printf("\n");
+			printf("dt_v_lam = [");
+			for (r_i = 0; r_i < dt_v_lam->num_rows; r_i++)
+				printf("%f\t", dt_v_lam->data[r_i][0]);
+			printf("]\n");
+
+			printf("\n");
+		// } // end if ((step_i % DECIM_DISP_CON)
+	#endif
 
 	step_i++;
 }

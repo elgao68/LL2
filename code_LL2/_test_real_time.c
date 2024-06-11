@@ -29,8 +29,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// FIRMWARE/CONTROL PARAMETERS - GAO:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	// volatile uint64_t* up_time_ref = &ui64UpTimeMS;
-
 	uint64_t up_time;
 	uint64_t up_time_end;
 
@@ -117,7 +115,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	int rt_step_i    = 0; // real-time step counter
 	int c_i          = 0; // general-purpose counter
-	uint8_t reset_traj_timer = 0;
+	uint8_t switch_traj = 0;
 
 	// TCP communication checks:
 	int32_t ret_tcp_msg      = 0;
@@ -238,7 +236,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 			#if OVERR_DYN_PARAMS_RT
 				traj_ctrl_params.cycle_period   = 3.0;
-				traj_ctrl_params.exp_blend_time = 3.0;
+				traj_ctrl_params.exp_blend_time = 10.0;
 				traj_ctrl_params.semiaxis_x     = 0.15;
 				traj_ctrl_params.semiaxis_y     = 0.08;
 				traj_ctrl_params.rot_angle      = 0;
@@ -407,16 +405,18 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// Generate reference trajectory:
 						/////////////////////////////////////////////////////////////////////////////////////
 
-						if (activity_state_prev != EXERCISE)
-							reset_traj_timer = 1;
+						if (activity_state_prev != EXERCISE && LL_sys_info.activity_state == EXERCISE)
+							switch_traj = SWITCH_TRAJ_START;
+						else if (activity_state_prev != IDLE && LL_sys_info.activity_state == IDLE)
+							switch_traj = SWITCH_TRAJ_END;
 						else
-							reset_traj_timer = 0;
+							switch_traj = SWITCH_TRAJ_NULL;
 
 						traj_ref_step_active_elliptic(
 							p_ref, dt_p_ref,
 							&phi_ref, &dt_phi_ref,
 							u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
-							traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR_RT, reset_traj_timer);
+							traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR_RT, switch_traj);
 
 						// Set reference kinematics struct:
 						for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
@@ -482,11 +482,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							}
 							*/
 
-							if (reset_traj_timer) {
+							if (switch_traj != SWITCH_TRAJ_NULL) {
 								// Check uptime after computations:
 								up_time_end = getUpTime();
 
-								printf("   [reset_traj_timer]\n");
+								printf("   switch_traj = [%d] \n", switch_traj);
 								printf("   %d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f \n\n",
 									rt_step_i,
 									t_ref,

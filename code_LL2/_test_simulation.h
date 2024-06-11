@@ -19,6 +19,6 @@
 
 #define USE_ITM_OUT_SIM	 0
 
-void test_simulation();
+void test_sim_traject();
 
 #endif /* CODE_LL2__TEST_SIMULATION_H_ */

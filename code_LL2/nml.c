@@ -140,8 +140,16 @@ nml_mat *nml_mat_new(unsigned int num_rows, unsigned int num_cols) {
   NP_CHECK(m->data);
   int i;
   for(i = 0; i < m->num_rows; ++i) {
-    m->data[i] = calloc(m->num_cols, sizeof(**m->data));
-    NP_CHECK(m->data[i]);
+	m->data[i] = calloc(m->num_cols, sizeof(**m->data));
+	NP_CHECK(m->data[i]);
+
+	// Alternative to NP_CHECK() for debugging:
+	/*
+	if (!(m->data[i])) {
+		printf(stderr, "%s:%d NULL POINTER n",	__FILE__, __LINE__);
+		exit(-1);
+	}
+	*/
   }
   return m;
 }

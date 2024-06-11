@@ -175,9 +175,9 @@ int main(void)
 	// Set up Ethernet:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	EtherneRESET_TRAJ_TIMER(true);
+	Etherneswitch_traj(true);
 	HAL_Delay(1000);
-	EtherneRESET_TRAJ_TIMER(false);
+	Etherneswitch_traj(false);
 	HAL_Delay(1000);
 	set_ethernet_w5500_mac(0x00, 0x0a, 0xdc, 0xab, 0xcd, 0xef);
 	ethernet_w5500_sys_init();
@@ -203,7 +203,7 @@ int main(void)
 	#if TEST_OPTION == _TEST_REAL_TIME
 		test_real_time(&hadc1, &hadc3);
 	#elif TEST_OPTION == _TEST_SIMULATION
-		test_simulation();
+		test_sim_traject();
 	#elif TEST_OPTION == _TEST_ODE_INT
 		test_ode_int();
 	#elif TEST_OPTION == _TEST_MATR_INV

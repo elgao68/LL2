@@ -261,7 +261,6 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 
 		uint8_t exercise_mode = 0;
 
-		/*
 		if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD)
 			exercise_mode = PassiveTrajectoryCtrl;
 		else if (cmd_code == SET_TARG_PARAM_ADMCTRL_CMD)
@@ -286,7 +285,6 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 								return lowerlimb_sys_info;
 			}
 		}
-		*/
 
 	    //////////////////////////////////////////////////////////////////////////////////////
 		// VALIDATE SYS COMMANDS:
@@ -563,21 +561,23 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				lowerlimb_sys_info.exercise_mode = (exercise_mode_t)tcpRxData[rx_payload_index];
 				rx_payload_index += 1;
 
-				/*
-				if (lowerlimb_sys_info.exercise_mode == ImpedanceCtrl) {
-				}
-				else if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
+				// if (lowerlimb_sys_info.exercise_mode == ImpedanceCtrl) {
+				// }
+				if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
 				}
 				else if (lowerlimb_sys_info.exercise_mode == AdmittanceCtrl) {
 				}
 				else if (lowerlimb_sys_info.exercise_mode == ActiveTrajectoryCtrl) {
 				}
 				else {
+					#if USE_ITM_CMD_CHECK
+						printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_INVALID_EXERCISE_MODE]);
+					#endif
 					send_error_msg(cmd_code, ERR_INVALID_EXERCISE_MODE);
+
 					lowerlimb_sys_info.app_status = ERR_INVALID_EXERCISE_MODE + 3;
 					return lowerlimb_sys_info;
 				}
-				*/
 
 				// Clear motor settings since each start exercise is considered a fresh start:
 				clear_lowerlimb_motors_settings(LL_motors_settings);

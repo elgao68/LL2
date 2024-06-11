@@ -19,7 +19,7 @@ void Ethernet_ChipSelect (bool input){
 	HAL_GPIO_WritePin(ETHERNET_SCSn_GPIO_Port, ETHERNET_SCSn_Pin, input);
 }
 
-void EtherneRESET_TRAJ_TIMER (bool input){
+void Etherneswitch_traj (bool input){
 	HAL_GPIO_WritePin(ETHERNET_RSTn_GPIO_Port, ETHERNET_RSTn_Pin, !input);
 }
 
