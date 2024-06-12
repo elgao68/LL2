@@ -85,6 +85,8 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 
 	// Auxiliary variables:
 	#if USE_ITM_CMD_CHECK
+		uint8_t idx_exerc_mode  = lowerlimb_sys_info.exercise_mode;
+
 		uint8_t idx_sys_state   = lowerlimb_sys_info.system_state;
 		uint8_t idx_activ_state = lowerlimb_sys_info.activity_state;
 		uint8_t idx_exerc_state = lowerlimb_sys_info.exercise_state;
@@ -210,6 +212,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 			static int cmd_code_prev = 0;
 
 			if (cmd_code != cmd_code_prev) {
+				printf("\n");
 				printf("step_i [%d]: cmd = [%s]\n\n", step_i, CMD_STR[cmd_code]);
 				cmd_code_prev = cmd_code;
 			}
@@ -636,9 +639,13 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 			send_OK_resp(cmd_code);
 
 			#if USE_ITM_CMD_CHECK
+				idx_exerc_mode  = lowerlimb_sys_info.exercise_mode;
+
 				idx_sys_state   = lowerlimb_sys_info.system_state;
 				idx_activ_state = lowerlimb_sys_info.activity_state;
 				idx_exerc_state = lowerlimb_sys_info.exercise_state;
+
+				printf("   exercise mode = [%s] \n\n", EXERC_MODE_STR[idx_exerc_mode]);
 
 				printf("   AFTER: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );

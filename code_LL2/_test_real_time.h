@@ -60,7 +60,9 @@ static uint32_t current_sensor_R = 0;
 // static uint64_t R_brakes_powersavetimer = 0;
 
 // Dynamic system mode: unconstrained / constrained:
-#define USE_ADMITT_MODEL_CONSTR_RT	1
+#define ADMITT_MODEL_CONSTR_ON		1
+#define ADMITT_MODEL_CONSTR_OFF		0
+
 #define OVERR_DYN_PARAMS_RT			1
 #define OVERR_FORCE_SENSORS_CALIB	0
 #define USE_APP_STATE_TEMPLATE		1

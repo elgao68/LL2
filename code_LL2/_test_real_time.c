@@ -105,6 +105,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	bool brake_cmd;
 
+	uint8_t ADMITT_CTRL_MODE;
+
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Counters and timers:
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -318,6 +320,17 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				set_safetyOff(LL_sys_info.safetyOFF);
 
 				/////////////////////////////////////////////////////////////////////////////////////
+				// Check exercise start / stop switches:
+				/////////////////////////////////////////////////////////////////////////////////////
+
+				if (activity_state_prev != EXERCISE && LL_sys_info.activity_state == EXERCISE)
+					switch_traj = SWITCH_TRAJ_START;
+				else if (activity_state_prev != IDLE && LL_sys_info.activity_state == IDLE)
+					switch_traj = SWITCH_TRAJ_END;
+				else
+					switch_traj = SWITCH_TRAJ_NULL;
+
+				/////////////////////////////////////////////////////////////////////////////////////
 				/////////////////////////////////////////////////////////////////////////////////////
 				// SWITCH ACTIVITY STATE - GAO
 				/////////////////////////////////////////////////////////////////////////////////////
@@ -405,18 +418,33 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// Generate reference trajectory:
 						/////////////////////////////////////////////////////////////////////////////////////
 
-						if (activity_state_prev != EXERCISE && LL_sys_info.activity_state == EXERCISE)
-							switch_traj = SWITCH_TRAJ_START;
-						else if (activity_state_prev != IDLE && LL_sys_info.activity_state == IDLE)
-							switch_traj = SWITCH_TRAJ_END;
-						else
-							switch_traj = SWITCH_TRAJ_NULL;
+						// Deleted: if (activity_state_prev != EXERCISE && LL_sys_info.activity_state == EXERCISE)
 
-						traj_ref_step_active_elliptic(
+						// Generate trajectory points:
+						if (LL_sys_info.exercise_mode == PassiveTrajectoryCtrl)
+							traj_ref_step_passive_elliptic(
+								p_ref, dt_p_ref,
+								&phi_ref, &dt_phi_ref,
+								u_t_ref, dt_k,
+								traj_ctrl_params, switch_traj);
+
+						else if (LL_sys_info.exercise_mode == ActiveTrajectoryCtrl)
+							traj_ref_step_active_elliptic(
+								p_ref, dt_p_ref,
+								&phi_ref, &dt_phi_ref,
+								u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
+								traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj);
+						else {
+							printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
+						}
+
+						/*
+						else if (LL_sys_info.exercise_mode == AdmittanceCtrl)
 							p_ref, dt_p_ref,
 							&phi_ref, &dt_phi_ref,
 							u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
-							traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR_RT, switch_traj);
+							traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_OFF, switch_traj);
+						*/
 
 						// Set reference kinematics struct:
 						for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
@@ -486,8 +514,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								// Check uptime after computations:
 								up_time_end = getUpTime();
 
-								printf("   switch_traj = [%d] \n", switch_traj);
-								printf("   %d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f \n\n",
+								printf("   switch_traj = [%d] \n\n", switch_traj);
+								printf("   %d\t%f\t(%d)\tphi = [%f]\tdt_phi = [%f]\tpos = [%f, %f]\tdt_pos = [%f, %f] \n",
 									rt_step_i,
 									t_ref,
 									(int)up_time_end - (int)up_time,
@@ -554,7 +582,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					// Check uptime after computations:
 					up_time_end = getUpTime();
 
-					printf("   [%d]\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f \n\n",
+					printf("   %d\t%f\t(%d)\tphi = [%f]\tdt_phi = [%f]\tpos = [%f, %f]\tdt_pos = [%f, %f] \n",
 						rt_step_i,
 						t_ref,
 						(int)up_time_end - (int)up_time,
