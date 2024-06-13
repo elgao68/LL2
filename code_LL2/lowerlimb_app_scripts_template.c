@@ -92,6 +92,8 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 		uint8_t idx_exerc_state = lowerlimb_sys_info.exercise_state;
 	#endif
 
+	static uint8_t stop_exe_cmd_count = 0; // stop command counter - this is used to accommodate the SLOWING case
+
 	// Reset:
 	lowerlimb_sys_info.app_status = 0;
 	lowerlimb_sys_info.calib_prot_req = 0;
@@ -669,11 +671,22 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				printf("\n");
 			#endif
 
-			// set activity to IDLE:
-			lowerlimb_sys_info.activity_state = IDLE;
+			if (USE_TRAJ_PARAMS_VARIABLE) {
+				stop_exe_cmd_count++;
 
-			// set exercise_state to STOPPED:
-			lowerlimb_sys_info.exercise_state = STOPPED;
+				if (stop_exe_cmd_count == 1)
+					lowerlimb_sys_info.exercise_state = SLOWING;
+				else if (stop_exe_cmd_count == 2) {
+					lowerlimb_sys_info.activity_state = IDLE;
+					lowerlimb_sys_info.exercise_state = STOPPED;
+
+					stop_exe_cmd_count = 0;
+				}
+			}
+			else {
+				lowerlimb_sys_info.activity_state = IDLE;
+				lowerlimb_sys_info.exercise_state = STOPPED;
+			}
 
 			// reset:
 			clear_lowerlimb_motors_settings(LL_motors_settings);

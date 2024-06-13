@@ -35,6 +35,7 @@
 
 #define USE_ITM_CMD_CHECK    1
 #define SET_CTRL_PARAMETERS  1
+#define USE_TRAJ_PARAMS_VARIABLE 1
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -126,15 +127,16 @@ enum {
 
 // exercise_state:
 enum {
-	STOPPED = 0, RUNNING = 1, PAUSED = 2, SETUP = 3,
+	STOPPED = 0, RUNNING = 1, PAUSED = 2, SETUP = 3, SLOWING = 4
 };
 
-#define LEN_EXERC_STATE 4
+#define LEN_EXERC_STATE 5
 static char EXERC_STATE_STR[LEN_EXERC_STATE][LEN_STR_MAX] = {
 	"STOPPED",
 	"RUNNING",
 	"PAUSED",
-	"SETUP"
+	"SETUP",
+	"SLOWING"
 };
 
 // emergency_state:

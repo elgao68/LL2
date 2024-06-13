@@ -112,12 +112,12 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	// Real-time counters and timers:
-	double T_RUN_MAX = 1000;
-	double t_ref     = 0.0;
+	double T_RUN_MAX    = 1000;
+	double t_ref        = 0.0;
 
-	int rt_step_i    = 0; // real-time step counter
-	int c_i          = 0; // general-purpose counter
-	uint8_t switch_traj = 0;
+	int rt_step_i       = 0; // real-time step counter
+	int c_i             = 0; // general-purpose counter
+	int8_t  switch_traj = 0;
 
 	// TCP communication checks:
 	int32_t ret_tcp_msg      = 0;
@@ -249,11 +249,15 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				static double sigma;
 
 				admitt_model_params.inertia_x = admitt_model_params.inertia_y = 10.0;
-				admitt_model_params.stiffness = admitt_model_params.inertia_x*w_n*w_n;
 
-				admitt_model_params.damping =
-					2*damp_ratio*
-					sqrt(admitt_model_params.stiffness*admitt_model_params.inertia_x);
+				if (ADMITT_MODEL_CONSTR_ON) {
+					admitt_model_params.stiffness =  0.0;
+					admitt_model_params.damping   = 25.0;
+				}
+				else {
+					admitt_model_params.stiffness = admitt_model_params.inertia_x*w_n*w_n;
+					admitt_model_params.damping   = 2*damp_ratio*sqrt(admitt_model_params.stiffness*admitt_model_params.inertia_x);
+				}
 
 				sigma = damp_ratio*w_n;
 				// T_LOOP = 6.0/sigma;
@@ -323,9 +327,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Check exercise start / stop switches:
 				/////////////////////////////////////////////////////////////////////////////////////
 
-				if (activity_state_prev != EXERCISE && LL_sys_info.activity_state == EXERCISE)
+				if (exercise_state_prev != RUNNING && LL_sys_info.exercise_state == RUNNING)
 					switch_traj = SWITCH_TRAJ_START;
-				else if (activity_state_prev != IDLE && LL_sys_info.activity_state == IDLE)
+				else if ((exercise_state_prev != SLOWING && LL_sys_info.exercise_state == SLOWING) ||
+						 (exercise_state_prev != STOPPED && LL_sys_info.exercise_state == STOPPED))
 					switch_traj = SWITCH_TRAJ_END;
 				else
 					switch_traj = SWITCH_TRAJ_NULL;
@@ -373,7 +378,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					// EXERCISE state:
 					/////////////////////////////////////////////////////////////////////////////////////
 
-					if (LL_sys_info.exercise_state == RUNNING) {
+					if (LL_sys_info.exercise_state == RUNNING || LL_sys_info.exercise_state == SLOWING) {
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// Retrieve force sensor readings:
@@ -387,7 +392,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						/////////////////////////////////////////////////////////////////////////////////////
 
 						motor_alert = set_LL_mech_readings(&LL_mech_readings, up_time,
-							qei_count_L_read(), qei_count_L_read(),
+							qei_count_L_read(), qei_count_R_read(),
 							current_sensor_L, current_sensor_R,
 							force_end_in_x_sensor, force_end_in_y_sensor,
 							IS_CALIBRATION);
@@ -418,26 +423,13 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// Generate reference trajectory:
 						/////////////////////////////////////////////////////////////////////////////////////
 
-						// Deleted: if (activity_state_prev != EXERCISE && LL_sys_info.activity_state == EXERCISE)
-
 						// Generate trajectory points:
 						if (LL_sys_info.exercise_mode == PassiveTrajectoryCtrl)
 							traj_ref_step_passive_elliptic(
 								p_ref, dt_p_ref,
 								&phi_ref, &dt_phi_ref,
 								u_t_ref, dt_k,
-								traj_ctrl_params, switch_traj);
-
-						else if (LL_sys_info.exercise_mode == ActiveTrajectoryCtrl)
-							traj_ref_step_active_elliptic(
-								p_ref, dt_p_ref,
-								&phi_ref, &dt_phi_ref,
-								u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
-								traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj);
-						else {
-							printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
-						}
-
+								traj_ctrl_params, switch_traj, USE_TRAJ_PARAMS_VARIABLE);
 						/*
 						else if (LL_sys_info.exercise_mode == AdmittanceCtrl)
 							p_ref, dt_p_ref,
@@ -445,6 +437,14 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
 							traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_OFF, switch_traj);
 						*/
+						else if (LL_sys_info.exercise_mode == ActiveTrajectoryCtrl)
+							traj_ref_step_active_elliptic(
+								p_ref, dt_p_ref,
+								&phi_ref, &dt_phi_ref,
+								u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
+								traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj, USE_TRAJ_PARAMS_VARIABLE);
+						else
+							printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
 
 						// Set reference kinematics struct:
 						for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
@@ -454,6 +454,38 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 						ref_kinematics.phi_ref    = phi_ref;
 						ref_kinematics.dt_phi_ref = dt_phi_ref;
+
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Compute force command in end-effector coordinates:
+						/////////////////////////////////////////////////////////////////////////////////////
+
+						/*
+						// MATLAB control code (TODO: delete at a later date):
+
+						// Feedback gains (xv = [x dt_x y dt_y]):
+						K_lq_xv_d =
+						   10.2006    0.6046         0         0
+						         0         0   10.2007    0.0839
+
+						// FF 'transfer function' (dc_C_ff):
+						749.2168
+						794.0586
+
+						// Gravity compensation force (F_g_comp):
+						15
+
+						// FB force command:
+						F_end_cmd_lq = sw_lq*K_lq_xv_d*(xv_ref - xv_m)
+
+						// FF force command:
+						F_end_cmd_ff = sw_ff*dc_C_ff.*dt_p_ref(step_i, :).'
+
+						// Gravity compensation command:
+						F_end_cmd_g  = sw_g*[0; F_g_comp]
+
+						// End-effector force command:
+						F_end_cmd(step_i, :) = (F_end_cmd_lq + F_end_cmd_ff + F_end_cmd_g).'
+						*/
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// UPDATE MOTOR SETTINGS - GAO:
@@ -500,7 +532,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						#if USE_ITM_OUT_RT_CHECK
 							/*
 							if ((up_time_end - up_time) > DT_STEP_MSEC) {
-
 								printf("____________________________\n");
 								printf("rt_step_i [%d]: t_ref = %f\tDT MSEC = %d\n",
 									rt_step_i,
@@ -509,13 +540,12 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								printf("____________________________\n");
 							}
 							*/
-
 							if (switch_traj != SWITCH_TRAJ_NULL) {
 								// Check uptime after computations:
 								up_time_end = getUpTime();
 
 								printf("   switch_traj = [%d] \n\n", switch_traj);
-								printf("   %d\t%f\t(%d)\tphi = [%f]\tdt_phi = [%f]\tpos = [%f, %f]\tdt_pos = [%f, %f] \n",
+								printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\tp_ref = [%3.3f, %3.3f]\tdt_p_ref = [%3.3f, %3.3f], p_m = [%3.3f, %3.3f]\tdt_p_m = [%3.3f, %3.3f]\tF_m = [%3.3f, %3.3f]\n",
 									rt_step_i,
 									t_ref,
 									(int)up_time_end - (int)up_time,
@@ -524,7 +554,13 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 									p_ref[IDX_X],
 									p_ref[IDX_Y],
 									dt_p_ref[IDX_X],
-									dt_p_ref[IDX_Y]);
+									dt_p_ref[IDX_Y],
+									p_m[IDX_X],
+									p_m[IDX_Y],
+									dt_p_m[IDX_X],
+									dt_p_m[IDX_Y],
+									F_end_m[IDX_X],
+									F_end_m[IDX_Y]);
 							}
 						#endif
 					} // end if (LL_sys_info.exercise_state == RUNNING)
@@ -582,7 +618,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					// Check uptime after computations:
 					up_time_end = getUpTime();
 
-					printf("   %d\t%f\t(%d)\tphi = [%f]\tdt_phi = [%f]\tpos = [%f, %f]\tdt_pos = [%f, %f] \n",
+					printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\tp_ref = [%3.3f, %3.3f]\tdt_p_ref = [%3.3f, %3.3f], p_m = [%3.3f, %3.3f]\tdt_p_m = [%3.3f, %3.3f]\tF_m = [%3.3f, %3.3f]\n",
 						rt_step_i,
 						t_ref,
 						(int)up_time_end - (int)up_time,
@@ -591,7 +627,13 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						p_ref[IDX_X],
 						p_ref[IDX_Y],
 						dt_p_ref[IDX_X],
-						dt_p_ref[IDX_Y]);
+						dt_p_ref[IDX_Y],
+						p_m[IDX_X],
+						p_m[IDX_Y],
+						dt_p_m[IDX_X],
+						dt_p_m[IDX_Y],
+						F_end_m[IDX_X],
+						F_end_m[IDX_Y]);
 				}
 			#endif
 

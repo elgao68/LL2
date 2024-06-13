@@ -50,7 +50,7 @@ static admitt_model_params_t admitt_model_params_local;
 #define DT_DISP_MSEC_ALGO		 1000
 
 #define USE_ITM_OUT_TRAJ_REF		1
-#define USE_ITM_OUT_ADMITT_MODEL	0
+#define USE_ITM_OUT_ADMITT_MODEL	1
 
 /////////////////////////////////////////////////////////////////////////////////////
 // FUNCTION DEFINITIONS, MOTION ALGORITHMS - GAO
@@ -60,7 +60,7 @@ void traj_ref_step_active_elliptic(
 	double p_ref[],	double dt_p_ref[],
 	double* phi_ref, double* dt_phi_ref,
 	double u_t_ref[], double dt_k, double F_end_m[], double z_intern_o_dbl[],
-	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR, uint8_t switch_traj) {
+	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR, int8_t switch_traj, int8_t use_traj_params_variable) {
 
     /////////////////////////////////////////////////////////////////////////////////////
     // Declare static matrices:
@@ -134,14 +134,13 @@ void traj_ref_step_active_elliptic(
 	// Additional parameters:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	const uint8_t USE_TRAJ_PARAMS_VARIABLE = 1;
 	static uint8_t initial = 1;
 
 	static double ax_x_adj;
 	static double ax_y_adj;
 
 	if (initial) {
-		if (USE_TRAJ_PARAMS_VARIABLE) {
+		if (use_traj_params_variable) {
 			ax_x_adj = 0;
 			ax_y_adj = 0;
 		}
@@ -156,7 +155,7 @@ void traj_ref_step_active_elliptic(
 	static double ax_x_o;
 	static double ax_y_o;
 
-	static uint8_t traj_params_behav = TRAJ_PARAMS_STEADY;
+	static int8_t traj_params_behav = TRAJ_PARAMS_STEADY;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Set up timers & behaviors:
@@ -186,7 +185,7 @@ void traj_ref_step_active_elliptic(
     //  Adjusted trajectory path parameters:
     /////////////////////////////////////////////////////////////////////////////////////
 
-	if (USE_TRAJ_PARAMS_VARIABLE) {
+	if (use_traj_params_variable) {
 		if (traj_params_behav == TRAJ_PARAMS_GROW) {
 			ax_x_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_x - ax_x_o) + ax_x_o;
 			ax_y_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_y - ax_y_o) + ax_y_o;
@@ -305,7 +304,7 @@ void traj_ref_step_passive_elliptic(
 		double p_ref[],	double dt_p_ref[],
 		double* phi_ref, double* dt_phi_ref,
 		double u_t_ref[], double dt_k,
-		traj_ctrl_params_t traj_ctrl_params, uint8_t switch_traj) {
+		traj_ctrl_params_t traj_ctrl_params, int8_t switch_traj, int8_t use_traj_params_variable) {
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// COPY TRAJECTORY PARAMETERS TO LOCAL SCOPE VARIABLES - GAO
@@ -323,7 +322,6 @@ void traj_ref_step_passive_elliptic(
 	// Additional parameters:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	const uint8_t USE_TRAJ_PARAMS_VARIABLE = 1;
 	static uint8_t initial = 1;
 
 	static double ax_x_adj;
@@ -338,7 +336,7 @@ void traj_ref_step_passive_elliptic(
 		cycle_dir  = (int)traj_ctrl_params.cycle_dir;
 		sig_exp = 3.0/T_exp;
 
-		if (USE_TRAJ_PARAMS_VARIABLE) {
+		if (use_traj_params_variable) {
 			ax_x_adj = 0;
 			ax_y_adj = 0;
 		}
@@ -353,7 +351,7 @@ void traj_ref_step_passive_elliptic(
 	static double ax_x_o;
 	static double ax_y_o;
 
-	static uint8_t traj_params_behav = TRAJ_PARAMS_STEADY;
+	static int8_t traj_params_behav = TRAJ_PARAMS_STEADY;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Set up timers & behaviors:
@@ -384,7 +382,7 @@ void traj_ref_step_passive_elliptic(
 	//  Adjusted trajectory path parameters:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	if (USE_TRAJ_PARAMS_VARIABLE) {
+	if (use_traj_params_variable) {
 		if (traj_params_behav == TRAJ_PARAMS_GROW) {
 			ax_x_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_x - ax_x_o) + ax_x_o;
 			ax_y_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_y - ax_y_o) + ax_y_o;
@@ -547,6 +545,8 @@ ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct ode_par
 	// ITM console output:
 	#if USE_ITM_OUT_ADMITT_MODEL
 		if (step_i == 0) {
+			printf("\n");
+
 			printf("M_sys_q = [ ...\n");
 			for (r_i = 0; r_i < M_sys_q->num_rows; r_i++) {
 				for (c_i = 0; c_i < M_sys_q->num_cols; c_i++) {
@@ -591,8 +591,9 @@ ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct ode_par
 				else
 					printf("]\n");
 			}
+			printf("\n");
 		}
-
+		/*
 		int DECIM_DISP_DT_Z = DECIM_DISP_GENERAL;
 
 		if ((step_i % DECIM_DISP_DT_Z) == 0) {
@@ -606,6 +607,7 @@ ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct ode_par
 			}
 			printf("]\n\n");
 		}
+		*/
 	#endif
 
 	step_i++;

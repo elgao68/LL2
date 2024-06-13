@@ -156,7 +156,7 @@ void test_ode_int() {
 			p_ref, dt_p_ref,
 			&phi_ref, &dt_phi_ref,
 			u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
-			traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR_ODE, 0);
+			traj_ctrl_params, admitt_model_params, USE_ADMITT_MODEL_CONSTR_ODE, 0, 0);
 
 		// Set reference kinematics struct:
 		for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
