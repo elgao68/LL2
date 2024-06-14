@@ -15,7 +15,6 @@
 #include <nml_util.h>
 #include <stdbool.h>
 #include <math.h>
-#include "common.h"
 
 typedef struct {
 	float cycle_period;

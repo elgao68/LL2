@@ -68,7 +68,7 @@ static uint32_t current_sensor_R = 0;
 #define USE_APP_STATE_TEMPLATE		1
 
 // Motor torque activation (VERY IMPORTANT):
-#define MOTOR_TORQUE_ON				0
+#define MOTOR_TORQUE_ACTIVE			0
 
 // Assorted timers:
 #define DT_EXPIRE_MSEC				1000

@@ -1,7 +1,7 @@
 #ifndef ADMITT_CTRL_PARAMS
 #define ADMITT_CTRL_PARAMS
 
-#include "common.h"
+#include <control_settings_ll2.h>
 
 typedef struct {
   float inertia_x;

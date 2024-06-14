@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-//  lowerlimb_app_scripts_template.c
+//  lowerlimb_app_scripts_tcpip.c
 //
 // Created on: 2024.03.20
 // Author: Gabriel Aguirre Ollinger
@@ -16,7 +16,7 @@
 ////////////////////////////////////////////////////////////////////////////////////////
 
 lowerlimb_sys_info_t
-lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy) {
 
 	uint16_t n_cnt = 0;
@@ -404,7 +404,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 
 			if (lowerlimb_sys_info.activity_state == EXERCISE) {
 				#if USE_ITM_CMD_CHECK
-					printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_EXERCISE_ACTIVE]);
+					printf("   lowerlimb_app_state_tcpip() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_EXERCISE_ACTIVE]);
 				#endif
 				send_error_msg(cmd_code, ERR_EXERCISE_ACTIVE);
 
@@ -415,7 +415,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				//check if the request is to terminate ongoing calibration
 				if (tcpRxData[rx_payload_index] != 255) {
 					#if USE_ITM_CMD_CHECK
-						printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_CALIB_ACTIVE]);
+						printf("   lowerlimb_app_state_tcpip() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_CALIB_ACTIVE]);
 					#endif
 					send_error_msg(cmd_code, ERR_CALIB_ACTIVE);
 
@@ -429,7 +429,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 			}
 			else {
 				#if USE_ITM_CMD_CHECK
-					printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_GENERAL_NOK]);
+					printf("   lowerlimb_app_state_tcpip() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_GENERAL_NOK]);
 				#endif
 				send_error_msg(cmd_code, ERR_GENERAL_NOK);
 
@@ -576,7 +576,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 				}
 				else {
 					#if USE_ITM_CMD_CHECK
-						printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_INVALID_EXERCISE_MODE]);
+						printf("   lowerlimb_app_state_tcpip() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_INVALID_EXERCISE_MODE]);
 					#endif
 					send_error_msg(cmd_code, ERR_INVALID_EXERCISE_MODE);
 
@@ -620,7 +620,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 			else if (lowerlimb_sys_info.activity_state == CALIB) {
 				// send active calibration error message:
 				#if USE_ITM_CMD_CHECK
-					printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_CALIB_ACTIVE]);
+					printf("   lowerlimb_app_state_tcpip() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_CALIB_ACTIVE]);
 				#endif
 				send_error_msg(cmd_code, ERR_CALIB_ACTIVE);
 
@@ -630,7 +630,7 @@ lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_p
 			else {
 				// cover the rest with general NOK:
 				#if USE_ITM_CMD_CHECK
-					printf("   lowerlimb_app_state_template() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_GENERAL_NOK]);
+					printf("   lowerlimb_app_state_tcpip() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_GENERAL_NOK]);
 				#endif
 				send_error_msg(cmd_code, ERR_GENERAL_NOK);
 

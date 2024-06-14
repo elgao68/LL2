@@ -15,6 +15,8 @@
 #define N_COORD_EXT  	3 // extended coordinate system dimension (includes phase)
 #define N_CONSTR_TRAJ	2 // trajectory constraints dimension
 
+#define N_POS_VEL_2D	4
+
 // Indices of extended coordinates and their first derivatives ("z" state):
 #define IDX_X        0
 #define IDX_Y        1

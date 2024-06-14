@@ -81,10 +81,20 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double dt_p_m[N_COORD_2D];
 
 	/////////////////////////////////////////////////////////////////////////////////////
-	// Force command:
+	// Extended position & velocity vectors:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	float force_end_cmd[N_COORD_2D] = {0.0, 0.0};
+	double err_pos_vel[N_POS_VEL_2D];
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Force commands:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	float F_end_cmd_fb[N_COORD_2D]    = {0.0, 0.0}; // FB force command
+	float F_end_cmd_ff[N_COORD_2D]    = {0.0, 0.0}; // FF force command
+	float F_end_cmd_gcomp[N_COORD_2D] = {0.0, 0.0}; // gravity comp force command
+
+	float F_end_cmd[N_COORD_2D]       = {0.0, 0.0}; // total force command
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// TCP/IP variables:
@@ -116,7 +126,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double t_ref        = 0.0;
 
 	int rt_step_i       = 0; // real-time step counter
-	int c_i             = 0; // general-purpose counter
+	int r_i, c_i, v_i; // general-purpose counters
 	int8_t  switch_traj = 0;
 
 	// TCP communication checks:
@@ -148,6 +158,37 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	z_intern_o_dbl[3] = 0;
 	z_intern_o_dbl[4] = 0;
 	z_intern_o_dbl[5] = 0;
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Control settings:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	nml_mat* K_lq_xv_nml;
+	nml_mat* F_end_cmd_fb_nml;
+	nml_mat* err_pos_vel_nml;
+
+	static int init_nml = 1;
+
+	if (init_nml) {
+		K_lq_xv_nml      = nml_mat_from(N_COORD_2D, N_POS_VEL_2D, N_COORD_2D*N_POS_VEL_2D, K_LQ_XV_DEF);
+		F_end_cmd_fb_nml = nml_mat_new(N_COORD_2D,   1);
+		err_pos_vel_nml  = nml_mat_new(N_POS_VEL_2D, 1);
+
+		init_nml = 0;
+	}
+
+	#if USE_ITM_OUT_RT_CHECK
+		printf("\n");
+		printf("test_real_time():\n");
+		printf("\n");
+		printf("K_lq_xv_nml:\n");
+		for (r_i = 0; r_i < K_lq_xv_nml->num_rows; r_i++) {
+			for (c_i = 0; c_i < K_lq_xv_nml->num_cols; c_i++)
+				printf("%3.4f\t", K_lq_xv_nml->data[r_i][c_i]);
+			printf("\n");
+		}
+		printf("\n");
+	#endif
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	/////////////////////////////////////////////////////////////////////////////////////
@@ -215,7 +256,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 			#if USE_APP_STATE_TEMPLATE
 				// Template function for the firmware state machine:
-				LL_sys_info = lowerlimb_app_state_template(Read_Haptic_Button(), motor_alert,
+				LL_sys_info = lowerlimb_app_state_tcpip(Read_Haptic_Button(), motor_alert,
 						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
 			#else
 				LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
@@ -462,30 +503,52 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						/*
 						// MATLAB control code (TODO: delete at a later date):
 
-						// Feedback gains (xv = [x dt_x y dt_y]):
-						K_lq_xv_d =
-						   10.2006    0.6046         0         0
-						         0         0   10.2007    0.0839
-
-						// FF 'transfer function' (dc_C_ff):
-						749.2168
-						794.0586
-
-						// Gravity compensation force (F_g_comp):
-						15
-
-						// FB force command:
-						F_end_cmd_lq = sw_lq*K_lq_xv_d*(xv_ref - xv_m)
 
 						// FF force command:
 						F_end_cmd_ff = sw_ff*dc_C_ff.*dt_p_ref(step_i, :).'
 
-						// Gravity compensation command:
-						F_end_cmd_g  = sw_g*[0; F_g_comp]
 
 						// End-effector force command:
 						F_end_cmd(step_i, :) = (F_end_cmd_lq + F_end_cmd_ff + F_end_cmd_g).'
 						*/
+
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Gravity compensation force command (end-effector coordinates):
+						/////////////////////////////////////////////////////////////////////////////////////
+
+						F_end_cmd_gcomp[IDX_X] = 0;
+						F_end_cmd_gcomp[IDX_Y] = SW_GCOMP*F_G_COMP_DEF;
+
+						/////////////////////////////////////////////////////////////////////////////////////
+						// FB, FF & total force commands (end-effector coordinates):
+						/////////////////////////////////////////////////////////////////////////////////////
+
+						// Kinematics error vector, array form:
+						err_pos_vel[0] =    p_ref[IDX_X] -    p_m[IDX_X];
+						err_pos_vel[1] = dt_p_ref[IDX_X] - dt_p_m[IDX_X];
+
+						err_pos_vel[2] =    p_ref[IDX_Y] -    p_m[IDX_Y];
+						err_pos_vel[3] = dt_p_ref[IDX_Y] - dt_p_m[IDX_Y];
+
+						// Kinematics error vector, nml matrix form:
+						for (c_i = 0; c_i < N_POS_VEL_2D; c_i++)
+							err_pos_vel_nml->data[c_i][0] = err_pos_vel[c_i];
+
+						// FB force command, nml matrix form:
+						nml_mat_dot_ref(F_end_cmd_fb_nml, K_lq_xv_nml, err_pos_vel_nml);
+						nml_mat_smult_r(F_end_cmd_fb_nml, SW_FB); // scale by switching variable
+
+						// FB & FF force commands, array form:
+						for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
+							// FB force command:
+							F_end_cmd_fb[c_i] = F_end_cmd_fb_nml->data[c_i][0];
+
+							// FF force command:
+							F_end_cmd_ff[c_i] = SW_FF*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
+
+							// Total force command:
+							F_end_cmd[c_i] = F_end_cmd_fb[c_i] + F_end_cmd_ff[c_i] + F_end_cmd_gcomp[c_i];
+						}
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// UPDATE MOTOR SETTINGS - GAO:
@@ -494,13 +557,13 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// Clear motors settings:
 						clear_lowerlimb_motors_settings(&LL_motors_settings);
 
-						set_LL_motor_settings(&LL_motors_settings, force_end_cmd);
+						set_LL_motor_settings(&LL_motors_settings, F_end_cmd);
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// Send motor commands:
 						/////////////////////////////////////////////////////////////////////////////////////
 
-						#if MOTOR_TORQUE_ON
+						#if MOTOR_TORQUE_ACTIVE
 							// Check if need to end exercise:
 							if (motor_alert == 1 || motor_alert == 2) {
 								stop_exercise(&LL_motors_settings);
@@ -545,7 +608,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								up_time_end = getUpTime();
 
 								printf("   switch_traj = [%d] \n\n", switch_traj);
-								printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\tp_ref = [%3.3f, %3.3f]\tdt_p_ref = [%3.3f, %3.3f], p_m = [%3.3f, %3.3f]\tdt_p_m = [%3.3f, %3.3f]\tF_m = [%3.3f, %3.3f]\n",
+								printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\tp_ref = [%3.3f, %3.3f]\tdt_p_ref = [%3.3f, %3.3f], p_m = [%3.3f, %3.3f]\tdt_p_m = [%3.3f, %3.3f]\tF_m = [%3.3f, %3.3f]\m\n",
 									rt_step_i,
 									t_ref,
 									(int)up_time_end - (int)up_time,
@@ -574,6 +637,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// Set the motors to 0 and disable the motor driver
 						motor_L_move(0, false, false);
 						motor_L_move(0, false, false);
+
 					} // end LL_sys_info.exercise_state cases
 				} // end if (LL_sys_info.activity_state == EXERCISE)
 			} // end if (LL_sys_info.system_state == ON)
@@ -634,6 +698,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						dt_p_m[IDX_Y],
 						F_end_m[IDX_X],
 						F_end_m[IDX_Y]);
+
+					printf("   \t\t\t\t\tF_fb_x = [%3.2f]\tF_ff_x = [%3.2f]\tF_gc_x = [%3.2f]\tF_total_x = [%3.2f]\n", F_end_cmd_fb[IDX_X], F_end_cmd_ff[IDX_X] , F_end_cmd_gcomp[IDX_X], F_end_cmd[IDX_X]);
+					printf("   \t\t\t\t\tF_fb_y = [%3.2f]\tF_ff_y = [%3.2f]\tF_gc_y = [%3.2f]\tF_total_y = [%3.2f]\n", F_end_cmd_fb[IDX_Y], F_end_cmd_ff[IDX_Y] , F_end_cmd_gcomp[IDX_Y], F_end_cmd[IDX_Y]);
+					printf("\n");
 				}
 			#endif
 

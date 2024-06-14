@@ -18,6 +18,7 @@
 #define _LOWERLIMB_TCP_APP_H_
 
 #include <admitt_model_params.h>
+#include <control_settings_ll2.h>
 #include <lowerlimb_config.h>
 #include <traj_ctrl_params_nml.h>
 #include <motor_algo_ll2.h>
@@ -25,7 +26,6 @@
 #include "stm32f4xx_hal.h"
 #include <stdint.h>
 #include <stdbool.h>
-#include "common.h"
 #include "w5500_app.h"
 #include "transition_mode.h"
 
@@ -493,7 +493,7 @@ lowerlimb_sys_info_t lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy);
 
 // Template function for the firmware state machine:
-lowerlimb_sys_info_t lowerlimb_app_state_template(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+lowerlimb_sys_info_t lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy);
 
 ///////////////////////////////////////////////////////////////////////
