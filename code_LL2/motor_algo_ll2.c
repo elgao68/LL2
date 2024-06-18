@@ -790,7 +790,15 @@ uint8_t set_LL_mech_readings(lowerlimb_mech_readings_t* mech, uint64_t current_u
 	return motor_alert;
 }
 
-void set_LL_motor_settings(lowerlimb_motors_settings_t* motors, float force_end[]) {
+void set_LL_motor_settings(lowerlimb_motors_settings_t* motors, float force_end[], uint8_t exercise_state) {
+
+	// For debugging only:
+	const uint8_t RUNNING_ = 1;
+	const uint8_t SLOWING_ = 4;
+
+	if (exercise_state == RUNNING_ || exercise_state == SLOWING_) {
+		printf("");
+	}
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Adding offset forces

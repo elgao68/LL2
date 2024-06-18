@@ -17,7 +17,6 @@
 #ifndef _LOWERLIMB_TCP_APP_H_
 #define _LOWERLIMB_TCP_APP_H_
 
-#include <admitt_model_params.h>
 #include <control_settings_ll2.h>
 #include <lowerlimb_config.h>
 #include <traj_ctrl_params_nml.h>

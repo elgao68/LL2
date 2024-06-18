@@ -129,6 +129,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	int r_i, c_i, v_i; // general-purpose counters
 	int8_t  switch_traj = 0;
 
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Monitoring variables:
+	/////////////////////////////////////////////////////////////////////////////////////
+
 	// TCP communication checks:
 	int32_t ret_tcp_msg      = 0;
 	uint64_t dt_ret_tcp_msec = 0;
@@ -223,12 +227,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			t_ref = dt_k*rt_step_i;
 
 			/////////////////////////////////////////////////////////////////////////////////////
-			// uart rx state check:
-			/////////////////////////////////////////////////////////////////////////////////////
-
-			// uart_rx_data_state();
-
-			/////////////////////////////////////////////////////////////////////////////////////
 			// Ethernet connection:
 			/////////////////////////////////////////////////////////////////////////////////////
 
@@ -279,9 +277,9 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 			#if OVERR_DYN_PARAMS_RT
 				traj_ctrl_params.cycle_period   = 3.0;
-				traj_ctrl_params.exp_blend_time = 10.0;
-				traj_ctrl_params.semiaxis_x     = 0.15;
-				traj_ctrl_params.semiaxis_y     = 0.08;
+				traj_ctrl_params.exp_blend_time = 9.0;
+				traj_ctrl_params.semiaxis_x     = 0.12;
+				traj_ctrl_params.semiaxis_y     = 0.12;
 				traj_ctrl_params.rot_angle      = 0;
 				traj_ctrl_params.cycle_dir      = 1;
 
@@ -347,10 +345,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				/////////////////////////////////////////////////////////////////////////////////////
 
 				cycle_haptic_buttons();
-
-				/////////////////////////////////////////////////////////////////////////////////////
-				// Check emergency signal GPIOG GPIO_PIN_14:
-				/////////////////////////////////////////////////////////////////////////////////////
 
 				/////////////////////////////////////////////////////////////////////////////////////
 				// Check brakes:
@@ -497,22 +491,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						ref_kinematics.dt_phi_ref = dt_phi_ref;
 
 						/////////////////////////////////////////////////////////////////////////////////////
-						// Compute force command in end-effector coordinates:
-						/////////////////////////////////////////////////////////////////////////////////////
-
-						/*
-						// MATLAB control code (TODO: delete at a later date):
-
-
-						// FF force command:
-						F_end_cmd_ff = sw_ff*dc_C_ff.*dt_p_ref(step_i, :).'
-
-
-						// End-effector force command:
-						F_end_cmd(step_i, :) = (F_end_cmd_lq + F_end_cmd_ff + F_end_cmd_g).'
-						*/
-
-						/////////////////////////////////////////////////////////////////////////////////////
 						// Gravity compensation force command (end-effector coordinates):
 						/////////////////////////////////////////////////////////////////////////////////////
 
@@ -554,32 +532,30 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// UPDATE MOTOR SETTINGS - GAO:
 						/////////////////////////////////////////////////////////////////////////////////////
 
-						// Clear motors settings:
+						// Clear motors' settings:
 						clear_lowerlimb_motors_settings(&LL_motors_settings);
 
-						set_LL_motor_settings(&LL_motors_settings, F_end_cmd);
+						// Compute motors' settings:
+						set_LL_motor_settings(&LL_motors_settings, F_end_cmd, LL_sys_info.exercise_state);
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// Send motor commands:
 						/////////////////////////////////////////////////////////////////////////////////////
 
-						#if MOTOR_TORQUE_ACTIVE
-							// Check if need to end exercise:
-							if (motor_alert == 1 || motor_alert == 2) {
-								stop_exercise(&LL_motors_settings);
-
-								// Disable motors:
-								motor_L_move(0, false, false);
-								motor_L_move(0, false, false);
-							}
-							else {
-								motor_L_move(LL_motors_settings.right.dac_in, LL_motors_settings.right.motor_direction,
-									LL_motors_settings.right.en_motor_driver);
-								motor_L_move(LL_motors_settings.left.dac_in, LL_motors_settings.left.motor_direction,
-									LL_motors_settings.left.en_motor_driver);
-							}
+						// Check if need to end exercise:
+						if (motor_alert != 1 && motor_alert != 2) {
+							#if MOTOR_TORQUE_ACTIVE
+								motor_L_move(LL_motors_settings.left.dac_in,  LL_motors_settings.left.motor_direction,  LL_motors_settings.left.en_motor_driver);
+								motor_R_move(LL_motors_settings.right.dac_in, LL_motors_settings.right.motor_direction, LL_motors_settings.right.en_motor_driver);
+							#endif
 						}
-						#endif
+						else {
+							stop_exercise(&LL_motors_settings);
+
+							// Disable motors:
+							motor_L_move(0, false, false);
+							motor_R_move(0, false, false);
+						}
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// Distal Force Sensor - Change only when updating TCP Protocol
@@ -650,22 +626,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			} // end LL_sys_info.system_state != ON
 
 			/////////////////////////////////////////////////////////////////////////////////////
-			// Check if need to dump UART FIFO
-			/////////////////////////////////////////////////////////////////////////////////////
-
-			/*
-			if (prev_fifo_size != rx_fifo_size()) {
-				prev_fifo_size = rx_fifo_size();
-				expire_nextTime = up_time + DT_EXPIRE_MSEC;
-			}
-
-			if ((up_time >= expire_nextTime) && (rx_fifo_size() > 0)) {
-				rx_fifo_clear();
-				prev_fifo_size = 0;
-			}
-			*/
-
-			/////////////////////////////////////////////////////////////////////////////////////
 			// Track changes of state:
 			/////////////////////////////////////////////////////////////////////////////////////
 
@@ -699,8 +659,14 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						F_end_m[IDX_X],
 						F_end_m[IDX_Y]);
 
-					printf("   \t\t\t\t\tF_fb_x = [%3.2f]\tF_ff_x = [%3.2f]\tF_gc_x = [%3.2f]\tF_total_x = [%3.2f]\n", F_end_cmd_fb[IDX_X], F_end_cmd_ff[IDX_X] , F_end_cmd_gcomp[IDX_X], F_end_cmd[IDX_X]);
-					printf("   \t\t\t\t\tF_fb_y = [%3.2f]\tF_ff_y = [%3.2f]\tF_gc_y = [%3.2f]\tF_total_y = [%3.2f]\n", F_end_cmd_fb[IDX_Y], F_end_cmd_ff[IDX_Y] , F_end_cmd_gcomp[IDX_Y], F_end_cmd[IDX_Y]);
+					printf("   \t\t\t\t\tF_fb_x = [%3.2f]\tF_ff_x = [%3.2f]\tF_gc_x = [%3.2f]\tF_end_cmd_x = [%3.2f\t(%3.2f)]\n",
+							F_end_cmd_fb[IDX_X], F_end_cmd_ff[IDX_X] , F_end_cmd_gcomp[IDX_X], F_end_cmd[IDX_X], LL_motors_settings.force_end[IDX_X]);
+					printf("   \t\t\t\t\tF_fb_y = [%3.2f]\tF_ff_y = [%3.2f]\tF_gc_y = [%3.2f]\tF_end_cmd_y = [%3.2f\t(%3.2f)]\n",
+							F_end_cmd_fb[IDX_Y], F_end_cmd_ff[IDX_Y] , F_end_cmd_gcomp[IDX_Y], F_end_cmd[IDX_Y], LL_motors_settings.force_end[IDX_Y]);
+
+					/// printf("   \t\t\t\t\tcurrent[LEFT, RIGHT] = [%3.3f, %3.3f] \n", LL_motors_settings.left.current, LL_motors_settings.right.current);
+					// printf("   \t\t\t\t\tvolt[LEFT, RIGHT]    = [%3.3f, %3.3f] \n", LL_motors_settings.left.volt,    LL_motors_settings.right.volt);
+					printf("   \t\t\t\t\tdac_in[LEFT, RIGHT]  = [%i, %i] \n",       LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
 					printf("\n");
 				}
 			#endif

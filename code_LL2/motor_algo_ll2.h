@@ -23,8 +23,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <math.h>
-
-#include <admitt_model_params.h>
+#include <control_settings_ll2.h>
 #include <dynamic_systems_nml.h>
 #include <lowerlimb_config.h>
 #include <traj_ctrl_params_nml.h>
@@ -177,7 +176,7 @@ uint8_t set_LL_mech_readings(lowerlimb_mech_readings_t* mech, uint64_t current_u
 		uint32_t force_end_in_x, uint32_t force_end_in_y,
 		uint8_t isCalibration);
 
-void set_LL_motor_settings(lowerlimb_motors_settings_t* motors, float force_end[]);
+void set_LL_motor_settings(lowerlimb_motors_settings_t* motors, float force_end[], uint8_t exercise_state);
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////

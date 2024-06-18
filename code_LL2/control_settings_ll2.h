@@ -31,9 +31,9 @@ static char EXERC_MODE_STR[LEN_EXERC_MODE_LIST][LEN_STR_MAX] = {
 /////////////////////////////////////////////////////////////////////////////////////
 
 // Control switches:
-#define SW_FB		1
-#define SW_FF		1
-#define SW_GCOMP	1
+#define SW_FB	   14.0
+#define SW_FF		0.3
+#define SW_GCOMP	1.1
 
 /////////////////////////////////////////////////////////////////////////////////////
 //  Feedback control:
@@ -61,6 +61,26 @@ static double C_FF_DC_DEF[] = {
 
 // Gravity compensation force (F_g_comp):
 static double F_G_COMP_DEF = 15.0;
+
+/////////////////////////////////////////////////////////////////////////////////////
+// Admittance control:
+/////////////////////////////////////////////////////////////////////////////////////
+
+typedef struct {
+  float inertia_x;
+  float inertia_y;
+  float damping;
+  float stiffness;
+  float p_eq_x;
+  float p_eq_y;
+  float Fx_offset;
+  float Fy_offset;
+} admitt_model_params_t;
+
+admitt_model_params_t
+set_admitt_model_params(	float inertia_x, float inertia_y,
+									float damping, float stiffness,
+									float p_eq_x, float p_eq_y, float Fx_offset, float Fy_offset);
 
 #endif /* ALL_CODES_CONTROL_SETTINGS_LL2_ */
 

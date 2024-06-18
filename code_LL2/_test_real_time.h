@@ -11,7 +11,7 @@
 #define CODE_LL2__TEST_REAL_TIME_H_
 
 #include <_std_c.h>
-#include <admitt_model_params.h>
+#include <control_settings_ll2.h>
 #include <lowerlimb_app.h>
 #include <motor_algo_ll2.h>
 #include <nml.h>
@@ -67,8 +67,8 @@ static uint32_t current_sensor_R = 0;
 #define OVERR_FORCE_SENSORS_CALIB	0
 #define USE_APP_STATE_TEMPLATE		1
 
-// Motor torque activation (VERY IMPORTANT):
-#define MOTOR_TORQUE_ACTIVE			0
+// Motor torque activation (CRITICAL):
+#define MOTOR_TORQUE_ACTIVE			1
 
 // Assorted timers:
 #define DT_EXPIRE_MSEC				1000

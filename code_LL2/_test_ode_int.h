@@ -11,8 +11,7 @@
 #define CODE_LL2__TEST_ODE_INT_H_
 
 #include <_std_c.h>
-#include <admitt_model_params.h>
-// #include <distal_tcp_app.h>
+#include <control_settings_ll2.h>
 #include <motor_algo_ll2.h>
 #include <nml.h>
 #include <nml_util.h>
