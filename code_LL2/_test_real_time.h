@@ -18,6 +18,7 @@
 #include <nml_util.h>
 #include <traj_ctrl_params_nml.h>
 #include <string.h>
+#include <linear_systems.h>
 
 #include "main.h"
 #include "stm32f4xx_hal.h"

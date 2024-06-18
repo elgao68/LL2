@@ -50,6 +50,12 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	// End-effector force measurements:
 	double F_end_m[N_COORD_2D];
+	// double F_end_m_prev[N_COORD_2D]  = {0.0, 0.0};
+
+	double omega_lo_F_end = 2*PI*0.3;
+
+	double F_end_lo[N_COORD_2D];
+	double F_end_lo_prev[N_COORD_2D] = {0.0, 0.0};
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - REFERENCE:
@@ -81,10 +87,14 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double dt_p_m[N_COORD_2D];
 
 	/////////////////////////////////////////////////////////////////////////////////////
-	// Extended position & velocity vectors:
+	// Additional control variables:
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	double err_pos_vel[N_POS_VEL_2D];
+
+	// double ang_u_t_ref;
+	double scale_ff_dyn; // FF control: dynamic switch
+	double F_end_cmd_ff_norm;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Force commands:
@@ -444,6 +454,15 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						F_end_m[IDX_X] = (double)LL_mech_readings.Xforce;
 						F_end_m[IDX_Y] = (double)LL_mech_readings.Yforce;
 
+						// Low-pass filtered forces:
+						for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
+							F_end_lo[c_i] = low_pass_discrete(F_end_m[c_i], F_end_lo_prev[c_i],
+								omega_lo_F_end, (double)DT_STEP_MSEC/MSEC_PER_SEC);
+
+							// F_end_m_prev[c_i]  = F_end_m[c_i];
+							F_end_lo_prev[c_i] = F_end_lo[c_i];
+						}
+
 						/////////////////////////////////////////////////////////////////////////////////////
 						// Extract measured position and velocity from sensor readings:
 						/////////////////////////////////////////////////////////////////////////////////////
@@ -495,7 +514,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						/////////////////////////////////////////////////////////////////////////////////////
 
 						F_end_cmd_gcomp[IDX_X] = 0;
-						F_end_cmd_gcomp[IDX_Y] = SW_GCOMP*F_G_COMP_DEF;
+						F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP*F_G_COMP_DEF;
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// FB, FF & total force commands (end-effector coordinates):
@@ -514,7 +533,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 						// FB force command, nml matrix form:
 						nml_mat_dot_ref(F_end_cmd_fb_nml, K_lq_xv_nml, err_pos_vel_nml);
-						nml_mat_smult_r(F_end_cmd_fb_nml, SW_FB); // scale by switching variable
+						nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB); // scale by switching variable
 
 						// FB & FF force commands, array form:
 						for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
@@ -522,11 +541,24 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							F_end_cmd_fb[c_i] = F_end_cmd_fb_nml->data[c_i][0];
 
 							// FF force command:
-							F_end_cmd_ff[c_i] = SW_FF*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
+							F_end_cmd_ff[c_i] = SCALE_FF*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
 
 							// Total force command:
 							F_end_cmd[c_i] = F_end_cmd_fb[c_i] + F_end_cmd_ff[c_i] + F_end_cmd_gcomp[c_i];
 						}
+
+						// FF force command correction:
+						/*
+						ang_u_t_ref  = atan2(u_t_ref[IDX_Y], u_t_ref[IDX_X]);
+						scale_ff_dyn = SCALE_FF*fmax(sin(ang_u_t_ref), 0); // FF control dynamic switch: control is active only when momentum is upward
+						*/
+					    F_end_cmd_ff_norm = norm2(F_end_cmd_ff,  N_COORD_2D);
+					    scale_ff_dyn      = 1.0 / fmax(F_end_cmd_ff_norm/F_END_FF_MAX, 1);
+
+					    for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
+					    	// F_end_cmd_ff[c_i] = (float)(scale_ff_dyn*C_FF_DC_DEF[c_i]*dt_p_ref[c_i]);
+					    	F_end_cmd_ff[c_i] = (float)(scale_ff_dyn*F_end_cmd_ff[c_i]);
+					    }
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// UPDATE MOTOR SETTINGS - GAO:
@@ -562,7 +594,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// Input Brakes info from TCP System Info
 						/////////////////////////////////////////////////////////////////////////////////////
 
-						send_lowerlimb_exercise_feedback(getUpTime(), &LL_mech_readings, &LL_motors_settings, &ref_kinematics); //  was up_time
+						// HACK: include low-pass filtered force sensor measurements in robot readings:
+						LL_mech_readings.Xforce = F_end_lo[IDX_X];
+						LL_mech_readings.Yforce = F_end_lo[IDX_Y];
+
+						send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics); //  was up_time
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// ITM console output:
@@ -664,7 +700,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					printf("   \t\t\t\t\tF_fb_y = [%3.2f]\tF_ff_y = [%3.2f]\tF_gc_y = [%3.2f]\tF_end_cmd_y = [%3.2f\t(%3.2f)]\n",
 							F_end_cmd_fb[IDX_Y], F_end_cmd_ff[IDX_Y] , F_end_cmd_gcomp[IDX_Y], F_end_cmd[IDX_Y], LL_motors_settings.force_end[IDX_Y]);
 
-					/// printf("   \t\t\t\t\tcurrent[LEFT, RIGHT] = [%3.3f, %3.3f] \n", LL_motors_settings.left.current, LL_motors_settings.right.current);
+					// printf("   \t\t\t\t\tcurrent[LEFT, RIGHT] = [%3.3f, %3.3f] \n", LL_motors_settings.left.current, LL_motors_settings.right.current);
 					// printf("   \t\t\t\t\tvolt[LEFT, RIGHT]    = [%3.3f, %3.3f] \n", LL_motors_settings.left.volt,    LL_motors_settings.right.volt);
 					printf("   \t\t\t\t\tdac_in[LEFT, RIGHT]  = [%i, %i] \n",       LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
 					printf("\n");
