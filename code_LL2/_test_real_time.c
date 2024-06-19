@@ -41,23 +41,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	const int IS_CALIBRATION = 1; // what did this flag do in update_motor_algo() (now set_LL_mech_readings())?
 
 	/////////////////////////////////////////////////////////////////////////////////////
-	// Sensor variables:
-	/////////////////////////////////////////////////////////////////////////////////////
-
-	// Force sensor readings, raw:
-	uint32_t force_end_in_x_sensor = 0;
-	uint32_t force_end_in_y_sensor = 0;
-
-	// End-effector force measurements:
-	double F_end_m[N_COORD_2D];
-	// double F_end_m_prev[N_COORD_2D]  = {0.0, 0.0};
-
-	double omega_lo_F_end = 2*PI*0.3;
-
-	double F_end_lo[N_COORD_2D];
-	double F_end_lo_prev[N_COORD_2D] = {0.0, 0.0};
-
-	/////////////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - REFERENCE:
 	/////////////////////////////////////////////////////////////////////////////////////
 
@@ -76,25 +59,41 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double u_t_ref[N_COORD_2D] = {0.0, 0.0};
 
 	// Internal state: initial values:
-	double z_intern_o_dbl[2*N_COORD_EXT];
+	double z_intern_o_dbl[2*N_COORD_EXT] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - MEASURED:
 	/////////////////////////////////////////////////////////////////////////////////////
 
 	// Measured position and velocity:
-	double    p_m[N_COORD_2D];
-	double dt_p_m[N_COORD_2D];
+	double    p_m[N_COORD_2D] = {0.0, 0.0};
+	double dt_p_m[N_COORD_2D] = {0.0, 0.0};
 
 	/////////////////////////////////////////////////////////////////////////////////////
-	// Additional control variables:
+	// Force sensor variables:
 	/////////////////////////////////////////////////////////////////////////////////////
 
-	double err_pos_vel[N_POS_VEL_2D];
+	// Force sensor readings, raw:
+	uint32_t force_end_in_x_sensor = 0;
+	uint32_t force_end_in_y_sensor = 0;
 
-	// double ang_u_t_ref;
-	double scale_ff_dyn; // FF control: dynamic switch
-	double F_end_cmd_ff_norm;
+	// End-effector force measurements:
+	double F_end_m[N_COORD_2D]  = {0.0, 0.0};
+	double F_end_in[N_COORD_2D] = {0.0, 0.0}; // for admittance / active trajectory control - may differ from F_end_m
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Force sensor variables - dynamic gravity compensation:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	double OMEGA_LO_F_END = 2*PI*0.3;
+
+	double F_end_lo[N_COORD_2D]      = {0.0, 0.0};
+	double F_end_lo_prev[N_COORD_2D] = {0.0, 0.0};
+
+	double F_GCOMP_LIM = 45.0;
+
+	double sig_F_gcomp = 3.0/F_GCOMP_LIM;
+	double F_gcomp_dyn;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Force commands:
@@ -102,9 +101,19 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	float F_end_cmd_fb[N_COORD_2D]    = {0.0, 0.0}; // FB force command
 	float F_end_cmd_ff[N_COORD_2D]    = {0.0, 0.0}; // FF force command
-	float F_end_cmd_gcomp[N_COORD_2D] = {0.0, 0.0}; // gravity comp force command
+	float F_end_cmd_gcomp[N_COORD_2D] = {0.0, 0.0}; // gravity compensation force command
 
 	float F_end_cmd[N_COORD_2D]       = {0.0, 0.0}; // total force command
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Additional control variables:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	double err_pos_vel[N_POS_VEL_2D]  = {0.0, 0.0, 0.0, 0.0};
+
+	// double ang_u_t_ref;
+	double scale_ff_dyn      = 0.0; // FF control: dynamic scaling
+	double F_end_cmd_ff_norm = 0.0;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// TCP/IP variables:
@@ -137,7 +146,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	int rt_step_i       = 0; // real-time step counter
 	int r_i, c_i, v_i; // general-purpose counters
-	int8_t  switch_traj = 0;
+	int8_t switch_traj = 0;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Monitoring variables:
@@ -286,35 +295,49 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			////////////////////////////////////////////////////////////////////////////////////////
 
 			#if OVERR_DYN_PARAMS_RT
-				traj_ctrl_params.cycle_period   = 3.0;
-				traj_ctrl_params.exp_blend_time = 9.0;
-				traj_ctrl_params.semiaxis_x     = 0.12;
-				traj_ctrl_params.semiaxis_y     = 0.12;
-				traj_ctrl_params.rot_angle      = 0;
-				traj_ctrl_params.cycle_dir      = 1;
 
-				static double damp_ratio = 0.2;
-				static double w_n        = 2*PI*1.0; // natural frequency
+				////////////////////////////////////////////////////////////////////////////////////////
+				// Trajectory parameters:
+				////////////////////////////////////////////////////////////////////////////////////////
+
+				traj_ctrl_params.cycle_period   = CYCLE_PERIOD_DEF;
+				traj_ctrl_params.exp_blend_time = EXP_BLEND_TIME;
+				traj_ctrl_params.semiaxis_x     = SEMIAXIS_X_DEF;
+				traj_ctrl_params.semiaxis_y     = SEMIAXIS_Y_DEF;
+				traj_ctrl_params.rot_angle      = ROT_ANGLE_DEF;
+				traj_ctrl_params.cycle_dir      = CYCLE_DIR_DEF;
+
+				////////////////////////////////////////////////////////////////////////////////////////
+				// Dynamic response parameters:
+				////////////////////////////////////////////////////////////////////////////////////////
+
+				static double damp_ratio = DAMP_RATIO_DEF;
+				static double w_n        = OMEGA_N_DEF; // natural frequency
 				static double sigma;
 
-				admitt_model_params.inertia_x = admitt_model_params.inertia_y = 10.0;
+				sigma = damp_ratio*w_n;
+
+				////////////////////////////////////////////////////////////////////////////////////////
+				// Admittance parameters:
+				////////////////////////////////////////////////////////////////////////////////////////
+
+				admitt_model_params.inertia_x = admitt_model_params.inertia_y = INERTIA_DEF;
 
 				if (ADMITT_MODEL_CONSTR_ON) {
-					admitt_model_params.stiffness =  0.0;
-					admitt_model_params.damping   = 25.0;
+					admitt_model_params.stiffness =  STIFFNESS_DEF;
+					admitt_model_params.damping   =  DAMPING_DEF;
 				}
 				else {
 					admitt_model_params.stiffness = admitt_model_params.inertia_x*w_n*w_n;
 					admitt_model_params.damping   = 2*damp_ratio*sqrt(admitt_model_params.stiffness*admitt_model_params.inertia_x);
 				}
 
-				sigma = damp_ratio*w_n;
-				// T_LOOP = 6.0/sigma;
-
 				admitt_model_params.p_eq_x    = 0;
 				admitt_model_params.p_eq_y    = 0;
 				admitt_model_params.Fx_offset = 0;
 				admitt_model_params.Fy_offset = 0;
+
+				admitt_model_params.F_tang_magn = F_TANG_DEF;
 			#endif
 
 			#if USE_ITM_OUT_GUI_PARAMS
@@ -355,12 +378,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				/////////////////////////////////////////////////////////////////////////////////////
 
 				cycle_haptic_buttons();
-
-				/////////////////////////////////////////////////////////////////////////////////////
-				// Check brakes:
-				/////////////////////////////////////////////////////////////////////////////////////
-
-				// set_brakes_timed(up_time, &brakes_nextTime);
 
 				/////////////////////////////////////////////////////////////////////////////////////
 				// Update safety:
@@ -448,22 +465,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						#endif
 
 						/////////////////////////////////////////////////////////////////////////////////////
-						// Extract measured end-effector forces:
-						/////////////////////////////////////////////////////////////////////////////////////
-
-						F_end_m[IDX_X] = (double)LL_mech_readings.Xforce;
-						F_end_m[IDX_Y] = (double)LL_mech_readings.Yforce;
-
-						// Low-pass filtered forces:
-						for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
-							F_end_lo[c_i] = low_pass_discrete(F_end_m[c_i], F_end_lo_prev[c_i],
-								omega_lo_F_end, (double)DT_STEP_MSEC/MSEC_PER_SEC);
-
-							// F_end_m_prev[c_i]  = F_end_m[c_i];
-							F_end_lo_prev[c_i] = F_end_lo[c_i];
-						}
-
-						/////////////////////////////////////////////////////////////////////////////////////
 						// Extract measured position and velocity from sensor readings:
 						/////////////////////////////////////////////////////////////////////////////////////
 
@@ -472,6 +473,16 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 						dt_p_m[IDX_X]  = (double)LL_mech_readings.velocity.x;
 						dt_p_m[IDX_Y]  = (double)LL_mech_readings.velocity.y;
+
+						/////////////////////////////////////////////////////////////////////////////////////
+						// Extract measured end-effector forces:
+						/////////////////////////////////////////////////////////////////////////////////////
+
+						F_end_m[IDX_X]  = (double)LL_mech_readings.Xforce;
+						F_end_m[IDX_Y]  = (double)LL_mech_readings.Yforce;
+
+						F_end_in[IDX_X] = SCALE_F_END_MEAS*F_end_m[IDX_X];
+						F_end_in[IDX_Y] = SCALE_F_END_MEAS*F_end_m[IDX_Y];
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// Generate reference trajectory:
@@ -484,19 +495,16 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								&phi_ref, &dt_phi_ref,
 								u_t_ref, dt_k,
 								traj_ctrl_params, switch_traj, USE_TRAJ_PARAMS_VARIABLE);
-						/*
-						else if (LL_sys_info.exercise_mode == AdmittanceCtrl)
-							p_ref, dt_p_ref,
-							&phi_ref, &dt_phi_ref,
-							u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
-							traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_OFF, switch_traj);
-						*/
+
+						// else if (LL_sys_info.exercise_mode == AdmittanceCtrl)
+
 						else if (LL_sys_info.exercise_mode == ActiveTrajectoryCtrl)
 							traj_ref_step_active_elliptic(
 								p_ref, dt_p_ref,
 								&phi_ref, &dt_phi_ref,
-								u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
+								u_t_ref, dt_k, F_end_in, z_intern_o_dbl,
 								traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj, USE_TRAJ_PARAMS_VARIABLE);
+
 						else
 							printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
 
@@ -513,8 +521,20 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// Gravity compensation force command (end-effector coordinates):
 						/////////////////////////////////////////////////////////////////////////////////////
 
+						// Low-pass filtered sensor forces:
+						for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
+							F_end_lo[c_i] = low_pass_discrete(F_end_m[c_i], F_end_lo_prev[c_i],
+								OMEGA_LO_F_END, (double)DT_STEP_MSEC/MSEC_PER_SEC);
+
+							F_end_lo_prev[c_i] = F_end_lo[c_i];
+						}
+
+						// Dynamic gravity compensation:
+						F_gcomp_dyn = F_GCOMP_LIM*(1 - exp(-sig_F_gcomp*fmax(-F_end_lo[IDX_Y], 0)));
+
+						// Total gravity compensation:
 						F_end_cmd_gcomp[IDX_X] = 0;
-						F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP*F_G_COMP_DEF;
+						F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP*F_G_COMP_DEF + F_gcomp_dyn;
 
 						/////////////////////////////////////////////////////////////////////////////////////
 						// FB, FF & total force commands (end-effector coordinates):
@@ -596,7 +616,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 						// HACK: include low-pass filtered force sensor measurements in robot readings:
 						LL_mech_readings.Xforce = F_end_lo[IDX_X];
-						LL_mech_readings.Yforce = F_end_lo[IDX_Y];
+						LL_mech_readings.Yforce = F_gcomp_dyn; // F_end_lo[IDX_Y];
 
 						send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics); //  was up_time
 

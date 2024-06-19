@@ -59,7 +59,7 @@ static admitt_model_params_t admitt_model_params_local;
 void traj_ref_step_active_elliptic(
 	double p_ref[],	double dt_p_ref[],
 	double* phi_ref, double* dt_phi_ref,
-	double u_t_ref[], double dt_k, double F_end_m[], double z_intern_o_dbl[],
+	double u_t_ref[], double dt_k, double F_end_in[], double z_intern_o_dbl[],
 	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int USE_ADMITT_MODEL_CONSTR, int8_t switch_traj, int8_t use_traj_params_variable) {
 
     /////////////////////////////////////////////////////////////////////////////////////
@@ -84,10 +84,24 @@ void traj_ref_step_active_elliptic(
 	ode_params.DIM = 2*N_COORD_EXT;
 
 	/////////////////////////////////////////////////////////////////////////////////////
+	// Tangential (assistive / resistive) force:
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	double F_tang[N_COORD_2D]   = {0.0, 0.0};
+
+	/////////////////////////////////////////////////////////////////////////////////////
+	// Internal model kinematics (needed for tangential force computation):
+	/////////////////////////////////////////////////////////////////////////////////////
+
+	double    p_int[N_COORD_2D] = {0.0, 0.0};
+	double dt_p_int[N_COORD_2D] = {0.0, 0.0};
+	double  u_t_int[N_COORD_2D] = {0.0, 0.0};
+
+	/////////////////////////////////////////////////////////////////////////////////////
     // Counters:
     /////////////////////////////////////////////////////////////////////////////////////
 
-	int i;
+	int c_i;
 
 	/////////////////////////////////////////////////////////////////////////////////////
     // Initialize matrices:
@@ -99,8 +113,8 @@ void traj_ref_step_active_elliptic(
 		// Admittance model state:
 		z_intern = nml_mat_new(2*N_COORD_EXT, 1); // internal state
 
-		for (i = 0; i < N_PREV_INT_STEPS; i++)
-			z_intern_prev[i] = nml_mat_new(2*N_COORD_EXT, 1); // internal state
+		for (c_i = 0; c_i < N_PREV_INT_STEPS; c_i++)
+			z_intern_prev[c_i] = nml_mat_new(2*N_COORD_EXT, 1); // internal state
 
 		// Trajectory path - constraint matrices:
 		A_con = nml_mat_new(N_CONSTR_TRAJ, N_COORD_EXT);
@@ -129,6 +143,8 @@ void traj_ref_step_active_elliptic(
 	int cycle_dir  = (int)traj_ctrl_params.cycle_dir;
 
 	double sig_exp = 3.0/T_exp;
+
+	float F_tang_magn = admitt_model_params.F_tang_magn;
 
 	/////////////////////////////////////////////////////////////////////////////////////
 	// Additional parameters:
@@ -206,19 +222,27 @@ void traj_ref_step_active_elliptic(
 		// Dynamic system (ODE) inputs and other parameters:
 		/////////////////////////////////////////////////////////////////////////////////////
 
-		// Input forces:
-		ode_params.par_dbl[IDX_X]   = F_end_m[IDX_X];
-		ode_params.par_dbl[IDX_Y]   = F_end_m[IDX_Y];
-		ode_params.par_dbl[IDX_PHI] = 0.0;
-
 		// Obtain trajectory path constraint (only A_con will be used for now):
 		if (USE_ADMITT_MODEL_CONSTR) {
-			traj_ellipse_constraints(*phi_ref, *dt_phi_ref, A_con, b_con,
-					ax_x_adj, ax_y_adj, ax_ang);
+			// traj_ellipse_constraints(*phi_ref, *dt_phi_ref, A_con, b_con, ax_x_adj, ax_y_adj, ax_ang);
+			traj_ellipse_help(*phi_ref, *dt_phi_ref, p_int, dt_p_int, u_t_int, A_con, b_con, ax_x_adj, ax_y_adj, ax_ang); // needed to compute tangential force
 
 			// Include constraint matrix in ODE parameters:
 			nml_mat_cp_ref(ode_params.par_nml[IDX_PAR_NML_A_CON], A_con);
+
+			// Compute tangential force:
+			for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
+				F_tang[c_i] = cycle_dir*F_tang_magn*u_t_int[c_i];
 		}
+		else {
+			F_tang[IDX_X] = 0.0;
+			F_tang[IDX_Y] = 0.0;
+		}
+
+		// Input forces:
+		ode_params.par_dbl[IDX_X]   = F_end_in[IDX_X] + F_tang[IDX_X];
+		ode_params.par_dbl[IDX_Y]   = F_end_in[IDX_Y] + F_tang[IDX_Y];
+		ode_params.par_dbl[IDX_PHI] = 0.0;
 
 		/////////////////////////////////////////////////////////////////////////////////////
 		// Integration step for ODE:
@@ -233,8 +257,8 @@ void traj_ref_step_active_elliptic(
 	}
 	else {
 		// Initialize internal state:
-		for (i = 0; i < 2*N_COORD_EXT; i++)
-			z_intern->data[i][0] = z_intern_o_dbl[i];
+		for (c_i = 0; c_i < 2*N_COORD_EXT; c_i++)
+			z_intern->data[c_i][0] = z_intern_o_dbl[c_i];
 	}
 
 	nml_mat_cp_ref(z_intern_prev[DELAY_1], z_intern);
@@ -248,23 +272,21 @@ void traj_ref_step_active_elliptic(
 			printf("   ax_x    = %f\n", ax_x);
 			printf("   ax_y    = %f\n", ax_y);
 			printf("   ax_ang  = %f\n", ax_ang);
-			printf("   cycle_dir  = %f\n", (double)cycle_dir);
+			printf("   cycle_dir = %f\n", (double)cycle_dir);
 			printf("\n");
 		}
 
-		/*
 		if (step_int % (DT_DISP_MSEC_ALGO/(int)(1000*dt_k)) == 0) {
-			printf("%d\tF_end = [%f\t%f]\t z = [",
+			printf("[%d]\tF_end_in = [%3.2f, %3.2f] \tF_tang = [%3.2f, %3.2f] \tz = [",
 				step_int,
-				F_end_m[IDX_X], F_end_m[IDX_Y]);
+				F_end_in[IDX_X], F_end_in[IDX_Y], F_tang[IDX_X], F_tang[IDX_Y]);
 
 			for (int r_i = 0; r_i < 2*N_COORD_EXT; r_i++) {
-				printf("%f\t", z_intern->data[r_i][0]);
+				printf("%3.2f\t", z_intern->data[r_i][0]);
 			}
 
 			printf("]\n\n");
 		}
-		*/
 	#endif
 
     /////////////////////////////////////////////////////////////////////////////////////

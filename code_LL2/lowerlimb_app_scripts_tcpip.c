@@ -862,7 +862,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 			#if SET_CTRL_PARAMETERS
 				//Set admittance control params:
 				*admitt_model_params = set_admitt_model_params(inertia_x, inertia_y, damping,
-						stiffness, p_eq_x, p_eq_y, Fx_offset, Fy_offset);
+						stiffness, p_eq_x, p_eq_y);
 			#endif
 			lowerlimb_sys_info.exercise_state = RUNNING;
 			*/
@@ -901,7 +901,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 
 				//Set admittance control params:
 				*admitt_model_params = set_admitt_model_params(inertia_x, inertia_y, damping,
-						stiffness, p_eq_x, p_eq_y, Fx_offset, Fy_offset);
+						stiffness, p_eq_x, p_eq_y);
 			#endif
 
 			lowerlimb_sys_info.exercise_state = RUNNING;
