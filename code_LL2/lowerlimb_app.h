@@ -34,7 +34,9 @@
 
 #define USE_ITM_CMD_CHECK    1
 #define SET_CTRL_PARAMETERS  1
-#define USE_TRAJ_PARAMS_VARIABLE 1
+
+#define TRAJ_PARAMS_VARIABLE_OFF 	0
+#define TRAJ_PARAMS_VARIABLE_ON 	1
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////

@@ -19,7 +19,8 @@
 #include "timer.h"
 
 // Dynamic system mode: unconstrained / constrained:
-#define USE_ADMITT_MODEL_CONSTR_ODE		1
+#define ADMITT_MODEL_CONSTR_ON		1
+#define ADMITT_MODEL_CONSTR_OFF		0
 
 void test_ode_int();
 
