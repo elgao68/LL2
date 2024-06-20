@@ -143,6 +143,7 @@ void traj_ref_step_active_elliptic(
 	int cycle_dir  = (int)traj_ctrl_params.cycle_dir;
 
 	double sig_exp = 3.0/T_exp;
+	int sgn_F_tang;
 
 	float F_tang_magn = admitt_model_params.F_tang_magn;
 
@@ -155,6 +156,8 @@ void traj_ref_step_active_elliptic(
 	static double ax_x_adj;
 	static double ax_y_adj;
 
+	static uint8_t is_linear_traj;  // special case: linear trajectory:
+
 	if (initial) {
 		if (use_traj_params_variable) {
 			ax_x_adj = 0;
@@ -164,6 +167,11 @@ void traj_ref_step_active_elliptic(
 			ax_x_adj = ax_x;
 			ax_y_adj = ax_y;
 		}
+
+		if (ax_y == 0)
+			is_linear_traj = 1;
+		else
+			is_linear_traj = 0;
 
 		initial = 0;
 	}
@@ -230,9 +238,15 @@ void traj_ref_step_active_elliptic(
 			// Include constraint matrix in ODE parameters:
 			nml_mat_cp_ref(ode_params.par_nml[IDX_PAR_NML_A_CON], A_con);
 
+			// Tangential force sign:
+			if (!is_linear_traj)
+				sgn_F_tang = cycle_dir;
+			else
+				sgn_F_tang = sign_force_tang_switch(*phi_ref);
+
 			// Compute tangential force:
 			for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-				F_tang[c_i] = cycle_dir*F_tang_magn*u_t_int[c_i];
+				F_tang[c_i] = sgn_F_tang*F_tang_magn*u_t_int[c_i];
 		}
 		else {
 			F_tang[IDX_X] = 0.0;
@@ -278,9 +292,8 @@ void traj_ref_step_active_elliptic(
 				*phi_ref, *dt_phi_ref,
 				F_end_in[IDX_X], F_end_in[IDX_Y], u_t_int[IDX_X], u_t_int[IDX_Y], F_tang[IDX_X], F_tang[IDX_Y]);
 
-			for (int r_i = 0; r_i < 2*N_COORD_EXT; r_i++) {
+			for (int r_i = 0; r_i < 2*N_COORD_EXT; r_i++)
 				printf("%3.2f ", z_intern->data[r_i][0]);
-			}
 
 			printf("]\n\n");
 		}
@@ -438,176 +451,6 @@ void traj_ref_step_passive_elliptic(
 	// Compute reference trajectory position and velocity from PHASE:
 	traj_ellipse_points(*phi_ref, *dt_phi_ref, p_ref, dt_p_ref, u_t_ref,
 		ax_x_adj, ax_y_adj, ax_ang);
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Increase step counter:
-	///////////////////////////////////////////////////////////////////////////////
-
-	step_int++;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// MOTION ALGORITHMS - LINEAR TRAJECTORY:
-///////////////////////////////////////////////////////////////////////////////
-
-void traj_ref_step_active_linear(
-	double p_ref[],	double dt_p_ref[],
-	double* phi_ref, double* dt_phi_ref,
-	double dt_k, double F_end_in[], double z_intern_o_dbl[],
-	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params) {
-
-    ///////////////////////////////////////////////////////////////////////////////
-    // Declare static matrices:
-    ///////////////////////////////////////////////////////////////////////////////
-
-	// Admittance model state:
-	static nml_mat* z_intern;
-	static nml_mat* z_intern_prev[N_PREV_INT_STEPS];
-
-	// Trajectory path - constraint matrices:
-	static nml_mat* A_con;
-	static nml_mat* b_con;
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Dynamic system (ODE) parameters:
-	///////////////////////////////////////////////////////////////////////////////
-
-	static ode_param_struct ode_params;
-
-	ode_params.USE_ODE_CONSTR = 1;
-	ode_params.DIM = 2*N_COORD_EXT;
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Tangential (assistive / resistive) force:
-	///////////////////////////////////////////////////////////////////////////////
-
-	double F_tang[N_COORD_2D]   = {0.0, 0.0};
-
-	///////////////////////////////////////////////////////////////////////////////
-    // Counters:
-    ///////////////////////////////////////////////////////////////////////////////
-
-	int c_i;
-
-	///////////////////////////////////////////////////////////////////////////////
-    // Initialize matrices:
-    ///////////////////////////////////////////////////////////////////////////////
-
-	static int init_nml = 1;
-
-	if (init_nml) {
-		// Admittance model state:
-		z_intern = nml_mat_new(2*N_COORD_EXT, 1); // internal state
-
-		for (c_i = 0; c_i < N_PREV_INT_STEPS; c_i++)
-			z_intern_prev[c_i] = nml_mat_new(2*N_COORD_EXT, 1); // internal state
-
-		// Trajectory path - constraint matrices:
-		A_con = nml_mat_new(N_CONSTR_TRAJ, N_COORD_EXT);
-		b_con = nml_mat_new(N_CONSTR_TRAJ, 1);
-
-		ode_params.par_nml[IDX_PAR_NML_A_CON] = nml_mat_new(N_CONSTR_TRAJ, N_COORD_EXT);
-
-		init_nml = 0;
-	}
-
-	///////////////////////////////////////////////////////////////////////////////
-	// COPY ADMITTANCE PARAMETERS TO LOCAL SCOPE VARIABLES - GAO
-	///////////////////////////////////////////////////////////////////////////////
-
-    memcpy(&admitt_model_params_local, &admitt_model_params, sizeof(admitt_model_params_t));
-
-	///////////////////////////////////////////////////////////////////////////////
-	// COPY TRAJECTORY PARAMETERS TO LOCAL SCOPE VARIABLES - GAO
-	///////////////////////////////////////////////////////////////////////////////
-
-	double ax_x    = traj_ctrl_params.semiaxis_x;
-	double ax_ang  = traj_ctrl_params.rot_angle;
-
-	float F_tang_magn = admitt_model_params.F_tang_magn;
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Set up timers & behaviors:
-	///////////////////////////////////////////////////////////////////////////////
-
-	static int step_int = 0; // algorithm step counter
-
-	double t_ref = dt_k*step_int;
-
-    ///////////////////////////////////////////////////////////////////////////////
-    // Integrate admittance model:
-    ///////////////////////////////////////////////////////////////////////////////
-
-	if (step_int > 0) {
-
-		///////////////////////////////////////////////////////////////////////////////
-		// Dynamic system (ODE) inputs and other parameters:
-		///////////////////////////////////////////////////////////////////////////////
-
-		// Obtain trajectory path constraint (only A_con will be used for now):
-		traj_linear_constraints(*phi_ref, *dt_phi_ref, A_con, b_con, ax_x, ax_ang);
-
-		// Include constraint matrix in ODE parameters:
-		nml_mat_cp_ref(ode_params.par_nml[IDX_PAR_NML_A_CON], A_con);
-
-		// Compute tangential force:
-		for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
-			// F_tang[c_i] = cycle_dir*F_tang_magn*u_t_int[c_i];
-		}
-
-		// Input forces:
-		ode_params.par_dbl[IDX_X]   = F_end_in[IDX_X] + F_tang[IDX_X];
-		ode_params.par_dbl[IDX_Y]   = F_end_in[IDX_Y] + F_tang[IDX_Y];
-		ode_params.par_dbl[IDX_PHI] = 0.0;
-
-		///////////////////////////////////////////////////////////////////////////////
-		// Integration step for ODE:
-		///////////////////////////////////////////////////////////////////////////////
-
-		// solve_ode_sys_rkutta_ord4_nml(z_intern, z_intern_prev[DELAY_1], dt_k, ode_admitt_model_nml, ode_params);
-		solve_ode_sys_rectang_nml(z_intern, z_intern_prev[DELAY_1], dt_k, ode_admitt_model_nml, ode_params); // TODO: verify integrator robustness
-	}
-	else {
-		// Initialize internal state:
-		for (c_i = 0; c_i < 2*N_COORD_EXT; c_i++)
-			z_intern->data[c_i][0] = z_intern_o_dbl[c_i];
-	}
-
-	nml_mat_cp_ref(z_intern_prev[DELAY_1], z_intern);
-
-	// ITM console output:
-	#if USE_ITM_OUT_TRAJ_REF
-		if (step_int == 0) {
-			printf("   traj_ref_step_active_linear(): \n");
-			printf("   ax_x    = %f\n", ax_x);
-			printf("   ax_ang  = %f\n", ax_ang);
-			printf("\n");
-		}
-
-		if (step_int % (DT_DISP_MSEC_ALGO/(int)(1000*dt_k)) == 0) {
-			printf("[%d]\tF_end_in = [%3.2f, %3.2f] \tF_tang = [%3.2f, %3.2f] \tz = [",
-				step_int,
-				F_end_in[IDX_X], F_end_in[IDX_Y], F_tang[IDX_X], F_tang[IDX_Y]);
-
-			for (int r_i = 0; r_i < 2*N_COORD_EXT; r_i++) {
-				printf("%3.2f\t", z_intern->data[r_i][0]);
-			}
-
-			printf("]\n\n");
-		}
-	#endif
-
-    ///////////////////////////////////////////////////////////////////////////////
-    // Obtain reference trajectory position and velocity:
-    ///////////////////////////////////////////////////////////////////////////////
-
-	// Extract phase and instantaneous frequency from INTERNAL STATE:
-	*phi_ref    = z_intern->data[IDX_PHI][0];
-	*dt_phi_ref = z_intern->data[IDX_DT_PHI][0];
-
-	// Compute reference trajectory position and velocity from PHASE:
-	traj_linear_points(*phi_ref, *dt_phi_ref, p_ref, dt_p_ref,
-		ax_x, ax_ang);
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Increase step counter:

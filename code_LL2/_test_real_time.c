@@ -52,14 +52,14 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double dt_p_ref[N_COORD_2D] = {0.0, 0.0};
 
 	// Cycle phase and instantaneous frequency:
-	double    phi_ref = PHI_INIT;
+	double    phi_ref = 0.0;
 	double dt_phi_ref = 0.0;
 
 	// Trajectory path tangent vector:
 	double u_t_ref[N_COORD_2D] = {0.0, 0.0};
 
 	// Internal state: initial values:
-	double z_intern_o_dbl[2*N_COORD_EXT] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
+	double z_intern_o_dbl[2*N_COORD_EXT] = {0.0, 0.0, PHI_INIT, 0.0, 0.0, 0.0};
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - MEASURED:
@@ -170,20 +170,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	init_motor_algo(&LL_mech_readings, &LL_motors_settings);
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Initial conditions for kinematics:
-	///////////////////////////////////////////////////////////////////////////////
-
-	// Positions:
-	z_intern_o_dbl[0] = 0;
-	z_intern_o_dbl[1] = 0;
-	z_intern_o_dbl[2] = 0;
-
-	// Velocities:
-	z_intern_o_dbl[3] = 0;
-	z_intern_o_dbl[4] = 0;
-	z_intern_o_dbl[5] = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Control settings:

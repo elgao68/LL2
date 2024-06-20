@@ -16,6 +16,8 @@
 #include <stdbool.h>
 #include <math.h>
 
+#include "_std_c.h"
+
 typedef struct {
 	float cycle_period;
 	float exp_blend_time;
@@ -52,27 +54,13 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 					double a_x, double a_y, double ang);
 
 ////////////////////////////////////////////////////////////////////////////////
-// TRAJECTORY FUNCTIONS - LINEAR:
-////////////////////////////////////////////////////////////////////////////////
-
-void
-traj_linear_points(	double phi, double dt_phi, double p[], double dt_p[],
-						double a_x, double ang);
-
-void
-traj_linear_constraints(	double phi, double dt_phi, nml_mat* A_con, nml_mat* b_con,
-							double a_x, double ang);
-
-void
-traj_linear_help(	double phi, double dt_phi, double p[], double dt_p[],
-					nml_mat* A_con, nml_mat* b_con,
-					double a_x, double ang);
-
-////////////////////////////////////////////////////////////////////////////////
 // ANCILLARY FUNCTIONS - GAO
 ////////////////////////////////////////////////////////////////////////////////
 
 void
 rotate_vect_2d(double v_f[], double v_o[], double ang);
+
+int
+sign_force_tang_switch(double phi);
 
 #endif

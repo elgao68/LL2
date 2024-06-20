@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-// traj_ctrl_params_nml.h.c
+// traj_ctrl_params_nml.c
 //
 // Created on: 2024.02.10
 // Author: Gabriel Aguirre Ollinger
@@ -89,26 +89,38 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 	double    p_o[N_COORD_2D];
 	double dt_p_o[N_COORD_2D];
 	double  u_t_o[N_COORD_2D];
+	double  v_tang_o[N_COORD_2D];
 
 	// Position:
 	p_o[IDX_X] = a_x*cos(phi);
 	p_o[IDX_Y] = a_y*sin(phi);
 
-	// Velocity:
-	dt_p_o[IDX_X] = -dt_phi*a_x*sin(phi);
-	dt_p_o[IDX_Y] =  dt_phi*a_y*cos(phi);
-
 	// Tangential unit vector:
-	double magn_dt_p = pow(pow(dt_p_o[IDX_X],2) + pow(dt_p_o[IDX_Y],2), 0.5);
+	v_tang_o[IDX_X] = -a_x*sin(phi);
+	v_tang_o[IDX_Y] =  a_y*cos(phi);
 
-	if (magn_dt_p > 0) {
-		u_t_o[IDX_X] = dt_p_o[IDX_X] / magn_dt_p;
-		u_t_o[IDX_Y] = dt_p_o[IDX_Y] / magn_dt_p;
+	double magn_v_tang_o = pow(pow(v_tang_o[IDX_X],2) + pow(v_tang_o[IDX_Y],2), 0.5);
+
+	if (magn_v_tang_o > 0) {
+		u_t_o[IDX_X] = v_tang_o[IDX_X] / magn_v_tang_o;
+		u_t_o[IDX_Y] = v_tang_o[IDX_Y] / magn_v_tang_o;
+	}
+	else if (a_x != 0 && a_y == 0) {
+		u_t_o[IDX_X] = 1.0;
+		u_t_o[IDX_Y] = 0.0;
+	}
+	else if (a_x == 0 && a_y != 0) {
+		u_t_o[IDX_X] = 0.0;
+		u_t_o[IDX_Y] = 1.0;
 	}
 	else {
 		u_t_o[IDX_X] = 0.0;
 		u_t_o[IDX_Y] = 0.0;
 	}
+
+	// Velocity:
+	dt_p_o[IDX_X] = dt_phi*v_tang_o[IDX_X];
+	dt_p_o[IDX_Y] = dt_phi*v_tang_o[IDX_Y];
 
 	// Rotate vectors:
 	rotate_vect_2d(p,    p_o,    ang);
@@ -129,60 +141,6 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// TRAJECTORY FUNCTIONS - LINEAR:
-////////////////////////////////////////////////////////////////////////////////
-
-void
-traj_linear_points(	double phi, double dt_phi, double p[], double dt_p[],
-						double a_x, double ang) {
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Declare static matrices:
-	///////////////////////////////////////////////////////////////////////////////
-
-	// Dummy matrices:
-	static nml_mat* A_con_dum;
-	static nml_mat* b_con_dum;
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Initialize matrices:
-	///////////////////////////////////////////////////////////////////////////////
-
-	static int initial = 1;
-
-	if (initial) {
-		A_con_dum = nml_mat_new(N_CONSTR_TRAJ, N_COORD_EXT);
-		b_con_dum = nml_mat_new(N_CONSTR_TRAJ, 1);
-
-		initial = 0;
-	}
-
-	nml_mat_all_set(A_con_dum, 0);
-	nml_mat_all_set(b_con_dum, 0);
-
-	traj_linear_help(phi, dt_phi, p, dt_p,  A_con_dum, b_con_dum,
-		a_x, ang);
-}
-
-void
-traj_linear_constraints(	double phi, double dt_phi, nml_mat* A_con, nml_mat* b_con,
-							double a_x, double ang) {
-	// Dummy vectors:
-	double    p_dum[N_COORD_2D];
-	double dt_p_dum[N_COORD_2D];
-
-	traj_linear_help(phi, dt_phi, p_dum, dt_p_dum, A_con, b_con,
-		a_x, ang);
-}
-
-void
-traj_linear_help(	double phi, double dt_phi, double p[], double dt_p[],
-					nml_mat* A_con, nml_mat* b_con,
-					double a_x, double ang) {
-
-}
-
-////////////////////////////////////////////////////////////////////////////////
 // ANCILLARY FUNCTIONS - GAO
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -191,5 +149,37 @@ rotate_vect_2d(double v_f[], double v_o[], double ang) {
 
 	v_f[IDX_X] = v_o[IDX_X]*cos(ang) - v_o[IDX_Y]*sin(ang);
 	v_f[IDX_Y] = v_o[IDX_X]*sin(ang) + v_o[IDX_Y]*cos(ang);
+}
+
+int
+sign_force_tang_switch(double phi) {
+	static double ERR_PHI_RAD = 0.2;
+	static int sign_F_tang    = 1;
+	static int switch_armed   = 1;
+
+	double phi_wr = fmod(phi, 2*PI); // phase wrap-around value
+	static double phi_wr_prev;
+
+	// Sign switching condition:
+	if ((fabs(phi_wr) < ERR_PHI_RAD || fabs(phi_wr) > PI - ERR_PHI_RAD) && switch_armed) {
+		sign_F_tang = -sign_F_tang;
+		switch_armed = 0;
+
+		printf("\n");
+		printf("sign_F_tang = [%d]\n\n", sign_F_tang);
+	}
+	// Switch arming condition:
+	else if (((phi_wr - PI/2)*(phi_wr_prev - PI/2) <= 0 ||
+			  (phi_wr + PI/2)*(phi_wr_prev + PI/2) <= 0 ) &&
+			  !switch_armed) {
+				switch_armed = 1;
+
+				printf("\n");
+				printf("switch_armed = [%d]\n\n", switch_armed);
+	}
+
+	phi_wr_prev = phi_wr;
+
+	return sign_F_tang;
 }
 

@@ -8,7 +8,7 @@
 #define CYCLE_PERIOD_DEF	3.0
 #define EXP_BLEND_TIME		9.0
 #define SEMIAXIS_X_DEF		0.14
-#define SEMIAXIS_Y_DEF		0.0 // 0.12
+#define SEMIAXIS_Y_DEF		0.0
 #define ROT_ANGLE_DEF		0.0 // (-PI/6)
 #define CYCLE_DIR_DEF		1
 
@@ -22,7 +22,7 @@
 #define DAMPING_DEF		0.1
 #define STIFFNESS_DEF	0.0
 
-#define F_TANG_DEF	   20.0
+#define F_TANG_DEF	   15.0
 
 ///////////////////////////////////////////////////////////////////////////////
 // Dynamic response parameters - DEFAULT:
