@@ -54,6 +54,17 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 					double a_x, double a_y, double ang);
 
 ////////////////////////////////////////////////////////////////////////////////
+// TRAJECTORY FUNCTIONS - LINEAR:
+////////////////////////////////////////////////////////////////////////////////
+
+void
+traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
+					double p_o[], double p_f[], double v_max, double alpha, int* initial);
+
+void
+pos_linear_relative(double* dist_rel, double* v_rel, double t, double dist_max, double v_max, double alpha);
+
+////////////////////////////////////////////////////////////////////////////////
 // ANCILLARY FUNCTIONS - GAO
 ////////////////////////////////////////////////////////////////////////////////
 

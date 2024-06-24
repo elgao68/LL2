@@ -463,8 +463,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							IS_CALIBRATION);
 
 						#if OVERR_FORCE_SENSORS_CALIB
-							LL_mech_readings.Xforce = 0; // 0.1*cos(2*PI*t_ref + PI/2);
-							LL_mech_readings.Yforce = 0; // 0.1*cos(2*PI*t_ref);
+							LL_mech_readings.Xforce = 0;
+							LL_mech_readings.Yforce = 0;
 						#endif
 
 						///////////////////////////////////////////////////////////////////////////////
@@ -536,7 +536,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
 
 						///////////////////////////////////////////////////////////////////////////////
-						// Set reference kinematics struct:
+						// Set reference kinematics structure:
 						///////////////////////////////////////////////////////////////////////////////
 
 						for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
@@ -640,7 +640,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 						// HACK: include low-pass filtered force sensor measurements in robot readings:
 						LL_mech_readings.Xforce = F_end_lo[IDX_X];
-						LL_mech_readings.Yforce = F_gcomp_dyn; // F_end_lo[IDX_Y];
+						LL_mech_readings.Yforce = F_end_lo[IDX_Y];
 
 						send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics); //  was up_time
 

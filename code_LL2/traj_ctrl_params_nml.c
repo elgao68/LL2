@@ -141,6 +141,114 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// TRAJECTORY FUNCTIONS - LINEAR:
+////////////////////////////////////////////////////////////////////////////////
+
+void
+traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
+					double p_o[], double p_f[], double v_max, double alpha, int* initial) {
+
+	static int step_int = 0; // relative time reference
+
+	if (*initial) {
+		step_int = 0;
+		*initial = 0;
+	}
+
+	// Reference time:
+	double t = dt_k*step_int;
+
+	// Correct ramp-up period:
+	if (alpha < 0)
+		alpha = 0;
+	else if (alpha > 0.5)
+		alpha = 0.5;
+
+	// Distance between points:
+	double dist_max = pow(pow(p_f[IDX_X] - p_o[IDX_X],2) + pow(p_f[IDX_Y] - p_o[IDX_Y],2), 0.5);
+
+	// Tangential unit vector:
+	if (dist_max > 0) {
+		u_t[IDX_X] = (p_f[IDX_X] - p_o[IDX_X])/dist_max;
+		u_t[IDX_Y] = (p_f[IDX_Y] - p_o[IDX_Y])/dist_max;
+	}
+	else {
+		u_t[IDX_X] = 0;
+		u_t[IDX_Y] = 0;
+	}
+
+	// Compute relative position and velocity:
+	double dist_rel, v_rel;
+
+	pos_linear_relative(&dist_rel, &v_rel, t, dist_max, v_max, alpha);
+
+	// Compute absolute position and velocity:
+	p[IDX_X] = p_o[IDX_X] + dist_rel*u_t[IDX_X];
+	p[IDX_Y] = p_o[IDX_Y] + dist_rel*u_t[IDX_Y];
+
+	dt_p[IDX_X] = v_rel*u_t[IDX_X];
+	dt_p[IDX_Y] = v_rel*u_t[IDX_X];
+
+	// Increase step counter:
+	step_int++;
+}
+
+void
+pos_linear_relative(double* dist_rel, double* v_rel, double t, double dist_max, double v_max, double alpha) {
+
+	if (dist_max > 0 && v_max > 0) {
+		// Final time (relative to t = 0):
+		double T_f = dist_max/(1 - alpha)/v_max;
+
+		// Acceleration (ramp stage):
+		double a_ramp = v_max/alpha/T_f;
+
+		// "Via point" time:
+		double t1;
+
+		//////////////////////////////////////////////////////////////
+		// Compute position and velocity:
+		//////////////////////////////////////////////////////////////
+
+		// Safety catch:
+		if (t < 0) {
+			*v_rel    = 0.0;
+			*dist_rel = 0.0;
+		}
+		// Ramp-up:
+		else if (t >= 0 && t < alpha*T_f) {
+			*v_rel    = a_ramp*t;
+			*dist_rel = 1/2.0*a_ramp*pow(t, 2);
+		}
+		// Constant velocity:
+		else if (t >= alpha*T_f && t <= (1 - alpha)*T_f) {
+			t1 = t - alpha*T_f;
+
+			*v_rel    = v_max;
+			*dist_rel = 1/2.0*a_ramp*pow(alpha*T_f, 2) + v_max*t1;
+		}
+		// Ramp-down:
+		else if (t > (1 - alpha)*T_f && t <= T_f) {
+			t1 = t - (1 - alpha)*T_f;
+
+			*v_rel    = a_ramp*(alpha*T_f - t1);
+			*dist_rel = 1/2.0*a_ramp*pow(alpha*T_f, 2) + v_max*(1 - 2*alpha)*T_f +
+							a_ramp*(alpha*T_f*t1 - 1/2.0*pow(t1, 2));
+		}
+		// Final position:
+		else {
+			*v_rel    = 0.0;
+			*dist_rel = dist_max;
+		}
+	}
+	else {
+		*v_rel    = 0.0;
+		*dist_rel = 0.0;
+	}
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 // ANCILLARY FUNCTIONS - GAO
 ////////////////////////////////////////////////////////////////////////////////
 
