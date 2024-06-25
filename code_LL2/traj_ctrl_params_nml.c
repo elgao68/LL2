@@ -146,9 +146,10 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 
 void
 traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
-					double p_o[], double p_f[], double v_max, double alpha, int* initial) {
+					double p_o[], double p_f[], double v_max, double alpha, uint8_t* initial) {
 
 	static int step_int = 0; // relative time reference
+	int c_i;
 
 	if (*initial) {
 		step_int = 0;
@@ -168,14 +169,11 @@ traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
 	double dist_max = pow(pow(p_f[IDX_X] - p_o[IDX_X],2) + pow(p_f[IDX_Y] - p_o[IDX_Y],2), 0.5);
 
 	// Tangential unit vector:
-	if (dist_max > 0) {
-		u_t[IDX_X] = (p_f[IDX_X] - p_o[IDX_X])/dist_max;
-		u_t[IDX_Y] = (p_f[IDX_Y] - p_o[IDX_Y])/dist_max;
-	}
-	else {
-		u_t[IDX_X] = 0;
-		u_t[IDX_Y] = 0;
-	}
+	for (int c_i = 0; c_i < N_COORD_2D; c_i++)
+		if (dist_max > 0)
+			u_t[c_i] = (p_f[c_i] - p_o[c_i])/dist_max;
+		else
+			u_t[IDX_X] = 0;
 
 	// Compute relative position and velocity:
 	double dist_rel, v_rel;
@@ -183,11 +181,11 @@ traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
 	pos_linear_relative(&dist_rel, &v_rel, t, dist_max, v_max, alpha);
 
 	// Compute absolute position and velocity:
-	p[IDX_X] = p_o[IDX_X] + dist_rel*u_t[IDX_X];
-	p[IDX_Y] = p_o[IDX_Y] + dist_rel*u_t[IDX_Y];
+	for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
+		p[IDX_X] = p_o[IDX_X] + dist_rel*u_t[IDX_X];
 
-	dt_p[IDX_X] = v_rel*u_t[IDX_X];
-	dt_p[IDX_Y] = v_rel*u_t[IDX_X];
+		dt_p[IDX_X] = v_rel*u_t[IDX_X];
+	}
 
 	// Increase step counter:
 	step_int++;

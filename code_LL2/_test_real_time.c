@@ -61,6 +61,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// Internal state: initial values:
 	double z_intern_o_dbl[2*N_COORD_EXT] = {0.0, 0.0, PHI_INIT, 0.0, 0.0, 0.0};
 
+	// Calibration end points:
+	double    p_calib_o[N_COORD_2D] = {0.0, 0.0};
+	double    p_calib_f[N_COORD_2D] = {0.0, 0.0};
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - MEASURED:
 	///////////////////////////////////////////////////////////////////////////////
@@ -85,7 +89,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// Force sensor variables - dynamic gravity compensation:
 	///////////////////////////////////////////////////////////////////////////////
 
-	double OMEGA_LO_F_END = 2*PI*0.3;
+	double OMEGA_LO_F_END            = 2*PI*0.3;
 
 	double F_end_lo[N_COORD_2D]      = {0.0, 0.0};
 	double F_end_lo_prev[N_COORD_2D] = {0.0, 0.0};
@@ -102,6 +106,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	float F_end_cmd_fb[N_COORD_2D]    = {0.0, 0.0}; // FB force command
 	float F_end_cmd_ff[N_COORD_2D]    = {0.0, 0.0}; // FF force command
 	float F_end_cmd_gcomp[N_COORD_2D] = {0.0, 0.0}; // gravity compensation force command
+	float F_end_cmd_int_err[N_COORD_2D] = {0.0, 0.0}; // integral position error force command
 
 	float F_end_cmd[N_COORD_2D]       = {0.0, 0.0}; // total force command
 
@@ -109,7 +114,15 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// Additional control variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	double err_pos_vel[N_POS_VEL_2D]  = {0.0, 0.0, 0.0, 0.0};
+	// Position & velocity error vector:
+	double err_pos_vel[N_POS_VEL_2D]    = {0.0, 0.0, 0.0, 0.0};
+
+	// Integral position error:
+	double OMEGA_HI_ERR_INT_POS         = 2*PI*0.2;
+
+	double err_pos[N_COORD_2D]          = {0.0, 0.0}; // HACK: this term should have been avoided
+	double err_int_pos[N_COORD_2D]      = {0.0, 0.0};
+	double err_int_pos_prev[N_COORD_2D] = {0.0, 0.0};
 
 	double scale_ff_dyn      = 0.0; // FF control: dynamic scaling
 	double F_end_cmd_ff_norm = 0.0;
@@ -150,6 +163,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	int8_t switch_traj = SWITCH_TRAJ_NULL;
 
 	uint8_t init_params = 1;
+	uint8_t init_calib  = 1;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Monitoring variables:
@@ -260,7 +274,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// GET TCP/IP APP STATE - GAO
 			//////////////////////////////////////////////////////////////////////////////////
 
-			#if USE_APP_STATE_TEMPLATE
+			#if USE_APP_TCP_IP
 				// Template function for the firmware state machine:
 				LL_sys_info = lowerlimb_app_state_tcpip(Read_Haptic_Button(), motor_alert,
 						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
@@ -310,7 +324,9 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Admittance parameters:
 				//////////////////////////////////////////////////////////////////////////////////
 
-				admitt_model_params.inertia_x = admitt_model_params.inertia_y = INERTIA_DEF;
+				admitt_model_params.inertia_x   = INERTIA_XY_DEF;
+				admitt_model_params.inertia_y   = INERTIA_XY_DEF;
+				admitt_model_params.inertia_phi = INERTIA_PHI_DEF;
 
 				if (ADMITT_MODEL_CONSTR_ON) {
 					admitt_model_params.stiffness = STIFFNESS_DEF;
@@ -463,8 +479,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							IS_CALIBRATION);
 
 						#if OVERR_FORCE_SENSORS_CALIB
-							LL_mech_readings.Xforce = 0;
-							LL_mech_readings.Yforce = 0;
+							LL_mech_readings.Xforce = 0; // 0.1*cos(2*PI*t_ref + PI/2);
+							LL_mech_readings.Yforce = 0; // 0.1*cos(2*PI*t_ref);
 						#endif
 
 						///////////////////////////////////////////////////////////////////////////////
@@ -493,12 +509,24 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 						// Passive trajectory control:
 						if (LL_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
-							if (traj_type == EllipticalTraj || traj_type == LinearTraj)
-								traj_ref_step_passive_elliptic(
-									p_ref, dt_p_ref,
-									&phi_ref, &dt_phi_ref,
-									u_t_ref, dt_k,
-									traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_ON);
+							if (traj_type == EllipticalTraj || traj_type == LinearTraj) {
+								#if TEST_CALIB_RUN
+									p_calib_o[IDX_X] = 0.0;
+									p_calib_o[IDX_Y] = 0.0;
+
+									p_calib_f[IDX_X] = SEMIAXIS_X_DEF;
+									p_calib_f[IDX_Y] = 0.0;
+
+									traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
+														p_calib_o, p_calib_f, V_CALIB, ALPHA_CALIB, &init_calib);
+								#else
+									traj_ref_step_passive_elliptic(
+										p_ref, dt_p_ref,
+										&phi_ref, &dt_phi_ref,
+										u_t_ref, dt_k,
+										traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_ON);
+								#endif
+							}
 							else
 								// Isometric trajectory OR safety catch:
 								traj_ref_step_isometric(
@@ -536,7 +564,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
 
 						///////////////////////////////////////////////////////////////////////////////
-						// Set reference kinematics structure:
+						// Set reference kinematics struct:
 						///////////////////////////////////////////////////////////////////////////////
 
 						for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
@@ -547,13 +575,19 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						ref_kinematics.phi_ref    = phi_ref;
 						ref_kinematics.dt_phi_ref = dt_phi_ref;
 
+					    ///////////////////////////////////////////////////////////////////////////////
+						///////////////////////////////////////////////////////////////////////////////
+						// End-effector force commands:
+						///////////////////////////////////////////////////////////////////////////////
+					    ///////////////////////////////////////////////////////////////////////////////
+
 						///////////////////////////////////////////////////////////////////////////////
 						// Gravity compensation force command (end-effector coordinates):
 						///////////////////////////////////////////////////////////////////////////////
 
 						// Low-pass filtered sensor forces:
 						for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
-							F_end_lo[c_i] = low_pass_discrete(F_end_m[c_i], F_end_lo_prev[c_i],
+							F_end_lo[c_i] = low_pass_discrete_fwd(F_end_m[c_i], F_end_lo_prev[c_i],
 								OMEGA_LO_F_END, (double)DT_STEP_MSEC/MSEC_PER_SEC);
 
 							F_end_lo_prev[c_i] = F_end_lo[c_i];
@@ -567,7 +601,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP*F_G_COMP_DEF + F_gcomp_dyn;
 
 						///////////////////////////////////////////////////////////////////////////////
-						// FB, FF & total force commands (end-effector coordinates):
+						// FB force command:
 						///////////////////////////////////////////////////////////////////////////////
 
 						// Kinematics error vector, array form:
@@ -585,28 +619,49 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						nml_mat_dot_ref(F_end_cmd_fb_nml, K_lq_xv_nml, err_pos_vel_nml);
 						nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB); // scale by switching variable
 
-						// FB & FF force commands, array form:
-						for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
-							// FB force command:
+						// FB force commands, array form:
+						for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
 							F_end_cmd_fb[c_i] = F_end_cmd_fb_nml->data[c_i][0];
 
-							// FF force command:
+						///////////////////////////////////////////////////////////////////////////////
+						// FF force command:
+						///////////////////////////////////////////////////////////////////////////////
+
+						// FF force commands, array form:
+						for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
 							F_end_cmd_ff[c_i] = SCALE_FF*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
 
-							// Total force command:
-							F_end_cmd[c_i] = F_end_cmd_fb[c_i] + F_end_cmd_ff[c_i] + F_end_cmd_gcomp[c_i];
+						///////////////////////////////////////////////////////////////////////////////
+						// Integral position error force command:
+						///////////////////////////////////////////////////////////////////////////////
+
+						// Integral position error:
+						err_pos[IDX_X] = err_pos_vel[0];
+						err_pos[IDX_Y] = err_pos_vel[2];
+
+						for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
+							err_int_pos[c_i] = int_hi_pass_discrete_fwd(err_pos[c_i], err_int_pos_prev[c_i],
+								OMEGA_HI_ERR_INT_POS, (double)DT_STEP_MSEC/MSEC_PER_SEC);
+
+							err_int_pos_prev[c_i] = err_int_pos[c_i];
 						}
 
-						// FF force command correction:
-					    F_end_cmd_ff_norm = norm2(F_end_cmd_ff,  N_COORD_2D);
-					    scale_ff_dyn      = 1.0 / fmax(F_end_cmd_ff_norm/F_END_FF_MAX, 1);
+						// Force command:
+						for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
+							F_end_cmd_int_err[c_i] = K_INT_ERR_POS*err_int_pos[c_i];
 
-					    for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-					    	F_end_cmd_ff[c_i] = (float)(scale_ff_dyn*F_end_cmd_ff[c_i]);
+						///////////////////////////////////////////////////////////////////////////////
+						// Total force command:
+						///////////////////////////////////////////////////////////////////////////////
 
+						for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
+							F_end_cmd[c_i] = F_end_cmd_fb[c_i] + F_end_cmd_ff[c_i] + F_end_cmd_gcomp[c_i] + F_end_cmd_int_err[c_i];
+
+					    ///////////////////////////////////////////////////////////////////////////////
 						///////////////////////////////////////////////////////////////////////////////
 						// UPDATE MOTOR SETTINGS - GAO:
 						///////////////////////////////////////////////////////////////////////////////
+					    ///////////////////////////////////////////////////////////////////////////////
 
 						// Clear motors' settings:
 						clear_lowerlimb_motors_settings(&LL_motors_settings);
@@ -642,7 +697,13 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						LL_mech_readings.Xforce = F_end_lo[IDX_X];
 						LL_mech_readings.Yforce = F_end_lo[IDX_Y];
 
-						send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics); //  was up_time
+						// HACK: store integral position error temporarily in LL_mech_readings (for debugging):
+						/*
+						LL_mech_readings.velocity.x	= err_int_pos[IDX_X];
+						LL_mech_readings.velocity.y = err_int_pos[IDX_Y];
+						*/
+
+						send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
 
 						///////////////////////////////////////////////////////////////////////////////
 						// ITM console output:
@@ -699,10 +760,17 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			} // end if (LL_sys_info.system_state == ON)
 
 			else {
+				// Change LEDs to system state OFF:
 				LED_sys_state_off();
 
+				// Engage brakes:
 				l_brakes(ENGAGE_BRAKES);
 				r_brakes(ENGAGE_BRAKES);
+
+				// Safety catch: reset integral error
+				err_int_pos[IDX_X] = 0;
+				err_int_pos[IDX_Y] = 0;
+
 			} // end LL_sys_info.system_state != ON
 
 			///////////////////////////////////////////////////////////////////////////////

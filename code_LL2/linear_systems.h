@@ -13,6 +13,8 @@
 
 #include "_std_c.h"
 
-double low_pass_discrete(double u, double y_prev, double omega, double dt);
+double low_pass_discrete_fwd(double u, double y_prev, double omega, double dt);
+
+double int_hi_pass_discrete_fwd(double u, double y_prev, double omega, double dt);
 
 #endif

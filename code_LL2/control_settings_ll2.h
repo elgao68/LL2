@@ -1,28 +1,29 @@
 #ifndef CONTROL_SETTINGS_LL2_
 #define CONTROL_SETTINGS_LL2_
 
-///////////////////////////////////////////////////////////////////////////////
 // Trajectory parameters - DEFAULT:
-///////////////////////////////////////////////////////////////////////////////
-
 #define CYCLE_PERIOD_DEF	3.0
 #define EXP_BLEND_TIME		9.0
-#define SEMIAXIS_X_DEF		0.12
-#define SEMIAXIS_Y_DEF		0.0
+#define SEMIAXIS_X_DEF		0.15 // 0.12
+#define SEMIAXIS_Y_DEF		0.075
 #define ROT_ANGLE_DEF		0.0 // (-PI/6)
 #define CYCLE_DIR_DEF		1
-
 #define PHI_INIT            (3*PI/2)
+
+#define TEST_CALIB_RUN		1
+#define V_CALIB				0.08
+#define ALPHA_CALIB         0.1
 
 ///////////////////////////////////////////////////////////////////////////////
 // Admittance control parameters - DEFAULT:
 ///////////////////////////////////////////////////////////////////////////////
 
-#define INERTIA_DEF		1.0 // CRITICAL
-#define DAMPING_DEF		0.1
-#define STIFFNESS_DEF	0.0
+#define INERTIA_XY_DEF		1.0 // CRITICAL
+#define INERTIA_PHI_DEF		0.5 // CRITICAL
+#define DAMPING_DEF			0.0
+#define STIFFNESS_DEF		0.0
 
-#define F_TANG_DEF	   20.0
+#define F_TANG_DEF	   	   15.0
 
 ///////////////////////////////////////////////////////////////////////////////
 // Dynamic response parameters - DEFAULT:
@@ -35,10 +36,9 @@
 // Scaling factors:
 ///////////////////////////////////////////////////////////////////////////////
 
-#define SCALE_FB	    250.0
+#define SCALE_FB	    800.0
 #define SCALE_FF		  0.4
 #define SCALE_GCOMP	      1.2
-
 #define SCALE_F_END_MEAS  1.0
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -58,11 +58,13 @@ static double K_LQ_XV_DEF[] = {
 	  0,      0,      11.0,       4.0
 };
 
+static double K_INT_ERR_POS = 0.0;
+
 ///////////////////////////////////////////////////////////////////////////////
 // Feedforward control:
 ///////////////////////////////////////////////////////////////////////////////
 
-#define F_END_FF_MAX 40.0
+// #define F_END_FF_MAX 40.0
 
 // FF 'transfer function':
 static double C_FF_DC_DEF[] = {
@@ -128,6 +130,7 @@ static char TRAJ_TYPE_STR[LEN_TRAJ_TYPE_LIST][LEN_STR_MAX] = {
 typedef struct {
 	float inertia_x;
 	float inertia_y;
+	float inertia_phi;
 	float damping;
 	float stiffness;
 	float p_eq_x;

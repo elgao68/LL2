@@ -544,7 +544,7 @@ ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct ode_par
 	double m_val[N_COORD_EXT] = {
 		(double) admitt_model_params_local.inertia_x,
 		(double) admitt_model_params_local.inertia_y,
-		1.0
+		(double) admitt_model_params_local.inertia_phi
 	};
 
 	double b_val[N_COORD_EXT] = {
