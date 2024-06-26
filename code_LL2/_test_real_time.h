@@ -41,8 +41,6 @@
 #define VER_L		0x00
 #define VER_P		0x00
 
-// uint64_t ethernet_test_nextTime = 0;
-
 static uint64_t algo_nextTime = 0;
 static uint64_t brakes_nextTime = 0;
 static lowerlimb_sys_info_t LL_sys_info;
@@ -67,9 +65,6 @@ static uint32_t current_sensor_R = 0;
 #define OVERR_DYN_PARAMS_RT			1
 #define OVERR_FORCE_SENSORS_CALIB	0
 #define USE_APP_TCP_IP				1
-
-// Motor torque activation (CRITICAL):
-#define MOTOR_TORQUE_ACTIVE			1
 
 // Assorted timers:
 #define DT_EXPIRE_MSEC				1000

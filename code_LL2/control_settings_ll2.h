@@ -1,7 +1,18 @@
 #ifndef CONTROL_SETTINGS_LL2_
 #define CONTROL_SETTINGS_LL2_
 
-// Trajectory parameters - DEFAULT:
+///////////////////////////////////////////////////////////////////////////////
+// Motor torque activation (CRITICAL):
+///////////////////////////////////////////////////////////////////////////////
+
+#define MOTOR_TORQUE_ACTIVE_CALIB		0
+#define MOTOR_TORQUE_ACTIVE_JOG			0
+#define MOTOR_TORQUE_ACTIVE_EXERCISE	0
+
+///////////////////////////////////////////////////////////////////////////////
+// End-effector trajectory parameters - DEFAULT:
+///////////////////////////////////////////////////////////////////////////////
+
 #define CYCLE_PERIOD_DEF	3.0
 #define EXP_BLEND_TIME		9.0
 #define SEMIAXIS_X_DEF		0.15 // 0.12
@@ -10,7 +21,7 @@
 #define CYCLE_DIR_DEF		1
 #define PHI_INIT            (3*PI/2)
 
-#define TEST_CALIB_RUN		1
+#define TEST_CALIB_RUN		0
 #define V_CALIB				0.08
 #define ALPHA_CALIB         0.1
 
@@ -40,6 +51,8 @@
 #define SCALE_FF		  0.4
 #define SCALE_GCOMP	      1.2
 #define SCALE_F_END_MEAS  1.0
+
+#define SCALE_FB_CALIB  100.0
 
 ///////////////////////////////////////////////////////////////////////////////
 //  Feedback control:
@@ -93,7 +106,7 @@ typedef enum {
 	ActiveTrajectoryCtrl  = 4,
 } exercise_mode_t;
 
-// Exercise mode strings (must match exercise modes enumeration):
+// Exercise mode strings (must match enumeration):
 static char EXERC_MODE_STR[LEN_EXERC_MODE_LIST][LEN_STR_MAX] = {
 	"",
 	"ImpedanceCtrl",
@@ -115,12 +128,31 @@ typedef enum {
 	IsometricTraj  = 3
 } traj_type_t;
 
-// Exercise mode strings (must match exercise modes enumeration):
+// Exercise mode strings (must match enumeration):
 static char TRAJ_TYPE_STR[LEN_TRAJ_TYPE_LIST][LEN_STR_MAX] = {
 	"NULL TRAJ",
 	"ELLIPTICAL TRAJ",
 	"LINEAR TRAJ",
 	"ISOMETRIC TRAJ"
+};
+
+///////////////////////////////////////////////////////////////////////////////
+// Calibration states:
+///////////////////////////////////////////////////////////////////////////////
+
+#define LEN_CALIB_STATE_LIST 3
+
+typedef enum {
+	CalibStateNull   = 0,
+	CalibStateTraj_1 = 1,
+	CalibStateTraj_2 = 2,
+} calib_state_t;
+
+// Calibration state strings (must match enumeration):
+static char CALIB_STATE_STR[LEN_CALIB_STATE_LIST][LEN_STR_MAX] = {
+	"CALIB STATE NULL",
+	"CALIB STATE TRAJ 1",
+	"CALIB STATE TRAJ 2"
 };
 
 ///////////////////////////////////////////////////////////////////////////////

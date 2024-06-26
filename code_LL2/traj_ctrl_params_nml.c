@@ -146,7 +146,7 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 
 void
 traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
-					double p_o[], double p_f[], double v_max, double alpha, uint8_t* initial) {
+					double p_o[], double p_f[], double v_max, double alpha, uint8_t* initial, double* T_f_ref) {
 
 	static int step_int = 0; // relative time reference
 	int c_i;
@@ -178,7 +178,7 @@ traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
 	// Compute relative position and velocity:
 	double dist_rel, v_rel;
 
-	pos_linear_relative(&dist_rel, &v_rel, t, dist_max, v_max, alpha);
+	pos_linear_relative(&dist_rel, &v_rel, t, dist_max, v_max, alpha, T_f_ref);
 
 	// Compute absolute position and velocity:
 	for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
@@ -192,11 +192,12 @@ traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
 }
 
 void
-pos_linear_relative(double* dist_rel, double* v_rel, double t, double dist_max, double v_max, double alpha) {
+pos_linear_relative(double* dist_rel, double* v_rel, double t, double dist_max, double v_max, double alpha, double* T_f_ref) {
+	double T_f;
 
 	if (dist_max > 0 && v_max > 0) {
 		// Final time (relative to t = 0):
-		double T_f = dist_max/(1 - alpha)/v_max;
+		T_f = dist_max/(1 - alpha)/v_max;
 
 		// Acceleration (ramp stage):
 		double a_ramp = v_max/alpha/T_f;
@@ -240,9 +241,12 @@ pos_linear_relative(double* dist_rel, double* v_rel, double t, double dist_max, 
 		}
 	}
 	else {
+		T_f = 0;
 		*v_rel    = 0.0;
 		*dist_rel = 0.0;
 	}
+
+	*T_f_ref = T_f;
 }
 
 

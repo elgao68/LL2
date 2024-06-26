@@ -106,14 +106,15 @@ static char SYS_STATE_STR[LEN_SYS_STATE][LEN_STR_MAX] = {
 
 // activity_state:
 enum {
-	IDLE = 0, CALIB = 1, EXERCISE
+	IDLE = 0, CALIB = 1, EXERCISE = 2, JOG = 3
 };
 
-#define LEN_ACTIV_STATE 3
+#define LEN_ACTIV_STATE 4
 static char ACTIV_STATE_STR[LEN_ACTIV_STATE][LEN_STR_MAX] = {
 	"IDLE",
 	"CALIB",
-	"EXERCISE"
+	"EXERCISE",
+	"JOG"
 };
 
 // general yes or no:
@@ -375,10 +376,11 @@ typedef struct {
 	uint8_t isCalibrated;		//0 = not calibrated. 1 = calibrated
 	uint8_t calib_prot_req; 	//which protocol was requested
 
-	/*returns app status.
-	 1 = preample and postample failed,
-	 2 = incorrect msg type
-	 X = error code - 2, 3 = ERR_GENERAL_NOK*/
+	/* returns app status.
+	1 = preample and postample failed,
+	2 = incorrect msg type
+	X = error code - 2, 3 = ERR_GENERAL_NOK
+	*/
 	uint16_t app_status;
 
 	exercise_mode_t exercise_mode;

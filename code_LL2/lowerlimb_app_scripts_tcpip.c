@@ -72,7 +72,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 	float Fy_offset;
 	*/
 
-	//Force Sensor
+	//Force Sensor:
 	uint32_t force_end_in_x_sensor = 0;
 	uint32_t force_end_in_y_sensor = 0;
 	uint32_t dum_force_end_in_x = 0;
@@ -169,7 +169,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		}
 
 		/////////////////////////////////
-		//error checksum comparison
+		// Error checksum comparison:
 		/////////////////////////////////
 
 		tmp_chksum = 0;
@@ -394,6 +394,10 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 
 		else if (cmd_code == AUTO_CALIB_MODE_CMD) { //enter calibration
 
+			///////////////////////////////////////////////////////////////////////////
+			// Check activity state and other conditions:
+			///////////////////////////////////////////////////////////////////////////
+
 			#if USE_ITM_CMD_CHECK
 				printf("   BEFORE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
@@ -448,12 +452,16 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 					printf("   calib_prot_req: [STOP CALIB]\n\n");
 			#endif
 
+			///////////////////////////////////////////////////////////////////////////
+			// Perform calibration:
+			///////////////////////////////////////////////////////////////////////////
+
 			if (calib_prot_req == CalibEncodersFS) { // Calibrate Both Motors
-				//Reset Encoder
+				// Reset Encoders:
 				qei_count_L_reset();
 				qei_count_R_reset();
 
-				// Zero calib Force Sensor
+				// Zero-calibrate Force Sensor:
 				for (int i = 1; i <= 50; i++) {
 					force_sensors_read(&hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor,
 							&dum_force_end_in_x, &dum_force_end_in_y);
@@ -467,57 +475,20 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 
 				set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
 
-				//send resp
+				// Send calibration response:
 				send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
 
-				// reset activity to IDLE:
+				// Reset activity to IDLE:
 				// set_activity_idle(); // possible bug!
 				lowerlimb_sys_info.activity_state = IDLE;
 			}
 			/*
-			else if (calib_prot_req == CalibEncoders) {	//Calibrate Left Motor
-				qei_count_L_reset();
-				qei_count_R_reset();
+			else if (calib_prot_req == CalibEncoders) {	}
 
-				//send resp
-				send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
-
-				//reset acitivity to IDLE
-				set_activity_idle();
-			}
-			else if (calib_prot_req == CalibForceSensor) {	//Calibrate Right Motor
-				for (int i = 1; i <= 50; i++) {
-					force_sensors_read(&hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor,
-									 &dum_force_end_in_x, &dum_force_end_in_y);
-					force_end_in_x_sensor_f += (float) force_end_in_x_sensor * 3.3f / 4095.0f;
-					force_end_in_y_sensor_f += (float) force_end_in_y_sensor * 3.3f / 4095.0f;
-				}
-
-				force_end_in_x_sensor_f = force_end_in_x_sensor_f / 50.0f;
-				force_end_in_y_sensor_f = force_end_in_y_sensor_f / 50.0f;
-
-				set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
-
-				//send resp
-				send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
-
-				//reset acitivity to IDLE
-				set_activity_idle();
-			}
-			else if (calib_prot_req == AutoCalibEncodersFS) {	//Auto Calibrate Both Axis
-				//To be implemented later
-				send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			}
-
-			else if (calib_prot_req == StopCalib) { // Terminate Calibration
-				// send response
-				send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 0, 0);
-
-				// go back to idle
-				set_activity_idle();
-			}
-			else
-				send_error_msg(cmd_code, ERR_GENERAL_NOK);
+			else if (calib_prot_req == CalibForceSensor) { }
+			else if (calib_prot_req == AutoCalibEncodersFS) { }
+			else if (calib_prot_req == StopCalib) { }
+			else send_error_msg(cmd_code, ERR_GENERAL_NOK);
 			*/
 
 			#if USE_ITM_CMD_CHECK

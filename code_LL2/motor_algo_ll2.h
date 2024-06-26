@@ -189,7 +189,7 @@ uint8_t set_LL_mech_readings(lowerlimb_mech_readings_t* mech, uint64_t current_u
 		uint32_t force_end_in_x, uint32_t force_end_in_y,
 		uint8_t isCalibration);
 
-void set_LL_motor_settings(lowerlimb_motors_settings_t* motors, float force_end[], uint8_t exercise_state);
+void set_LL_motor_settings(lowerlimb_motors_settings_t* motors, float force_end[]);
 
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////

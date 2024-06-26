@@ -28,7 +28,7 @@ typedef struct {
 } traj_ctrl_params_t;
 
 ////////////////////////////////////////////////////////////////////////////////
-// TRAJECTORY CONTROL PARAMS STRUCT - GAO
+// TRAJECTORY CONTROL PARAMS STRUCT - GAO:
 ////////////////////////////////////////////////////////////////////////////////
 
 traj_ctrl_params_t
@@ -59,13 +59,13 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 
 void
 traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
-					double p_o[], double p_f[], double v_max, double alpha, uint8_t* initial);
+					double p_o[], double p_f[], double v_max, double alpha, uint8_t* initial, double* T_f_ref);
 
 void
-pos_linear_relative(double* dist_rel, double* v_rel, double t, double dist_max, double v_max, double alpha);
+pos_linear_relative(double* dist_rel, double* v_rel, double t, double dist_max, double v_max, double alpha, double* T_f_ref);
 
 ////////////////////////////////////////////////////////////////////////////////
-// ANCILLARY FUNCTIONS - GAO
+// ANCILLARY FUNCTIONS - GAO:
 ////////////////////////////////////////////////////////////////////////////////
 
 void
