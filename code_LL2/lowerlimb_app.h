@@ -17,6 +17,7 @@
 #ifndef _LOWERLIMB_TCP_APP_H_
 #define _LOWERLIMB_TCP_APP_H_
 
+#include <_VALIDATE_CMD_CALIB.h>
 #include <control_settings_ll2.h>
 #include <lowerlimb_config.h>
 #include <traj_ctrl_params_nml.h>
@@ -27,6 +28,10 @@
 #include <stdbool.h>
 #include "w5500_app.h"
 #include "transition_mode.h"
+
+// Macros files:
+#include <_VALIDATE_CMD_CALIB.h>
+#include <_VALIDATE_CMD_START_EXE.h>
 
 ///////////////////////////////////////////////////////
 // CONTROL / SIMULATION SETTINGS - GAO
@@ -497,12 +502,12 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
  @retval: 0 = success, 1 = failed
  */
 lowerlimb_sys_info_t lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
-		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy);
+		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last);
 
 // Template function for the firmware state machine:
 lowerlimb_sys_info_t lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
-		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy,
-		uint8_t* calib_fsens_on, uint8_t* calib_enc_on);
+		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
+		uint8_t* calib_enc_on);
 
 ///////////////////////////////////////////////////////////////////////
 // Helper functions:

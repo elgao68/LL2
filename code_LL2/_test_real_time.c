@@ -155,7 +155,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// State variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	uint16_t cmd_code  = 0, cmd_code_prev = 0;
+	uint16_t cmd_code  = 0, cmd_code_prev_to_last = 0;
 	uint8_t  app_state = 0;
 	bool brake_cmd;
 
@@ -218,9 +218,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	}
 
 	#if USE_ITM_OUT_RT_CHECK
-		printf("\n");
-		printf("test_real_time():\n");
-		printf("\n");
+		printf("test_real_time():\n\n");
 		printf("K_lq_xv_nml:\n");
 		for (r_i = 0; r_i < K_lq_xv_nml->num_rows; r_i++) {
 			for (c_i = 0; c_i < K_lq_xv_nml->num_cols; c_i++)
@@ -292,7 +290,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Template function for the firmware state machine:
 				LL_sys_info = lowerlimb_app_state_tcpip(Read_Haptic_Button(), motor_alert,
 						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
-						&calib_fsens_on, &calib_enc_on);
+						&calib_enc_on);
 			#else
 				LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
 						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
@@ -368,7 +366,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						 traj_type = EllipticalTraj;
 
 					#if USE_ITM_OUT_RT_CHECK
-						printf("\n");
 						printf("   test_real_time: traj_type = [%s]\n\n", TRAJ_TYPE_STR[traj_type]);
 					#endif
 
@@ -521,9 +518,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				else if (LL_sys_info.activity_state == CALIB) {
 
 					#if USE_ITM_OUT_RT_CHECK
-						if (cmd_code != cmd_code_prev) {
-							printf("\n");
-							printf("   test_real_time(): cmd_code_prev = [%s], cmd_code = [%s]\n\n", CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
+						if (cmd_code != cmd_code_prev_to_last) {
+							printf("   test_real_time(): cmd_code_prev = [%s], cmd_code = [%s]\n\n", CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
 						}
 					#endif
 
@@ -541,7 +537,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
 
 						#if USE_ITM_OUT_RT_CHECK
-							printf("\n");
 							printf("   test_real_time(): calib_state  = [%s] \n", CALIB_STATE_STR[CalibStateTraj_1]);
 							printf("                     calib_enc_on = [%d] \n\n", calib_enc_on);
 						#endif
@@ -869,7 +864,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Safety catch: reset integral error
 				err_int_pos[IDX_X] = 0;
 				err_int_pos[IDX_Y] = 0;
-
 			}
 
 			///////////////////////////////////////////////////////////////////////////////
@@ -884,8 +878,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// ITM console output:
 			///////////////////////////////////////////////////////////////////////////////
 
-			/*
-			#if USE_ITM_OUT_RT_CHECK
+			#if USE_ITM_OUT_RT_CHECK_LONG
 				if (rt_step_i % (DT_DISP_MSEC_REALTIME/DT_STEP_MSEC) == 0) {
 					// Check uptime after computations:
 					up_time_end = getUpTime();
@@ -916,21 +909,19 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					// printf("   \t\t\t\t\tvolt[LEFT, RIGHT]    = [%3.3f, %3.3f] \n", LL_motors_settings.left.volt,    LL_motors_settings.right.volt);
 
 					printf("   \t\t\t\t\tdac_in[LEFT, RIGHT]  = [%i, %i] \n",         LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
-					printf("   \t\t\t\t\tt_calib  = [%3.2f], T_f_calib = [%3.2f], calib_enc_on = [%d], cmd_code_prev = [%s], cmd_code = [%s] \n",
-							t_calib, T_f_calib, calib_enc_on, CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
+					printf("   \t\t\t\t\tt_calib  = [%3.2f], T_f_calib = [%3.2f], calib_enc_on = [%d], cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
+							t_calib, T_f_calib, calib_enc_on, CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
 					printf("   \t\t\t\t\tLL_sys_info.activity_state = [%s] \n",       ACTIV_STATE_STR[LL_sys_info.activity_state]);
 					printf("\n");
-
 				}
 			#endif
-			*/
 
 			///////////////////////////////////////////////////////////////////////////////
 			// Increase real-time step counter:
 			///////////////////////////////////////////////////////////////////////////////
 
 			// Check command code values:
-			cmd_code_prev = cmd_code;
+			cmd_code_prev_to_last = cmd_code;
 
 			rt_step_i++;
 

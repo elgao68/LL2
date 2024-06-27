@@ -73,6 +73,7 @@ static uint32_t current_sensor_R = 0;
 
 // ITM Data Console switches:
 #define USE_ITM_OUT_RT_CHECK		1
+#define USE_ITM_OUT_RT_CHECK_LONG	0
 #define USE_ITM_OUT_GUI_PARAMS		0
 #define USE_ITM_TCP_CHECK		    0
 
