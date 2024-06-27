@@ -95,13 +95,13 @@ static char CMD_STR[LEN_CMD_LIST][LEN_STR_MAX] = {
 
 // system_state:
 enum {
-	OFF = 0, ON
+	SYS_OFF = 0, SYS_ON = 1
 };
 
 #define LEN_SYS_STATE 2
 static char SYS_STATE_STR[LEN_SYS_STATE][LEN_STR_MAX] = {
-	"OFF",
-	"ON"
+	"SYS_OFF",
+	"SYS_ON"
 };
 
 // activity_state:
@@ -162,7 +162,7 @@ typedef enum {
 } Calib_protocol;
 
 
-#define LEN_CALIB_MODES 4
+#define LEN_CALIB_MODES 5
 static char CALIB_MODE_STR[LEN_CALIB_MODES][LEN_STR_MAX] = {
 	" ",
 	"CalibEncoders",
@@ -434,6 +434,10 @@ static uint8_t POSTAMP_TCP[2] = { 0x68, 0x6D };
 // Messaging functions:
 ///////////////////////////////////////////////////////
 
+uint8_t is_valid_w5500_msg(uint8_t tcp_rx_data[]);
+
+uint8_t is_valid_cmd_code(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status);
+
 /**
  @brief: Send calibration response message
  @param[in]: actProto = current active calibration protocol
@@ -514,6 +518,7 @@ void reset_lowerlimb_sys_info(void);
 uint8_t valid_app_status(uint8_t property, uint8_t value, uint16_t* app_status, uint16_t cmd_code, uint16_t ERR_CODE, uint16_t err_offset);
 // void clear_lowerlimb_targs_params(void);
 uint8_t update_unix_time(void);
+void update_operation_state(uint8_t* operation_state, uint8_t ui8EBtnState, uint8_t ui8Alert);
 uint8_t set_unix_time(uint64_t tmp_unix);
 uint8_t set_system_on(void);
 uint8_t set_system_off(void);

@@ -20,8 +20,8 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy,
 		uint8_t* calib_fsens_on, uint8_t* calib_enc_on ) {
 
-	uint16_t n_cnt     = 0;
-	uint8_t tmp_chksum = 0;
+	// uint16_t n_cnt     = 0; // delete
+	// uint8_t tmp_chksum = 0; // delete
 	uint8_t tmp_index  = 0;
 	uint8_t tmp_chk    = 0;
 
@@ -33,16 +33,16 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 	uint8_t tmp_resp_msg[465];
 	//int16_t i6TmpQEIL, i6TmpQEIR;
 
-	//Constants & Variables for parsing index
-	const uint8_t startByte0_index = 0;
-	const uint8_t startByte1_index = 1;
-	const uint8_t msgId_index = 2;
+	// Constants & Variables for parsing index:
+	// const uint8_t startByte0_index = 0; // delete
+	// const uint8_t startByte1_index = 1; // delete
+	// const uint8_t msgId_index = 2; // delete
 	const uint8_t cmdCode_index = 3;
 	const uint8_t payloadLen_index = 5;
 	const uint8_t payloadStart_index = 7;
-	uint8_t checkSum_index;
-	uint8_t endByte0_index;
-	uint8_t endByte1_index;
+	// uint8_t checkSum_index; // delete
+	// uint8_t endByte0_index; // delete
+	// uint8_t endByte1_index; // delete
 
 	uint8_t rx_payload_index = payloadStart_index;
 	// uint16_t resp_payload_index = 0;
@@ -60,24 +60,32 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 	static int step_i = 0;
 
 	// Auxiliary variables:
-	#if USE_ITM_CMD_CHECK
-		uint8_t idx_exerc_mode  = lowerlimb_sys_info.exercise_mode;
-
-		uint8_t idx_sys_state   = lowerlimb_sys_info.system_state;
-		uint8_t idx_activ_state = lowerlimb_sys_info.activity_state;
-		uint8_t idx_exerc_state = lowerlimb_sys_info.exercise_state;
-	#endif
-
+	uint8_t is_valid_msg = 0;
+	uint8_t is_valid_cmd = 0;
 	static uint8_t stop_exe_cmd_count = 0; // stop command counter - this is used to accommodate the SLOWING case
 
-	// Reset:
-	lowerlimb_sys_info.app_status = 0;
-	lowerlimb_sys_info.calib_prot_req = 0;
+	// Display variables:
+	#if USE_ITM_CMD_CHECK
+		uint8_t idx_exerc_mode;
+		uint8_t idx_sys_state;
+		uint8_t idx_activ_state;
+		uint8_t idx_exerc_state;
+	#endif
 
 	////////////////////////////////////
-	// update system operation status
+	// Reset lower-limb system info:
 	////////////////////////////////////
 
+	lowerlimb_sys_info.app_status    = 0; // delete
+	// lowerlimb_sys_info.calib_prot_req = 0; // delete
+
+	////////////////////////////////////
+	// Update system operation status:
+	////////////////////////////////////
+
+	update_operation_state(&lowerlimb_sys_info.operation_state, ui8EBtnState, ui8Alert);
+
+	/*
 	if (lowerlimb_sys_info.operation_state == 0)
 		lowerlimb_sys_info.operation_state |= OPS_STATUS_NORMAL_MASK;
 
@@ -93,25 +101,26 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		lowerlimb_sys_info.operation_state |= OPS_STATUS_EBTN_PRESSED_MASK;
 	else
 		lowerlimb_sys_info.operation_state &= ~OPS_STATUS_EBTN_PRESSED_MASK;
+	*/
 
 	////////////////////////////////////
-	//Update local Unix time
+	// Update local Unix time:
 	////////////////////////////////////
 
 	update_unix_time();
 
 	////////////////////////////////////
-	// Check if TCP connected
+	// Check if TCP connected:
 	////////////////////////////////////
 
-	if (isTCPConnected() == 0) { //disconnected
-		//set activity to IDLE
+	if (isTCPConnected() == 0) {
+		// set activity to IDLE
 		set_activity_idle();
 
-		//set exercise_state to STOPPED
+		// set exercise_state to STOPPED
 		stop_exercise(LL_motors_settings);
 
-		//set system state to OFF
+		// set system state to OFF
 		set_system_off();
 
 		return lowerlimb_sys_info;
@@ -121,83 +130,169 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 	// Parsing and executing TCP messages
 	////////////////////////////////////
 
-	//check if there's new message
+	// Check if there's new message:
 	if (ethernet_w5500_new_rcv_data()) {
-
-		/////////////////////////////////
-		//get tcp data
-		/////////////////////////////////
-
 		memset(tcpRxData, 0, sizeof(tcpRxData));
-		tcpRxLen = ethernet_w5500_rcv_data(tcpRxData);
+		is_valid_msg = is_valid_w5500_msg(tcpRxData);
+	}
+	else
+		return lowerlimb_sys_info;
 
-		checkSum_index = tcpRxLen - 4;
-		endByte0_index = tcpRxLen - 3;
-		endByte1_index = tcpRxLen - 2;
+	////////////////////////////////////////////////////////////////////////////////
+	// Parse command code & payload:
+	////////////////////////////////////////////////////////////////////////////////
 
-		//check for preample and postample
-		if (	tcpRxData[startByte0_index] != PREAMP_TCP[0]  ||
-				tcpRxData[startByte1_index] != PREAMP_TCP[1]  ||
-				tcpRxData[endByte0_index]   != POSTAMP_TCP[0] ||
-				tcpRxData[endByte1_index]   != POSTAMP_TCP[1] ) {
-			lowerlimb_sys_info.app_status = 1;
-			return lowerlimb_sys_info;
-		}
-
-		/////////////////////////////////
-		// Error checksum comparison:
-		/////////////////////////////////
-
-		tmp_chksum = 0;
-		for (n_cnt = 2; n_cnt < checkSum_index; n_cnt++) {
-			tmp_chksum ^= tcpRxData[n_cnt];
-		}
-
-		if (tmp_chksum != tcpRxData[checkSum_index]) { //failed comparison
-			send_error_msg(cmd_code, ERR_CHECKSUM_FAILED);
-			lowerlimb_sys_info.app_status = ERR_CHECKSUM_FAILED + 3;
-			return lowerlimb_sys_info;
-		}
-
-		/////////////////////////////////
-		//check if command message. Rest is discarded
-		/////////////////////////////////
-
-		if (tcpRxData[msgId_index] != CMD_MSG_TYPE) {
-			lowerlimb_sys_info.app_status = 2;
-			return lowerlimb_sys_info;
-		}
-
-		////////////////////////////////////////////////////////////////////////////////
-		// Parse command code:
-		////////////////////////////////////////////////////////////////////////////////
-
+	if (is_valid_msg) {
 		cmd_code = ((uint16_t) tcpRxData[cmdCode_index] << 8) +
-                    (uint16_t) tcpRxData[cmdCode_index + 1];
-
-		*cmd_code_copy = cmd_code;
+					(uint16_t) tcpRxData[cmdCode_index + 1];
 
 		rxPayload = ((uint16_t) tcpRxData[payloadLen_index] << 8) +
-	                 (uint16_t) tcpRxData[payloadLen_index + 1];
+					 (uint16_t) tcpRxData[payloadLen_index + 1];
+	}
+	else
+		return lowerlimb_sys_info;
 
-		////////////////////////////////////////////////////////////////////////////////
-		// Console output:
-		////////////////////////////////////////////////////////////////////////////////
+	*cmd_code_copy = cmd_code;
 
-		#if USE_ITM_CMD_CHECK
-			if (cmd_code != cmd_code_prev) {
-				printf("\n");
-				printf("   lowerlimb_app_state_tcpip():\n");
-				printf("   ON ethernet_w5500_new_rcv_data(): step_i [%d], cmd_code_prev = [%s], cmd_code = [%s]\n\n", step_i, CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
-				cmd_code_prev = cmd_code;
-			}
-			step_i++;
-		#endif
+	// Console output:
+	/*
+	#if USE_ITM_CMD_CHECK
+		if (cmd_code != cmd_code_prev) {
+			printf("\n");
+			printf("   lowerlimb_app_state_tcpip():\n");
+			printf("   ON ethernet_w5500_new_rcv_data(): step_i [%d], cmd_code_prev = [%s], cmd_code = [%s]\n\n", step_i, CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
 
-	    ////////////////////////////////////////////////////////////////////////////////
-		// VALIDATE PAYLOAD SIZES:
-	    ////////////////////////////////////////////////////////////////////////////////
+		}
+		step_i++;
+	#endif
+	*/
 
+	////////////////////////////////////////////////////////////////////////////////
+	// VALIDATE COMMAND CODE:
+	////////////////////////////////////////////////////////////////////////////////
+
+	is_valid_cmd = is_valid_cmd_code(cmd_code, rxPayload,
+			lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status);
+
+	if (!is_valid_cmd)
+		return lowerlimb_sys_info;
+
+	// Console output:
+	#if USE_ITM_CMD_CHECK
+		idx_exerc_mode  = lowerlimb_sys_info.exercise_mode;
+		idx_sys_state   = lowerlimb_sys_info.system_state;
+		idx_activ_state = lowerlimb_sys_info.activity_state;
+		idx_exerc_state = lowerlimb_sys_info.exercise_state;
+	#endif
+
+	/*
+	// Payload size: 1
+	if (cmd_code == START_SYS_CMD		||
+		cmd_code == BRAKES_CMD			||
+		cmd_code == AUTO_CALIB_MODE_CMD ||
+		cmd_code == STOP_SYS_CMD		||
+		cmd_code == STOP_EXE_CMD		||
+		cmd_code == RESET_SYS_CMD		||
+		cmd_code == READ_DEV_ID_CMD		||
+		cmd_code == READ_SYS_INFO_CMD 	||
+		cmd_code == PAUSE_EXE_CMD		||
+		cmd_code == TOGGLE_SAFETY_CMD
+		)
+			if (!valid_app_status(rxPayload, 1,
+				&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
+					return lowerlimb_sys_info;
+
+	// Payload size:
+	// else if () { }
+
+	////////////////////////////////////////////////////////////////////////////////
+	// CHECK IF SYSTEM IS ACTIVE:
+	////////////////////////////////////////////////////////////////////////////////
+
+	if (cmd_code == BRAKES_CMD           ||
+		cmd_code == AUTO_CALIB_MODE_CMD  ||
+		cmd_code == START_RESUME_EXE_CMD ||
+		cmd_code == STOP_EXE_CMD		 ||
+		cmd_code == PAUSE_EXE_CMD        ||
+		cmd_code == TOGGLE_SAFETY_CMD    ||
+		cmd_code == SET_CTRLPARAMS       ||
+		cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
+		cmd_code == SET_TARG_PARAM_ADMCTRL_CMD   ||
+		cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD
+		)
+			if (!valid_app_status(lowerlimb_sys_info.system_state, ON,
+				&lowerlimb_sys_info.app_status, cmd_code, ERR_SYSTEM_OFF, ERR_OFFSET))
+					return lowerlimb_sys_info;
+
+	////////////////////////////////////////////////////////////////////////////////
+	// VALIDATE CONTROL MODES:
+	////////////////////////////////////////////////////////////////////////////////
+
+	uint8_t exercise_mode = 0;
+
+	if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD)
+		exercise_mode = PassiveTrajectoryCtrl;
+	else if (cmd_code == SET_TARG_PARAM_ADMCTRL_CMD)
+		exercise_mode = AdmittanceCtrl;
+	else if (cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD)
+		exercise_mode = ActiveTrajectoryCtrl;
+
+	if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
+		cmd_code == SET_TARG_PARAM_ADMCTRL_CMD   ||
+		cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD) {
+			if (!valid_app_status(lowerlimb_sys_info.activity_state, IDLE,
+				&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
+					return lowerlimb_sys_info;
+
+			if (!valid_app_status(lowerlimb_sys_info.activity_state, CALIB,
+				&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
+					return lowerlimb_sys_info;
+
+			if (lowerlimb_sys_info.activity_state == EXERCISE) {
+				if (!valid_app_status(lowerlimb_sys_info.exercise_mode, exercise_mode,
+						&lowerlimb_sys_info.app_status, cmd_code, ERR_INVALID_EXERCISE_MODE, ERR_OFFSET))
+							return lowerlimb_sys_info;
+		}
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+	// VALIDATE SYS COMMANDS:
+	////////////////////////////////////////////////////////////////////////////////
+
+	if (cmd_code == START_SYS_CMD) { //start system
+		// Succeeded to set system ON
+		if (!valid_app_status(lowerlimb_sys_info.system_state, OFF,
+			&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
+				return lowerlimb_sys_info;
+	}
+
+	if (cmd_code == STOP_SYS_CMD) { //stop system
+		if (!valid_app_status(lowerlimb_sys_info.system_state, ON,
+			&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
+				return lowerlimb_sys_info;
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+	// VALIDATE STOP COMMANDS:
+	////////////////////////////////////////////////////////////////////////////////
+
+	if (cmd_code == STOP_EXE_CMD ||	cmd_code == SET_CTRLPARAMS)
+		if (	!valid_app_status(lowerlimb_sys_info.activity_state, CALIB,
+					&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET)
+			||	!valid_app_status(lowerlimb_sys_info.activity_state, IDLE,
+					&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET)
+			||  !valid_app_status(lowerlimb_sys_info.exercise_state, STOPPED,
+					&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) )
+				return lowerlimb_sys_info;
+	*/
+
+		///////////////////////////////////////////////////////////////////////////
+		///////////////////////////////////////////////////////////////////////////
+		// EXECUTE COMMAND CODE:
+		///////////////////////////////////////////////////////////////////////////
+		///////////////////////////////////////////////////////////////////////////
+
+		// Command codes in use:
 		/*
 		CMD 01: START_SYS_CMD
 		CMD 02: BRAKES_CMD
@@ -205,111 +300,6 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		CMD 04: START_RESUME_EXE_CMD
 		CMD 05: STOP_EXE_CMD
 		CMD 06: STOP_SYS_CMD
-		*/
-
-		// Payload size: 1
-		if (cmd_code == START_SYS_CMD		||
-			cmd_code == BRAKES_CMD			||
-			cmd_code == AUTO_CALIB_MODE_CMD ||
-			cmd_code == STOP_SYS_CMD		||
-			cmd_code == STOP_EXE_CMD
-			/*
-			cmd_code == RESET_SYS_CMD		||
-			cmd_code == READ_DEV_ID_CMD		||
-			cmd_code == READ_SYS_INFO_CMD 	||
-			cmd_code == PAUSE_EXE_CMD		||
-			cmd_code == TOGGLE_SAFETY_CMD
-			*/
-			)
-				if (!valid_app_status(rxPayload, 1,
-					&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
-						return lowerlimb_sys_info;
-
-		// Payload size:
-		// else if () { }
-
-	    ////////////////////////////////////////////////////////////////////////////////
-		// CHECK IF SYSTEM IS ACTIVE:
-	    ////////////////////////////////////////////////////////////////////////////////
-
-		if (cmd_code == BRAKES_CMD           ||
-			cmd_code == AUTO_CALIB_MODE_CMD  ||
-			cmd_code == START_RESUME_EXE_CMD ||
-			cmd_code == STOP_EXE_CMD
-			/*
-			cmd_code == PAUSE_EXE_CMD        ||
-			cmd_code == TOGGLE_SAFETY_CMD    ||
-			cmd_code == SET_CTRLPARAMS       ||
-			cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
-			cmd_code == SET_TARG_PARAM_ADMCTRL_CMD   ||
-			cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD
-			*/
-			)
-				if (!valid_app_status(lowerlimb_sys_info.system_state, ON,
-					&lowerlimb_sys_info.app_status, cmd_code, ERR_SYSTEM_OFF, ERR_OFFSET))
-						return lowerlimb_sys_info;
-
-	    ////////////////////////////////////////////////////////////////////////////////
-		// VALIDATE CONTROL MODES:
-		////////////////////////////////////////////////////////////////////////////////
-
-		uint8_t exercise_mode = 0;
-
-		if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD)
-			exercise_mode = PassiveTrajectoryCtrl;
-		else if (cmd_code == SET_TARG_PARAM_ADMCTRL_CMD)
-			exercise_mode = AdmittanceCtrl;
-		else if (cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD)
-			exercise_mode = ActiveTrajectoryCtrl;
-
-		if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
-			cmd_code == SET_TARG_PARAM_ADMCTRL_CMD   ||
-			cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD) {
-				if (!valid_app_status(lowerlimb_sys_info.activity_state, IDLE,
-					&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
-						return lowerlimb_sys_info;
-
-				if (!valid_app_status(lowerlimb_sys_info.activity_state, CALIB,
-					&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
-						return lowerlimb_sys_info;
-
-				if (lowerlimb_sys_info.activity_state == EXERCISE) {
-					if (!valid_app_status(lowerlimb_sys_info.exercise_mode, exercise_mode,
-							&lowerlimb_sys_info.app_status, cmd_code, ERR_INVALID_EXERCISE_MODE, ERR_OFFSET))
-								return lowerlimb_sys_info;
-			}
-		}
-
-	    ////////////////////////////////////////////////////////////////////////////////
-		// VALIDATE SYS COMMANDS:
-	    ////////////////////////////////////////////////////////////////////////////////
-
-		/*
-		if (cmd_code == START_SYS_CMD) { //start system
-			// Succeeded to set system ON
-			if (!valid_app_status(lowerlimb_sys_info.system_state, OFF,
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
-					return lowerlimb_sys_info;
-		}
-
-		if (cmd_code == STOP_SYS_CMD) { //stop system
-			if (!valid_app_status(lowerlimb_sys_info.system_state, ON,
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
-					return lowerlimb_sys_info;
-		}
-
-	    ////////////////////////////////////////////////////////////////////////////////
-		// VALIDATE STOP COMMANDS:
-	    ////////////////////////////////////////////////////////////////////////////////
-
-		if (cmd_code == STOP_EXE_CMD ||	cmd_code == SET_CTRLPARAMS)
-			if (	!valid_app_status(lowerlimb_sys_info.activity_state, CALIB,
-						&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET)
-				||	!valid_app_status(lowerlimb_sys_info.activity_state, IDLE,
-						&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET)
-				||  !valid_app_status(lowerlimb_sys_info.exercise_state, STOPPED,
-						&lowerlimb_sys_info.app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) )
-					return lowerlimb_sys_info;
 		*/
 
 		///////////////////////////////////////////////////////////////////////////
@@ -320,11 +310,15 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 
 			reset_lowerlimb_sys_info();
 
-			lowerlimb_sys_info.system_state = ON;
+			lowerlimb_sys_info.system_state   = SYS_ON;
 			lowerlimb_sys_info.activity_state = IDLE;
 			lowerlimb_sys_info.exercise_state = STOPPED;
 
 			send_OK_resp(cmd_code);
+
+			#if USE_ITM_CMD_CHECK
+				printf("   [START_SYS_CMD]: lowerlimb_sys_info.system_state = [%s]\n\n", SYS_STATE_STR[lowerlimb_sys_info.system_state]);
+			#endif
 		}
 
 		///////////////////////////////////////////////////////////////////////////
@@ -332,8 +326,15 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		///////////////////////////////////////////////////////////////////////////
 
 		else if (cmd_code == BRAKES_CMD) {
+
 			#if USE_ITM_CMD_CHECK
-				printf("   BRAKES_CMD data: [%d]\n", tcpRxData[rx_payload_index]);
+				printf("   [ BRAKES_CMD] \n");
+				printf("   BEFORE: \n");
+				printf("   system_state = [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("\n");
+				printf("   BRAKES_CMD data: [%d]\n\n", tcpRxData[rx_payload_index]);
 			#endif
 
 			if (tcpRxData[rx_payload_index] == 0x01) {
@@ -369,6 +370,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		else if (cmd_code == AUTO_CALIB_MODE_CMD) { //enter calibration
 
 			#if USE_ITM_CMD_CHECK
+				printf("   [AUTO_CALIB_MODE_CMD] \n");
 				printf("   BEFORE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
@@ -439,9 +441,10 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 			}
 
 			///////////////////////////////////////////////////////////////////////////
-			// Obtain calibration requisites:
+			// Obtain calibration requisites (TODO: delete at a later date):
 			///////////////////////////////////////////////////////////////////////////
 
+			/*
 			lowerlimb_sys_info.calib_prot_req = tcpRxData[rx_payload_index];
 
 			#if USE_ITM_CMD_CHECK
@@ -450,6 +453,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 				else if (lowerlimb_sys_info.calib_prot_req == StopCalib)
 					printf("   lowerlimb_sys_info.calib_prot_req: [STOP CALIB]\n\n");
 			#endif
+			*/
 
 			///////////////////////////////////////////////////////////////////////////
 			// Perform calibration per requisites in lowerlimb_sys_info.:
@@ -511,13 +515,6 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 					#endif
 				}
 			}
-			/*
-			else if (lowerlimb_sys_info.calib_prot_req == CalibEncoders) {	}
-			else if (lowerlimb_sys_info.calib_prot_req == CalibForceSensor) { }
-			else if (lowerlimb_sys_info.calib_prot_req == AutoCalibEncodersFS) { }
-			else if (lowerlimb_sys_info.calib_prot_req == StopCalib) { }
-			else send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			*/
 		}
 
 		///////////////////////////////////////////////////////////////////////////
@@ -527,6 +524,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		else if (cmd_code == START_RESUME_EXE_CMD) {
 
 			#if USE_ITM_CMD_CHECK
+				printf("   [START_RESUME_EXE_CMD]: \n");
 				printf("   BEFORE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
@@ -644,6 +642,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		else if (cmd_code == STOP_EXE_CMD) { //stop exercise
 
 			#if USE_ITM_CMD_CHECK
+				printf("   [USE_ITM_CMD_CHECK]: \n");
 				printf("   BEFORE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
@@ -691,202 +690,13 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		///////////////////////////////////////////////////////////////////////////
 
 		else if (cmd_code == STOP_SYS_CMD) { //stop system
-			lowerlimb_sys_info.system_state   = OFF;
+			lowerlimb_sys_info.system_state   = SYS_OFF;
 			lowerlimb_sys_info.activity_state = IDLE;
 			lowerlimb_sys_info.exercise_state = STOPPED;
 
 			//Reset brake command
 			lowerlimb_brakes_command.l_brake_disengage = false;
 			lowerlimb_brakes_command.r_brake_disengage = false;
-
-			send_OK_resp(cmd_code);
-		}
-
-		///////////////////////////////////////////////////////////////////////////
-		// OTHER COMMANDS:
-		///////////////////////////////////////////////////////////////////////////
-
-		/*
-		else if (cmd_code == SET_UNIX_CMD) { //set unix
-
-			//pack UNIX
-			ui64_tmp = 0;
-			memcpy_msb(&ui64_tmp, &tcpRxData[payloadStart_index], sizeof(lowerlimb_sys_info.unix));
-
-			//check if UNIX is valid
-			if (!valid_app_status(set_unix_time(ui64_tmp), 0,
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_INVALID_UNIX, ERR_OFFSET))
-					return lowerlimb_sys_info;
-
-			send_OK_resp(cmd_code);
-		}
-
-		else if (cmd_code == RESET_SYS_CMD) { //restart system
-
-			HAL_Delay(100); //wait for msg to be transmitted
-			HAL_NVIC_SystemReset(); //reset MCU
-
-			send_OK_resp(cmd_code);
-		}
-
-		else if (cmd_code == READ_DEV_ID_CMD) { //read device ID
-			// send resp message with device ID
-			send_resp_msg(cmd_code, lowerlimb_sys_info.device_id, sizeof(lowerlimb_sys_info.device_id));
-		}
-
-		else if (cmd_code == READ_SYS_INFO_CMD) { //read system info
-			// pack data
-			send_lowerlimb_sys_info(&lowerlimb_sys_info, tmp_resp_msg, cmd_code);
-		}
-
-		else if (cmd_code == PAUSE_EXE_CMD) { //pause exercise
-
-			// only can paused if exercise_state is in RUNNING mode:
-			if (lowerlimb_sys_info.activity_state == EXERCISE &&
-				lowerlimb_sys_info.exercise_state == RUNNING) {
-					lowerlimb_sys_info.exercise_state = PAUSED;
-					// send OK resp
-					send_OK_resp(cmd_code);
-			}
-			else {
-				// return error message
-				send_error_msg(cmd_code, ERR_EXERCISE_NOT_RUNNING);
-				lowerlimb_sys_info.app_status = ERR_EXERCISE_NOT_RUNNING + 3;
-				return lowerlimb_sys_info;
-			}
-		}
-
-		else if (cmd_code == TOGGLE_SAFETY_CMD) { //enable/disable safety features
-
-			lowerlimb_sys_info.safetyOFF = tcpRxData[rx_payload_index];
-
-			send_OK_resp(cmd_code);
-		}
-
-		////////////////////////////////////////////////////////////////////////////////
-		// SET CONTROL GAINS:
-		////////////////////////////////////////////////////////////////////////////////
-
-		else if (cmd_code == SET_CTRLPARAMS) {
-
-			// Assign control parameter values:
-			memcpy_msb(&fbgain, &tcpRxData[rx_payload_index], sizeof(fbgain));
-			rx_payload_index += sizeof(fbgain);
-			memcpy_msb(&ffgain, &tcpRxData[rx_payload_index], sizeof(ffgain));
-			rx_payload_index += sizeof(ffgain);
-			memcpy_msb(&compgain, &tcpRxData[rx_payload_index], sizeof(compgain));
-
-			// Set control parameters
-			configure_ctrl_params(fbgain, ffgain, compgain);
-
-			send_OK_resp(cmd_code);
-		}
-
-		////////////////////////////////////////////////////////////////////////////////
-		// SET PASSIVE TRAJECTORY CONTROL PARAMS:
-		////////////////////////////////////////////////////////////////////////////////
-
-		else if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD) {
-
-			// Assign control parameter values:
-			memcpy_msb(&cycle_period, &tcpRxData[rx_payload_index],
-					   sizeof(cycle_period));
-			rx_payload_index += sizeof(cycle_period);
-			memcpy_msb(&exp_blending_time, &tcpRxData[rx_payload_index],
-					   sizeof(exp_blending_time));
-			rx_payload_index += sizeof(exp_blending_time);
-			memcpy_msb(&semiaxis_x, &tcpRxData[rx_payload_index],
-					   sizeof(semiaxis_x));
-			rx_payload_index += sizeof(semiaxis_x);
-			memcpy_msb(&semiaxis_y, &tcpRxData[rx_payload_index],
-					   sizeof(semiaxis_y));
-			rx_payload_index += sizeof(semiaxis_y);
-			memcpy_msb(&rot_angle, &tcpRxData[rx_payload_index], sizeof(rot_angle));
-			rx_payload_index += sizeof(rot_angle);
-			cycle_dir = tcpRxData[rx_payload_index];
-
-			#if SET_CTRL_PARAMETERS
-				//Set passive trajectory control parameters:
-				*traj_ctrl_params = set_traj_ctrl_params(cycle_period, exp_blending_time,
-						semiaxis_x, semiaxis_y, rot_angle, cycle_dir);
-			#endif
-
-			lowerlimb_sys_info.exercise_state = RUNNING;
-
-			send_OK_resp(cmd_code);
-		}
-
-		////////////////////////////////////////////////////////////////////////////////
-		// SET ADMITTANCE CONTROL PARAMS:
-		////////////////////////////////////////////////////////////////////////////////
-
-		else if (cmd_code == SET_TARG_PARAM_ADMCTRL_CMD) { // rxPayload 65
-
-			// Assign control parameter values:
-			memcpy_msb(&inertia_x, &tcpRxData[rx_payload_index], sizeof(inertia_x));
-			rx_payload_index += sizeof(inertia_x);
-			memcpy_msb(&inertia_y, &tcpRxData[rx_payload_index], sizeof(inertia_y));
-			rx_payload_index += sizeof(inertia_y);
-			memcpy_msb(&damping, &tcpRxData[rx_payload_index], sizeof(damping));
-			rx_payload_index += sizeof(damping);
-			memcpy_msb(&stiffness, &tcpRxData[rx_payload_index], sizeof(stiffness));
-			rx_payload_index += sizeof(stiffness);
-			memcpy_msb(&p_eq_x, &tcpRxData[rx_payload_index], sizeof(p_eq_x));
-			rx_payload_index += sizeof(p_eq_x);
-			memcpy_msb(&p_eq_y, &tcpRxData[rx_payload_index], sizeof(p_eq_y));
-			rx_payload_index += sizeof(p_eq_y);
-			memcpy_msb(&Fx_offset, &tcpRxData[rx_payload_index], sizeof(Fx_offset));
-			rx_payload_index += sizeof(Fx_offset);
-			memcpy_msb(&Fy_offset, &tcpRxData[rx_payload_index], sizeof(Fy_offset));
-			rx_payload_index += sizeof(Fy_offset);
-
-			#if SET_CTRL_PARAMETERS
-				//Set admittance control params:
-				*admitt_model_params = set_admitt_model_params(inertia_x, inertia_y, damping,
-						stiffness, p_eq_x, p_eq_y);
-			#endif
-
-			lowerlimb_sys_info.exercise_state = RUNNING;
-
-			send_OK_resp(cmd_code);
-		}
-
-		////////////////////////////////////////////////////////////////////////////////
-		// SET ACTIVE TRAJECTORY CONTROL PARAMS:
-		////////////////////////////////////////////////////////////////////////////////
-
-		else if (cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD) {
-
-			// Assign control parameter values:
-			memcpy_msb(&cycle_period, &tcpRxData[rx_payload_index],
-					   sizeof(cycle_period));
-			rx_payload_index += sizeof(cycle_period);
-			memcpy_msb(&exp_blending_time, &tcpRxData[rx_payload_index],
-					   sizeof(exp_blending_time));
-			rx_payload_index += sizeof(exp_blending_time);
-			memcpy_msb(&inertia_x, &tcpRxData[rx_payload_index], sizeof(inertia_x));
-			rx_payload_index += sizeof(inertia_x);
-			memcpy_msb(&inertia_y, &tcpRxData[rx_payload_index], sizeof(inertia_y));
-			rx_payload_index += sizeof(inertia_y);
-			memcpy_msb(&damping, &tcpRxData[rx_payload_index], sizeof(damping));
-			rx_payload_index += sizeof(damping);
-			memcpy_msb(&stiffness, &tcpRxData[rx_payload_index], sizeof(stiffness));
-			rx_payload_index += sizeof(stiffness);
-			memcpy_msb(&F_assist_resist, &tcpRxData[rx_payload_index],
-					   sizeof(F_assist_resist));
-			rx_payload_index += sizeof(F_assist_resist);
-
-			#if SET_CTRL_PARAMETERS
-				//Set passive trajectory control parameters:
-				*traj_ctrl_params = set_traj_ctrl_params(cycle_period, exp_blending_time,
-						semiaxis_x, semiaxis_y, rot_angle, cycle_dir);
-
-				//Set admittance control params:
-				*admitt_model_params = set_admitt_model_params(inertia_x, inertia_y, damping,
-						stiffness, p_eq_x, p_eq_y);
-			#endif
-
-			lowerlimb_sys_info.exercise_state = RUNNING;
 
 			send_OK_resp(cmd_code);
 		}
@@ -899,16 +709,8 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 			lowerlimb_sys_info.app_status = ERR_UNKNOWN + 3;
 			return lowerlimb_sys_info;
 		} // end (if cmd_code == )
-		*/
-	} // if (ethernet_w5500_new_rcv_data())
-	else {
-		#if USE_ITM_CMD_CHECK
-			printf("\n");
-			printf("   lowerlimb_app_state_tcpip():\n");
-			printf("   OFF ethernet_w5500_new_rcv_data(): step_i [%d], cmd_code_prev = [%s], cmd_code = [%s]\n\n", step_i, CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
-			cmd_code_prev = cmd_code;
-		#endif
-	}
+
+		cmd_code_prev = cmd_code;
 
 	return lowerlimb_sys_info;
 }

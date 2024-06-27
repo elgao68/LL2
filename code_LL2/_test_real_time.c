@@ -409,7 +409,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
 
-			if (LL_sys_info.system_state == ON) {
+			if (LL_sys_info.system_state == SYS_ON) {
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Update LEDs state:
@@ -870,7 +870,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				err_int_pos[IDX_X] = 0;
 				err_int_pos[IDX_Y] = 0;
 
-			} // end LL_sys_info.system_state != ON
+			}
 
 			///////////////////////////////////////////////////////////////////////////////
 			// Track changes of state:
@@ -884,6 +884,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// ITM console output:
 			///////////////////////////////////////////////////////////////////////////////
 
+			/*
 			#if USE_ITM_OUT_RT_CHECK
 				if (rt_step_i % (DT_DISP_MSEC_REALTIME/DT_STEP_MSEC) == 0) {
 					// Check uptime after computations:
@@ -920,14 +921,16 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					printf("   \t\t\t\t\tLL_sys_info.activity_state = [%s] \n",       ACTIV_STATE_STR[LL_sys_info.activity_state]);
 					printf("\n");
 
-					// Check command code values:
-					cmd_code_prev = cmd_code;
 				}
 			#endif
+			*/
 
 			///////////////////////////////////////////////////////////////////////////////
 			// Increase real-time step counter:
 			///////////////////////////////////////////////////////////////////////////////
+
+			// Check command code values:
+			cmd_code_prev = cmd_code;
 
 			rt_step_i++;
 
