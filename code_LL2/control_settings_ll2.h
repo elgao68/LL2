@@ -22,7 +22,7 @@
 #define PHI_INIT            (3*PI/2)
 
 #define TEST_CALIB_RUN		0
-#define V_CALIB				0.08
+#define V_CALIB				0.02 // 0.08
 #define ALPHA_CALIB         0.1
 
 ///////////////////////////////////////////////////////////////////////////////

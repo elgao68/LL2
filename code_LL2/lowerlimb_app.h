@@ -294,7 +294,7 @@ static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {	"ST_FW_ADJUST_EXERCISE"	,
 
 
 ///////////////////////////////////////////////////////
-// Error codes
+// Error codes:
 ///////////////////////////////////////////////////////
 
 #define ERR_GENERAL_NOK						0x0000
@@ -331,7 +331,7 @@ static char ERR_STR[LEN_ERR_LIST][LEN_STR_MAX] = {
 #define ERR_OFFSET		3
 
 ///////////////////////////////////////////////////////
-// type of operation states
+// Type of operation states:
 ///////////////////////////////////////////////////////
 
 #define OPS_STATUS_NORMAL_MASK			0x01
@@ -497,7 +497,8 @@ lowerlimb_sys_info_t lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert,
 
 // Template function for the firmware state machine:
 lowerlimb_sys_info_t lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
-		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy);
+		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_copy,
+		uint8_t* calib_fsens_on, uint8_t* calib_enc_on);
 
 ///////////////////////////////////////////////////////////////////////
 // Helper functions:

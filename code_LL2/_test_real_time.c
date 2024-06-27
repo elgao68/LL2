@@ -40,7 +40,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	admitt_model_params_t       admitt_model_params;
 	lowerlimb_ref_kinematics_t	ref_kinematics;
 
-	const int IS_CALIBRATION = 1; // what did this flag do in update_motor_algo() (now set_LL_mech_readings())?
+	const int is_calibration = 1; // what did this flag do in update_motor_algo() (now set_LL_mech_readings())?
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - REFERENCE:
@@ -105,12 +105,12 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// Force commands:
 	///////////////////////////////////////////////////////////////////////////////
 
-	float F_end_cmd_fb[N_COORD_2D]    = {0.0, 0.0}; // FB force command
-	float F_end_cmd_ff[N_COORD_2D]    = {0.0, 0.0}; // FF force command
-	float F_end_cmd_gcomp[N_COORD_2D] = {0.0, 0.0}; // gravity compensation force command
+	float F_end_cmd_fb[N_COORD_2D]      = {0.0, 0.0}; // FB force command
+	float F_end_cmd_ff[N_COORD_2D]      = {0.0, 0.0}; // FF force command
+	float F_end_cmd_gcomp[N_COORD_2D]   = {0.0, 0.0}; // gravity compensation force command
 	float F_end_cmd_int_err[N_COORD_2D] = {0.0, 0.0}; // integral position error force command
 
-	float F_end_cmd[N_COORD_2D]       = {0.0, 0.0}; // total force command
+	float F_end_cmd[N_COORD_2D]         = {0.0, 0.0}; // total force command
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Additional control variables:
@@ -141,6 +141,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	calib_state_t calib_state = CalibStateNull;
 	uint8_t init_calib  = 1;
 
+	// Calibration states:
+	uint8_t calib_fsens_on = 0;
+	uint8_t calib_enc_on   = 0;
+
 	///////////////////////////////////////////////////////////////////////////////
 	// TCP/IP variables:
 	///////////////////////////////////////////////////////////////////////////////
@@ -151,7 +155,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// State variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	uint16_t cmd_code  = 0;
+	uint16_t cmd_code  = 0, cmd_code_prev = 0;
 	uint8_t  app_state = 0;
 	bool brake_cmd;
 
@@ -173,7 +177,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	int8_t switch_traj  = SWITCH_TRAJ_NULL;
 
-	uint8_t init_params = 1;
+	uint8_t init_traj_params = 1;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Monitoring variables:
@@ -287,13 +291,14 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			#if USE_APP_TCP_IP
 				// Template function for the firmware state machine:
 				LL_sys_info = lowerlimb_app_state_tcpip(Read_Haptic_Button(), motor_alert,
-						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
+						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
+						&calib_fsens_on, &calib_enc_on);
 			#else
 				LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
 						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
 			#endif
 
-			// HACK: override setup state
+			// HACK: override SETUP state
 			if (LL_sys_info.exercise_state == SETUP)
 				LL_sys_info.exercise_state = RUNNING;
 
@@ -354,7 +359,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 				admitt_model_params.F_tang_magn = F_TANG_DEF;
 
-				if (init_params) {
+				if (init_traj_params) {
 					if (traj_ctrl_params.semiaxis_x == 0 &&	traj_ctrl_params.semiaxis_y == 0)
 						 traj_type = IsometricTraj;
 					else if (traj_ctrl_params.semiaxis_x != 0 && traj_ctrl_params.semiaxis_y == 0)
@@ -362,10 +367,12 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					else
 						 traj_type = EllipticalTraj;
 
-					printf("\n");
-					printf("   test_real_time: traj_type = [%s]\n\n", TRAJ_TYPE_STR[traj_type]);
+					#if USE_ITM_OUT_RT_CHECK
+						printf("\n");
+						printf("   test_real_time: traj_type = [%s]\n\n", TRAJ_TYPE_STR[traj_type]);
+					#endif
 
-					init_params = 0;
+					init_traj_params = 0;
 				}
 			#endif
 
@@ -437,7 +444,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					qei_count_L_read(), qei_count_R_read(),
 					current_sensor_L, current_sensor_R,
 					force_end_in_x_sensor, force_end_in_y_sensor,
-					IS_CALIBRATION);
+					is_calibration);
 
 				#if OVERR_FORCE_SENSORS_CALIB
 					LL_mech_readings.Xforce = 0;
@@ -448,11 +455,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Extract measured position and velocity from sensor readings:
 				///////////////////////////////////////////////////////////////////////////////
 
-				p_m[IDX_X]     = (double)LL_mech_readings.coord.x;
-				p_m[IDX_Y]     = (double)LL_mech_readings.coord.y;
+				p_m[IDX_X]      = (double)LL_mech_readings.coord.x;
+				p_m[IDX_Y]      = (double)LL_mech_readings.coord.y;
 
-				dt_p_m[IDX_X]  = (double)LL_mech_readings.velocity.x;
-				dt_p_m[IDX_Y]  = (double)LL_mech_readings.velocity.y;
+				dt_p_m[IDX_X]   = (double)LL_mech_readings.velocity.x;
+				dt_p_m[IDX_Y]   = (double)LL_mech_readings.velocity.y;
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Extract measured end-effector forces:
@@ -513,8 +520,17 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 				else if (LL_sys_info.activity_state == CALIB) {
 
-					if (activity_state_prev != CALIB && calib_state == CalibStateNull) {
+					#if USE_ITM_OUT_RT_CHECK
+						if (cmd_code != cmd_code_prev) {
+							printf("\n");
+							printf("   test_real_time(): cmd_code_prev = [%s], cmd_code = [%s]\n\n", CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
+						}
+					#endif
+
+					if (calib_state == CalibStateNull) {
+
 						calib_state = CalibStateTraj_1;
+
 						t_ref_calib = t_ref;
 						init_calib  = 1;
 
@@ -523,10 +539,16 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 						p_calib_f[IDX_X] = p_calib_o[IDX_X] + SEMIAXIS_X_DEF;
 						p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
+
+						#if USE_ITM_OUT_RT_CHECK
+							printf("\n");
+							printf("   test_real_time(): calib_state  = [%s] \n", CALIB_STATE_STR[CalibStateTraj_1]);
+							printf("                     calib_enc_on = [%d] \n\n", calib_enc_on);
+						#endif
 					}
 
 					// Calibration timer:
-					if (calib_state != CalibStateNull)
+					if (calib_state == CalibStateTraj_1 || calib_state == CalibStateTraj_2)
 						t_calib = t_ref - t_ref_calib;
 					else
 						t_calib = 0;
@@ -534,6 +556,9 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					// Generate trajectory points:
 					traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
 										p_calib_o, p_calib_f, V_CALIB, ALPHA_CALIB, &init_calib, &T_f_calib);
+
+					if (t_calib >= T_f_calib)
+						calib_enc_on = 0;
 
 					// Reset encoders:
 					/*
@@ -569,22 +594,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// Passive trajectory control:
 						if (LL_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
 							if (traj_type == EllipticalTraj || traj_type == LinearTraj) {
-								#if TEST_CALIB_RUN
-									p_calib_o[IDX_X] = 0.0;
-									p_calib_o[IDX_Y] = 0.0;
-
-									p_calib_f[IDX_X] = SEMIAXIS_X_DEF;
-									p_calib_f[IDX_Y] = 0.0;
-
-									traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
-														p_calib_o, p_calib_f, V_CALIB, ALPHA_CALIB, &init_calib);
-								#else
-									traj_ref_step_passive_elliptic(
-										p_ref, dt_p_ref,
-										&phi_ref, &dt_phi_ref,
-										u_t_ref, dt_k,
-										traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_ON);
-								#endif
+								traj_ref_step_passive_elliptic(
+									p_ref, dt_p_ref,
+									&phi_ref, &dt_phi_ref,
+									u_t_ref, dt_k,
+									traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_ON);
 							}
 							else
 								// Isometric trajectory OR safety catch:
@@ -619,8 +633,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						}
 
 						// Undefined exercise mode:
-						else
-							printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
+						else {
+							#if USE_ITM_OUT_RT_CHECK
+								printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
+							#endif
+						}
 
 					} // end if (LL_sys_info.exercise_state == RUNNING)
 					// end EXERCISE STATE SWITCH
@@ -867,7 +884,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// ITM console output:
 			///////////////////////////////////////////////////////////////////////////////
 
-			/*
 			#if USE_ITM_OUT_RT_CHECK
 				if (rt_step_i % (DT_DISP_MSEC_REALTIME/DT_STEP_MSEC) == 0) {
 					// Check uptime after computations:
@@ -897,11 +913,17 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 					// printf("   \t\t\t\t\tcurrent[LEFT, RIGHT] = [%3.3f, %3.3f] \n", LL_motors_settings.left.current, LL_motors_settings.right.current);
 					// printf("   \t\t\t\t\tvolt[LEFT, RIGHT]    = [%3.3f, %3.3f] \n", LL_motors_settings.left.volt,    LL_motors_settings.right.volt);
-					printf("   \t\t\t\t\tdac_in[LEFT, RIGHT]  = [%i, %i] \n",       LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
+
+					printf("   \t\t\t\t\tdac_in[LEFT, RIGHT]  = [%i, %i] \n",         LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
+					printf("   \t\t\t\t\tt_calib  = [%3.2f], T_f_calib = [%3.2f], calib_enc_on = [%d], cmd_code_prev = [%s], cmd_code = [%s] \n",
+							t_calib, T_f_calib, calib_enc_on, CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
+					printf("   \t\t\t\t\tLL_sys_info.activity_state = [%s] \n",       ACTIV_STATE_STR[LL_sys_info.activity_state]);
 					printf("\n");
+
+					// Check command code values:
+					cmd_code_prev = cmd_code;
 				}
 			#endif
-			*/
 
 			///////////////////////////////////////////////////////////////////////////////
 			// Increase real-time step counter:
