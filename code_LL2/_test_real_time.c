@@ -102,6 +102,12 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double F_gcomp_dyn;
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Gain and scaling variables:
+	///////////////////////////////////////////////////////////////////////////////
+
+	uint8_t idx_scale = IDX_ACTIV_EXERCISE; // scale arrays selector, activity-based (CRITICAL)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// Force commands:
 	///////////////////////////////////////////////////////////////////////////////
 
@@ -119,7 +125,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// Position & velocity error vector:
 	double err_pos_vel[N_POS_VEL_2D]    = {0.0, 0.0, 0.0, 0.0};
 
-	// Integral position error:
+	// Integral position error filter - cutoff frequency:
 	double OMEGA_HI_ERR_INT_POS         = 2*PI*0.2;
 
 	double err_pos[N_COORD_2D]          = {0.0, 0.0}; // HACK: this term should have been avoided
@@ -138,18 +144,26 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double t_calib     = 0.0;
 	double t_ref_calib = 0.0;
 
-	calib_state_t calib_state = CalibStateNull;
+	double pos_rel_calib = 0.0, dt_pos_rel_calib = 0.0;
+
+	calib_state_t calib_state      = CalibStateNull;
+	calib_state_t calib_state_prev = CalibStateNull;
 	uint8_t init_calib  = 1;
 
 	// Calibration states:
-	uint8_t calib_fsens_on = 0;
-	uint8_t calib_enc_on   = 0;
+	uint8_t calib_fsens_on    = 0;
+	uint8_t calib_enc_on      = 0;
+	uint8_t calib_enc_on_prev = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TCP/IP variables:
 	///////////////////////////////////////////////////////////////////////////////
 
 	int sock_status;
+
+	// TCP communication checks:
+	int32_t ret_tcp_msg      = 0;
+	uint64_t dt_ret_tcp_msec = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// State variables:
@@ -178,14 +192,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	int8_t switch_traj  = SWITCH_TRAJ_NULL;
 
 	uint8_t init_traj_params = 1;
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Monitoring variables:
-	///////////////////////////////////////////////////////////////////////////////
-
-	// TCP communication checks:
-	int32_t ret_tcp_msg      = 0;
-	uint64_t dt_ret_tcp_msec = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Initialize app:
@@ -488,28 +494,28 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
 
+				// Scale array selector (CRITICAL):
+				if (LL_sys_info.activity_state == CALIB)
+					idx_scale = IDX_ACTIV_CALIB;
+				else
+					idx_scale = IDX_ACTIV_EXERCISE;
+
 				///////////////////////////////////////////////////////////////////////////////
 				// IDLE state:
 				///////////////////////////////////////////////////////////////////////////////
 
 				if (LL_sys_info.activity_state == IDLE) {
 
-					// Clear motor algo readings and settings:
-					clear_lowerlimb_mech_readings(&LL_mech_readings);
-					clear_lowerlimb_motors_settings(&LL_motors_settings);
-					clear_ctrl_params();
-
 					// Disable motors:
 					motor_L_move(0, false, false);
 					motor_R_move(0, false, false);
 
-					// Restart motor algorithm:
-					init_motor_algo(&LL_mech_readings, &LL_motors_settings);
+					// Restart motor algorithm (CRITICAL problem: may cause encoders to zero unexpectedly):
+					// init_motor_algo(&LL_mech_readings, &LL_motors_settings);
 
 					// Reset calibration state:
 					// reset_calibration_state();
-
-				} // end if (LL_sys_info.activity_state == IDLE)
+				}
 
 				///////////////////////////////////////////////////////////////////////////////
 				// CALIBRATION state:
@@ -524,42 +530,57 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					#endif
 
 					if (calib_state == CalibStateNull) {
-
 						calib_state = CalibStateTraj_1;
 
-						t_ref_calib = t_ref;
 						init_calib  = 1;
 
 						p_calib_o[IDX_X] = p_m[IDX_X];
 						p_calib_o[IDX_Y] = p_m[IDX_Y];
 
-						p_calib_f[IDX_X] = p_calib_o[IDX_X] + SEMIAXIS_X_DEF;
-						p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
+						p_calib_f[IDX_X] = p_calib_o[IDX_X];
+						p_calib_f[IDX_Y] = p_calib_o[IDX_Y] + 0.3; // - 1.1*DIST_MAX_Y;
+					}
+					else if (calib_state == CalibStateTraj_1) {
 
-						#if USE_ITM_OUT_RT_CHECK
-							printf("   test_real_time(): calib_state  = [%s] \n", CALIB_STATE_STR[CalibStateTraj_1]);
-							printf("                     calib_enc_on = [%d] \n\n", calib_enc_on);
-						#endif
+					}
+					else if (calib_state == CalibStateTraj_2) {
+
+					}
+					else if (calib_state == CalibStateTraj_3) {
+
 					}
 
+					#if USE_ITM_OUT_RT_CHECK
+						if (calib_state_prev == CalibStateNull && calib_state != CalibStateNull) {
+							printf("   test_real_time(): calib_state  = [%s] \n", CALIB_STATE_STR[calib_state]);
+							printf("                     calib_enc_on = [%d] \n", calib_enc_on);
+							printf("                     t_ref_calib  = [%3.2f] \n\n", t_ref_calib);
+						}
+					#endif
+
 					// Calibration timer:
-					if (calib_state == CalibStateTraj_1 || calib_state == CalibStateTraj_2)
+					if (calib_state_prev != calib_state)
+						t_ref_calib = t_ref;
+
+					if (calib_state != CalibStateNull)
 						t_calib = t_ref - t_ref_calib;
 					else
 						t_calib = 0;
 
 					// Generate trajectory points:
 					traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
-										p_calib_o, p_calib_f, V_CALIB, ALPHA_CALIB, &init_calib, &T_f_calib);
+										p_calib_o, p_calib_f, V_CALIB, ALPHA_CALIB, &init_calib, &T_f_calib,
+										&pos_rel_calib, &dt_pos_rel_calib);
 
-					if (t_calib >= T_f_calib)
+					if (t_calib >= T_f_calib && calib_enc_on) {
 						calib_enc_on = 0;
 
-					// Reset encoders:
-					/*
-					qei_count_L_reset();
-					qei_count_R_reset();
-					*/
+						// Reset encoders - CRITICAL step:
+						// qei_count_L_reset();
+						// qei_count_R_reset();
+					}
+
+					calib_state_prev = calib_state;
 				} // end if (LL_sys_info.activity_state == CALIB)
 
 				///////////////////////////////////////////////////////////////////////////////
@@ -633,7 +654,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 								printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
 							#endif
 						}
-
 					} // end if (LL_sys_info.exercise_state == RUNNING)
 					// end EXERCISE STATE SWITCH
 
@@ -683,7 +703,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 					// Total gravity compensation:
 					F_end_cmd_gcomp[IDX_X] = 0;
-					F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP*F_G_COMP_DEF + F_gcomp_dyn;
+					F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP[idx_scale]*F_G_COMP_DEF + F_gcomp_dyn;
 
 					///////////////////////////////////////////////////////////////////////////////
 					// FB force command:
@@ -702,7 +722,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 					// FB force command, nml matrix form:
 					nml_mat_dot_ref(F_end_cmd_fb_nml, K_lq_xv_nml, err_pos_vel_nml);
-					nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB); // scale by switching variable
+					nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB[idx_scale]); // scale by switching variable
 
 					// FB force commands, array form:
 					for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
@@ -714,7 +734,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 					// FF force commands, array form:
 					for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-						F_end_cmd_ff[c_i] = SCALE_FF*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
+						F_end_cmd_ff[c_i] = SCALE_FF[idx_scale]*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
 
 					///////////////////////////////////////////////////////////////////////////////
 					// Integral position error force command:
@@ -733,7 +753,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 					// Force command:
 					for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-						F_end_cmd_int_err[c_i] = K_INT_ERR_POS*err_int_pos[c_i];
+						F_end_cmd_int_err[c_i] = SCALE_INT_ERR[idx_scale]*err_int_pos[c_i];
 
 					///////////////////////////////////////////////////////////////////////////////
 					// Total force command:
@@ -883,35 +903,52 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					// Check uptime after computations:
 					up_time_end = getUpTime();
 
-					printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\tp_ref = [%3.3f, %3.3f]\tdt_p_ref = [%3.3f, %3.3f], p_m = [%3.3f, %3.3f]\tdt_p_m = [%3.3f, %3.3f]\tF_m = [%3.3f, %3.3f]\n",
+					printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\n",
 						rt_step_i,
 						t_ref,
 						(int)up_time_end - (int)up_time,
 						phi_ref,
-						dt_phi_ref,
+						dt_phi_ref);
+
+					printf("   p_ref   = [%3.3f, %3.3f]\tdt_p_ref = [%3.3f, %3.3f]\n",
 						p_ref[IDX_X],
 						p_ref[IDX_Y],
 						dt_p_ref[IDX_X],
-						dt_p_ref[IDX_Y],
+						dt_p_ref[IDX_Y]);
+
+					printf("   p_m     = [%3.3f, %3.3f]\tdt_p_m   = [%3.3f, %3.3f]\tF_m = [%3.3f, %3.3f]\n",
 						p_m[IDX_X],
 						p_m[IDX_Y],
 						dt_p_m[IDX_X],
 						dt_p_m[IDX_Y],
 						F_end_m[IDX_X],
 						F_end_m[IDX_Y]);
+					printf("   pos_rel = [%3.3f]\tdt_pos_rel = [%3.3f]\n",
+						pos_rel_calib, dt_pos_rel_calib);
 
-					printf("   \t\t\t\t\tF_fb_x = [%3.2f]\tF_ff_x = [%3.2f]\tF_gc_x = [%3.2f]\tF_end_cmd_x = [%3.2f\t(%3.2f)]\n",
-							F_end_cmd_fb[IDX_X], F_end_cmd_ff[IDX_X] , F_end_cmd_gcomp[IDX_X], F_end_cmd[IDX_X], LL_motors_settings.force_end[IDX_X]);
-					printf("   \t\t\t\t\tF_fb_y = [%3.2f]\tF_ff_y = [%3.2f]\tF_gc_y = [%3.2f]\tF_end_cmd_y = [%3.2f\t(%3.2f)]\n",
-							F_end_cmd_fb[IDX_Y], F_end_cmd_ff[IDX_Y] , F_end_cmd_gcomp[IDX_Y], F_end_cmd[IDX_Y], LL_motors_settings.force_end[IDX_Y]);
+					printf("   p_cal_o = [%3.3f, %3.3f]\n",
+						p_calib_o[IDX_X],
+						p_calib_o[IDX_Y]);
+					printf("   p_cal_f = [%3.3f, %3.3f]\n",
+						p_calib_f[IDX_X],
+						p_calib_f[IDX_Y]);
+					printf("   D_p_cal = [%3.3f, %3.3f]\n",
+						p_calib_f[IDX_X] - p_calib_o[IDX_X],
+						p_calib_f[IDX_Y] - p_calib_o[IDX_Y]);
 
-					// printf("   \t\t\t\t\tcurrent[LEFT, RIGHT] = [%3.3f, %3.3f] \n", LL_motors_settings.left.current, LL_motors_settings.right.current);
-					// printf("   \t\t\t\t\tvolt[LEFT, RIGHT]    = [%3.3f, %3.3f] \n", LL_motors_settings.left.volt,    LL_motors_settings.right.volt);
+					printf("\n");
+					// printf("   F_fb_x = [%3.2f]\tF_ff_x = [%3.2f]\tF_gc_x = [%3.2f]\tF_end_cmd_x = [%3.2f\t(%3.2f)]\n",
+					// 		F_end_cmd_fb[IDX_X], F_end_cmd_ff[IDX_X] , F_end_cmd_gcomp[IDX_X], F_end_cmd[IDX_X], LL_motors_settings.force_end[IDX_X]);
+					// printf("   F_fb_y = [%3.2f]\tF_ff_y = [%3.2f]\tF_gc_y = [%3.2f]\tF_end_cmd_y = [%3.2f\t(%3.2f)]\n",
+					//		F_end_cmd_fb[IDX_Y], F_end_cmd_ff[IDX_Y] , F_end_cmd_gcomp[IDX_Y], F_end_cmd[IDX_Y], LL_motors_settings.force_end[IDX_Y]);
 
-					printf("   \t\t\t\t\tdac_in[LEFT, RIGHT]  = [%i, %i] \n",         LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
-					printf("   \t\t\t\t\tt_calib  = [%3.2f], T_f_calib = [%3.2f], calib_enc_on = [%d], cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
+					// printf("   current[LEFT, RIGHT] = [%3.3f, %3.3f] \n", LL_motors_settings.left.current, LL_motors_settings.right.current);
+					// printf("   volt[LEFT, RIGHT]    = [%3.3f, %3.3f] \n", LL_motors_settings.left.volt,    LL_motors_settings.right.volt);
+					// printf("   dac_in[LEFT, RIGHT]  = [%i, %i] \n",       LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
+
+					printf("   t_calib  = [%3.2f], T_f_calib = [%3.2f], calib_enc_on = [%d], cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
 							t_calib, T_f_calib, calib_enc_on, CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
-					printf("   \t\t\t\t\tLL_sys_info.activity_state = [%s] \n",       ACTIV_STATE_STR[LL_sys_info.activity_state]);
+					printf("   LL_sys_info.activity_state = [%s] \n",   ACTIV_STATE_STR[LL_sys_info.activity_state]);
 					printf("\n");
 				}
 			#endif
@@ -920,7 +957,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// Increase real-time step counter:
 			///////////////////////////////////////////////////////////////////////////////
 
-			// Check command code values:
 			cmd_code_prev_to_last = cmd_code;
 
 			rt_step_i++;

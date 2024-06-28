@@ -745,7 +745,7 @@ uint8_t set_LL_mech_readings(lowerlimb_mech_readings_t* mech, uint64_t current_u
     // compute angular displacement in rad - Motor Coordinates
     ///////////////////////////////////////////////////////////////////////////////
 
-    mech-> left.angular_pos_rad = (float)mech->left.qei_count  * (float)2 * (float)M_PI / (float)MAX_QEI_CPR ;
+    mech-> left.angular_pos_rad = (float)mech-> left.qei_count * (float)2 * (float)M_PI / (float)MAX_QEI_CPR ;
     mech->right.angular_pos_rad = (float)mech->right.qei_count * (float)2 * (float)M_PI / (float)MAX_QEI_CPR;
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -986,10 +986,10 @@ bool get_motor_R_enable(lowerlimb_motors_settings_t* LL_motors_settings)
 
 void init_motor_algo(lowerlimb_mech_readings_t* LL_mech_readings, lowerlimb_motors_settings_t* LL_motors_settings)
 {
-    clear_lowerlimb_motors_settings(LL_motors_settings);
+    clear_lowerlimb_motors_settings(LL_motors_settings); // CRITICAL: may cause encoders to reset unexpectedly
     clear_lowerlimb_mech_readings(LL_mech_readings);
     clear_transition_mode_params();
-    clear_ctrl_params();	//Configurable Gain
+    clear_ctrl_params();
     
     ui8SafetyOff = 0;
 }

@@ -146,7 +146,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		}
 		else
 			*cmd_code_last = cmd_code;
-	}
+	} // !persistent_activ_state
 
 	// Console output:
 	#if USE_ITM_CMD_CHECK
@@ -258,7 +258,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 
 		if (lowerlimb_sys_info.activity_state == IDLE) {
 
-			//Update activity state:
+			// Update activity state:
 			lowerlimb_sys_info.activity_state = CALIB;
 
 			#if USE_ITM_CMD_CHECK
@@ -306,19 +306,14 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 
 		if (lowerlimb_sys_info.activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time()
 
-			// Reset Encoders:
-			// qei_count_L_reset();
-			// qei_count_R_reset();
-
 			#if USE_ITM_CMD_CHECK
 				printf("   lowerlimb_app_state_tcpip(): [Encoders calibrated] \n\n");
 			#endif
 
-			// Send calibration response:
-			send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
+			// Send calibration response - TODO: what does this imply?
+			// send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
 
 			// Reset activity to IDLE:
-			// set_activity_idle(); // possible bug!
 			lowerlimb_sys_info.activity_state = IDLE;
 
 			send_OK_resp(cmd_code);
@@ -397,7 +392,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 			lowerlimb_sys_info.exercise_state = SETUP; // can we switch to RUNNING directly?
 		}
 		else {
-			_VALIDATE_CMD_START_EXE
+			// _VALIDATE_CMD_START_EXE
 		}
 
 		send_OK_resp(cmd_code);

@@ -5,7 +5,7 @@
 // Motor torque activation (CRITICAL):
 ///////////////////////////////////////////////////////////////////////////////
 
-#define MOTOR_TORQUE_ACTIVE_CALIB		0
+#define MOTOR_TORQUE_ACTIVE_CALIB		1
 #define MOTOR_TORQUE_ACTIVE_JOG			0
 #define MOTOR_TORQUE_ACTIVE_EXERCISE	0
 
@@ -22,7 +22,7 @@
 #define PHI_INIT            (3*PI/2)
 
 #define TEST_CALIB_RUN		0
-#define V_CALIB				0.04 // 0.08
+#define V_CALIB				0.08
 #define ALPHA_CALIB         0.1
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -47,12 +47,16 @@
 // Scaling factors:
 ///////////////////////////////////////////////////////////////////////////////
 
-#define SCALE_FB	    800.0
-#define SCALE_FF		  0.4
-#define SCALE_GCOMP	      1.2
-#define SCALE_F_END_MEAS  1.0
+#define IDX_ACTIV_EXERCISE  0
+#define IDX_ACTIV_CALIB     1
 
-#define SCALE_FB_CALIB  100.0
+// Scaling factors must be consistent with above indices:
+static double SCALE_FB[]	  = {800.0,  80.0};
+static double SCALE_FF[]	  = {  0.4,   0.0};
+static double SCALE_GCOMP[]   = {  1.2,   0.0};
+static double SCALE_INT_ERR[] = {  0.0,   0.0};
+
+#define SCALE_F_END_MEAS  1.0
 
 ///////////////////////////////////////////////////////////////////////////////
 //  Feedback control:
@@ -70,8 +74,6 @@ static double K_LQ_XV_DEF[] = {
    11.0,    4.0,         0,         0,
 	  0,      0,      11.0,       4.0
 };
-
-static double K_INT_ERR_POS = 0.0;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Feedforward control:
@@ -91,6 +93,13 @@ static double C_FF_DC_DEF[] = {
 
 // Gravity compensation force (F_g_comp):
 static double F_G_COMP_DEF = 15.0;
+
+///////////////////////////////////////////////////////////////////////////////
+// Robot dimensions:
+///////////////////////////////////////////////////////////////////////////////
+
+#define DIST_MAX_X	0.46
+#define DIST_MAX_Y	0.46
 
 ///////////////////////////////////////////////////////////////////////////////
 // Exercise modes:
@@ -140,19 +149,23 @@ static char TRAJ_TYPE_STR[LEN_TRAJ_TYPE_LIST][LEN_STR_MAX] = {
 // Calibration states:
 ///////////////////////////////////////////////////////////////////////////////
 
-#define LEN_CALIB_STATE_LIST 3
+#define LEN_CALIB_STATE_LIST 5
 
 typedef enum {
 	CalibStateNull   = 0,
 	CalibStateTraj_1 = 1,
 	CalibStateTraj_2 = 2,
+	CalibStateTraj_3 = 3,
+	CalibStateTraj_4 = 4,
 } calib_state_t;
 
 // Calibration state strings (must match enumeration):
 static char CALIB_STATE_STR[LEN_CALIB_STATE_LIST][LEN_STR_MAX] = {
 	"CALIB STATE NULL",
 	"CALIB STATE TRAJ 1",
-	"CALIB STATE TRAJ 2"
+	"CALIB STATE TRAJ 2",
+	"CALIB STATE TRAJ 3",
+	"CALIB STATE TRAJ 4"
 };
 
 ///////////////////////////////////////////////////////////////////////////////
