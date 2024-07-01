@@ -146,11 +146,11 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 
 void
 traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
-					double p_o[], double p_f[], double v_max, double alpha_o, uint8_t* initial, double* T_f_ref,
+					double p_o[], double p_f[], double v_max, double frac_ramp_o, uint8_t* initial, double* T_f_ref,
 					double* pos_rel, double* dt_pos_rel) {
 
 	static int    step_int = 0; // relative time reference
-	static double alpha;
+	static double frac_ramp;
 	static double dist_max;
 	int c_i;
 
@@ -158,12 +158,12 @@ traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
 		step_int = 0;
 
 		// Correct ramp-up period:
-		alpha = alpha_o;
+		frac_ramp = frac_ramp_o;
 
-		if (alpha < 0)
-			alpha = 0;
-		else if (alpha > 0.5)
-			alpha = 0.5;
+		if (frac_ramp < 0)
+			frac_ramp = 0;
+		else if (frac_ramp > 0.5)
+			frac_ramp = 0.5;
 
 		// Distance between points:
 		dist_max = pow(pow(p_f[IDX_X] - p_o[IDX_X],2) + pow(p_f[IDX_Y] - p_o[IDX_Y],2), 0.5);
@@ -182,7 +182,7 @@ traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
 			u_t[IDX_X] = 0;
 
 	// Compute relative position and velocity:
-	pos_linear_relative(pos_rel, dt_pos_rel, t, dist_max, v_max, alpha, T_f_ref);
+	pos_linear_relative(pos_rel, dt_pos_rel, t, dist_max, v_max, frac_ramp, T_f_ref);
 
 	// Compute absolute position and velocity:
 	for (int c_i = 0; c_i < N_COORD_2D; c_i++) {
@@ -196,15 +196,15 @@ traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
 }
 
 void
-pos_linear_relative(double* pos_rel, double* dt_pos_rel, double t, double dist_max, double v_max, double alpha, double* T_f_ref) {
+pos_linear_relative(double* pos_rel, double* dt_pos_rel, double t, double dist_max, double v_max, double frac_ramp, double* T_f_ref) {
 	double T_f;
 
 	if (dist_max > 0 && v_max > 0) {
 		// Final time (relative to t = 0):
-		T_f = dist_max/(1 - alpha)/v_max;
+		T_f = dist_max/(1 - frac_ramp)/v_max;
 
 		// Acceleration (ramp stage):
-		double a_ramp = v_max/alpha/T_f;
+		double a_ramp = v_max/frac_ramp/T_f;
 
 		// "Via point" time:
 		double t1;
@@ -219,24 +219,24 @@ pos_linear_relative(double* pos_rel, double* dt_pos_rel, double t, double dist_m
 			*pos_rel = 0.0;
 		}
 		// Ramp-up:
-		else if (t >= 0 && t < alpha*T_f) {
+		else if (t >= 0 && t < frac_ramp*T_f) {
 			*dt_pos_rel    = a_ramp*t;
 			*pos_rel = 1/2.0*a_ramp*pow(t, 2);
 		}
 		// Constant velocity:
-		else if (t >= alpha*T_f && t <= (1 - alpha)*T_f) {
-			t1 = t - alpha*T_f;
+		else if (t >= frac_ramp*T_f && t <= (1 - frac_ramp)*T_f) {
+			t1 = t - frac_ramp*T_f;
 
 			*dt_pos_rel    = v_max;
-			*pos_rel = 1/2.0*a_ramp*pow(alpha*T_f, 2) + v_max*t1;
+			*pos_rel = 1/2.0*a_ramp*pow(frac_ramp*T_f, 2) + v_max*t1;
 		}
 		// Ramp-down:
-		else if (t > (1 - alpha)*T_f && t <= T_f) {
-			t1 = t - (1 - alpha)*T_f;
+		else if (t > (1 - frac_ramp)*T_f && t <= T_f) {
+			t1 = t - (1 - frac_ramp)*T_f;
 
-			*dt_pos_rel    = a_ramp*(alpha*T_f - t1);
-			*pos_rel = 1/2.0*a_ramp*pow(alpha*T_f, 2) + v_max*(1 - 2*alpha)*T_f +
-							a_ramp*(alpha*T_f*t1 - 1/2.0*pow(t1, 2));
+			*dt_pos_rel    = a_ramp*(frac_ramp*T_f - t1);
+			*pos_rel = 1/2.0*a_ramp*pow(frac_ramp*T_f, 2) + v_max*(1 - 2*frac_ramp)*T_f +
+							a_ramp*(frac_ramp*T_f*t1 - 1/2.0*pow(t1, 2));
 		}
 		// Final position:
 		else {

@@ -21,9 +21,14 @@
 #define CYCLE_DIR_DEF		1
 #define PHI_INIT            (3*PI/2)
 
+// Calibration parameters:
 #define TEST_CALIB_RUN		0
 #define V_CALIB				0.08
-#define ALPHA_CALIB         0.1
+#define FRAC_RAMP_CALIB     0.1
+#define DIST_CALIB_MAX      0.6
+
+#define THR_DT_P_CONTACT    0.01
+#define THR_VOLTAGE_CONTACT 0.8
 
 ///////////////////////////////////////////////////////////////////////////////
 // Admittance control parameters - DEFAULT:
@@ -47,8 +52,8 @@
 // Scaling factors:
 ///////////////////////////////////////////////////////////////////////////////
 
-#define IDX_ACTIV_EXERCISE  0
-#define IDX_ACTIV_CALIB     1
+#define IDX_SCALE_EXERCISE  0
+#define IDX_SCALE_CALIB     1
 
 // Scaling factors must be consistent with above indices:
 static double SCALE_FB[]	  = {800.0,  80.0};
@@ -98,8 +103,9 @@ static double F_G_COMP_DEF = 15.0;
 // Robot dimensions:
 ///////////////////////////////////////////////////////////////////////////////
 
-#define DIST_MAX_X	0.46
-#define DIST_MAX_Y	0.46
+// Workspace length:
+#define D_WKSPC_LL2_X	0.46
+#define D_WKSPC_LL2_Y	0.46
 
 ///////////////////////////////////////////////////////////////////////////////
 // Exercise modes:
@@ -131,10 +137,10 @@ static char EXERC_MODE_STR[LEN_EXERC_MODE_LIST][LEN_STR_MAX] = {
 #define LEN_TRAJ_TYPE_LIST 4
 
 typedef enum {
-	NullTraj       = 0,
-	EllipticalTraj = 1,
-	LinearTraj     = 2,
-	IsometricTraj  = 3
+	NullTraj      = 0,
+	EllipticTraj  = 1,
+	LinearTraj    = 2,
+	IsometricTraj = 3
 } traj_type_t;
 
 // Exercise mode strings (must match enumeration):
@@ -149,23 +155,23 @@ static char TRAJ_TYPE_STR[LEN_TRAJ_TYPE_LIST][LEN_STR_MAX] = {
 // Calibration states:
 ///////////////////////////////////////////////////////////////////////////////
 
-#define LEN_CALIB_STATE_LIST 5
+#define LEN_CALIB_TRAJ_LIST 5
 
 typedef enum {
-	CalibStateNull   = 0,
-	CalibStateTraj_1 = 1,
-	CalibStateTraj_2 = 2,
-	CalibStateTraj_3 = 3,
-	CalibStateTraj_4 = 4,
-} calib_state_t;
+	CalibTraj_Null				= 0,
+	CalibTraj_1_Y_Travel		= 1,
+	CalibTraj_2_X_Travel		= 2,
+	CalibTraj_3_Travel_to_ORG	= 3,
+	CalibTraj_4					= 4,
+} calib_traj_t;
 
 // Calibration state strings (must match enumeration):
-static char CALIB_STATE_STR[LEN_CALIB_STATE_LIST][LEN_STR_MAX] = {
-	"CALIB STATE NULL",
-	"CALIB STATE TRAJ 1",
-	"CALIB STATE TRAJ 2",
-	"CALIB STATE TRAJ 3",
-	"CALIB STATE TRAJ 4"
+static char CALIB_TRAJ_STR[LEN_CALIB_TRAJ_LIST][LEN_STR_MAX] = {
+	"CALIB TRAJ NULL",
+	"CALIB TRAJ 1 Y",
+	"CALIB TRAJ 2 X",
+	"CALIB TRAJ 3 TO ORG",
+	"CALIB TRAJ 4"
 };
 
 ///////////////////////////////////////////////////////////////////////////////

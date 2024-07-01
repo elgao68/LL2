@@ -59,11 +59,11 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 
 void
 traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
-					double p_o[], double p_f[], double v_max, double alpha_o, uint8_t* initial, double* T_f_ref,
+					double p_o[], double p_f[], double v_max, double frac_ramp_o, uint8_t* initial, double* T_f_ref,
 					double* pos_rel, double* dt_pos_rel);
 
 void
-pos_linear_relative(double* pos_rel, double* dt_pos_rel, double t, double dist_max, double v_max, double alpha, double* T_f_ref);
+pos_linear_relative(double* pos_rel, double* dt_pos_rel, double t, double dist_max, double v_max, double frac_ramp, double* T_f_ref);
 
 ////////////////////////////////////////////////////////////////////////////////
 // ANCILLARY FUNCTIONS - GAO:

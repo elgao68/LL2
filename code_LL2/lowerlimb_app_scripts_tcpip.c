@@ -291,6 +291,10 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 				printf("   lowerlimb_app_state_tcpip(): [Force sensors calibrated] \n\n");
 			#endif
 
+			// Reset encoders - CRITICAL:
+			qei_count_L_reset();
+			qei_count_R_reset();
+
 			// Activate encoder calibration:
 			*calib_enc_on = 1;
 		}
@@ -347,48 +351,18 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 			printf("\n");
 		#endif
 
-		//reset emergency alerts if any
+		// Reset emergency alerts if any:
 		reset_emergency_alerts();
 
-		// If exercise_state in paused state, resume exercise (TODO: REVISE)
-		// If activity is in IDLE state, start exercise to SETUP state (TODO: REVISE)
-		// Rest are errors (TODO: REVISE)
-
+		// If activity is in IDLE state, start exercise to SETUP state:
 		if (lowerlimb_sys_info.activity_state == IDLE) {
-			// Check if device has been calibrated:
-			if (!valid_app_status(lowerlimb_sys_info.isCalibrated, NO,
-				&lowerlimb_sys_info.app_status, cmd_code, ERR_CALIBRATION_NEEDED, ERR_OFFSET))
-					return lowerlimb_sys_info;
+			// Validate command code:
+			_VALIDATE_IDLE_START_EXE
 
-			// Check exercise mode:
-			lowerlimb_sys_info.exercise_mode = (exercise_mode_t)tcpRxData[rx_payload_index];
-			rx_payload_index += 1;
-
-			if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) { }
-			else if (lowerlimb_sys_info.exercise_mode == AdmittanceCtrl) { }
-			else if (lowerlimb_sys_info.exercise_mode == ActiveTrajectoryCtrl) { }
-			else {
-				#if USE_ITM_CMD_CHECK
-					printf("   lowerlimb_app_state_tcpip() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_INVALID_EXERCISE_MODE]);
-				#endif
-				send_error_msg(cmd_code, ERR_INVALID_EXERCISE_MODE);
-
-				lowerlimb_sys_info.app_status = ERR_INVALID_EXERCISE_MODE + 3;
-				return lowerlimb_sys_info;
-			}
-
-			// Clear motor settings since each start exercise is considered a fresh start:
-			clear_lowerlimb_motors_settings(LL_motors_settings);
-
-			// Clear transition mode params to remove any last exercise's parameters:
-			clear_transition_mode_params();
-
-			rx_payload_index += 1;
-
-			// set activity to exercise
+			// Set activity to exercise:
 			lowerlimb_sys_info.activity_state = EXERCISE;
 
-			// exercise state goes to SETUP:
+			// Exercise state goes to SETUP:
 			lowerlimb_sys_info.exercise_state = SETUP; // can we switch to RUNNING directly?
 		}
 		else {
@@ -445,7 +419,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 			lowerlimb_sys_info.exercise_state = STOPPED;
 		}
 
-		// reset:
+		// Clear motor settings:
 		clear_lowerlimb_motors_settings(LL_motors_settings);
 
 		send_OK_resp(cmd_code);
