@@ -125,10 +125,16 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double dt_phi_ref = 0.0;
 
 	// Trajectory path tangent vector:
-	double u_t_ref[N_COORD_2D] = {0.0, 0.0};
+	double u_t_ref[N_COORD_2D]  = {0.0, 0.0};
 
 	// Internal state: initial values:
-	double z_intern_o_dbl[2*N_COORD_EXT] = {0.0, 0.0, PHI_INIT, 0.0, 0.0, 0.0};
+	double z_intern_o_dbl[2*N_COORD_EXT];
+
+	double phi_o    = PHI_INIT_EXERC;
+
+	double dt_p_x_o = 0.0;
+	double dt_p_y_o = 0.0;
+	double dt_phi_o = 0.0;
 
 	// Calibration end points:
 	double p_calib_o[N_COORD_2D] = {0.0, 0.0};
@@ -195,7 +201,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// Integral position error filter - cutoff frequency:
 	double OMEGA_HI_ERR_INT_POS         = 2*PI*0.2;
 
-	double err_pos[N_COORD_2D]          = {0.0, 0.0}; // HACK: this term should have been avoided
+	double err_pos[N_COORD_2D]          = {0.0, 0.0};
 	double err_int_pos[N_COORD_2D]      = {0.0, 0.0};
 	double err_int_pos_prev[N_COORD_2D] = {0.0, 0.0};
 
@@ -480,8 +486,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 				if (exercise_state_prev != RUNNING && LL_sys_info.exercise_state == RUNNING)
 					switch_traj = SWITCH_TRAJ_START;
-				else if ((exercise_state_prev != SLOWING && LL_sys_info.exercise_state == SLOWING) ||
-						 (exercise_state_prev != STOPPED && LL_sys_info.exercise_state == STOPPED))
+				else if (exercise_state_prev != SLOWING && LL_sys_info.exercise_state == SLOWING)
 					switch_traj = SWITCH_TRAJ_END;
 				else
 					switch_traj = SWITCH_TRAJ_NULL;
@@ -492,7 +497,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
 
+				///////////////////////////////////////////////////////////////////////////////
 				// Scale array selector (CRITICAL):
+				///////////////////////////////////////////////////////////////////////////////
+
 				if (LL_sys_info.activity_state != CALIB)
 					idx_scale = IDX_SCALE_EXERCISE;
 
@@ -502,22 +510,34 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 				if (LL_sys_info.activity_state == IDLE) {
 
+					// Default kinematic reference:
+					if (LL_sys_info.activity_state != activity_state_prev) {
+						p_ref[IDX_X]    = p_m[IDX_X];
+						p_ref[IDX_Y]    = p_m[IDX_Y];
+
+						dt_p_ref[IDX_X] = 0.0;
+						dt_p_ref[IDX_Y] = 0.0;
+					}
+
+					// TODO: remove at a later date:
+					/*
 					// Disable motors:
 					motor_L_move(0, false, false);
 					motor_R_move(0, false, false);
 
 					// Restart motor algorithm (CRITICAL problem: may cause encoders to zero unexpectedly):
-					// init_motor_algo(&LL_mech_readings, &LL_motors_settings);
+					init_motor_algo(&LL_mech_readings, &LL_motors_settings);
 
 					// Reset calibration state:
-					// reset_calibration_state();
+					reset_calibration_state();
+					*/
 				}
 
 				///////////////////////////////////////////////////////////////////////////////
 				// CALIBRATION activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == CALIB && calib_enc_on) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_state_tcpip()
+				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_state_tcpip()
 
 					#if USE_ITM_OUT_RT_CHECK
 						if (cmd_code != cmd_code_prev_to_last) {
@@ -527,20 +547,20 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 					if (calib_traj == CalibTraj_Null) {
 
-							// Set up next calibration trajectory:
-							calib_traj = CalibTraj_1_Y_Travel;
+						// Set up next calibration trajectory:
+						calib_traj = CalibTraj_1_Y_Travel;
 
-							p_calib_o[IDX_X] = p_m[IDX_X];
-							p_calib_o[IDX_Y] = p_m[IDX_Y];
+						p_calib_o[IDX_X] = p_m[IDX_X];
+						p_calib_o[IDX_Y] = p_m[IDX_Y];
 
-							p_calib_f[IDX_X] = p_calib_o[IDX_X];
-							p_calib_f[IDX_Y] = p_calib_o[IDX_Y] - DIST_CALIB_MAX;
+						p_calib_f[IDX_X] = p_calib_o[IDX_X];
+						p_calib_f[IDX_Y] = p_calib_o[IDX_Y] - DIST_CALIB_MAX;
 
-							// Control gains scale array:
-							idx_scale = IDX_SCALE_CALIB;
+						// Control gains scale array:
+						idx_scale = IDX_SCALE_CALIB;
 
-							// Trajectory initiation command:
-							init_calib_traj  = 1;
+						// Trajectory initiation command:
+						init_calib_traj  = 1;
 					}
 					else if (
 						calib_traj == CalibTraj_1_Y_Travel &&
@@ -548,20 +568,20 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						fabs(LL_motors_settings.left.volt)  > THR_VOLTAGE_CONTACT &&
 						fabs(LL_motors_settings.right.volt) > THR_VOLTAGE_CONTACT) {
 
-							// Set up next calibration trajectory:
-							calib_traj = CalibTraj_2_X_Travel;
+						// Set up next calibration trajectory:
+						calib_traj = CalibTraj_2_X_Travel;
 
-							p_calib_o[IDX_X] = p_m[IDX_X];
-							p_calib_o[IDX_Y] = p_m[IDX_Y];
+						p_calib_o[IDX_X] = p_m[IDX_X];
+						p_calib_o[IDX_Y] = p_m[IDX_Y];
 
-							p_calib_f[IDX_X] = p_calib_o[IDX_X] - DIST_CALIB_MAX;
-							p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
+						p_calib_f[IDX_X] = p_calib_o[IDX_X] - DIST_CALIB_MAX;
+						p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
 
-							// Control gains scale array:
-							idx_scale = IDX_SCALE_CALIB;
+						// Control gains scale array:
+						idx_scale = IDX_SCALE_CALIB;
 
-							// Trajectory initiation command:
-							init_calib_traj  = 1;
+						// Trajectory initiation command:
+						init_calib_traj  = 1;
 					}
 					else if (
 						calib_traj == CalibTraj_2_X_Travel &&
@@ -569,40 +589,78 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						fabs(LL_motors_settings.left.volt)  > THR_VOLTAGE_CONTACT &&
 						fabs(LL_motors_settings.right.volt) > THR_VOLTAGE_CONTACT) {
 
-							// Reset encoders - CRITICAL:
-							qei_count_L_reset();
-							qei_count_R_reset();
+						// Reset encoders - CRITICAL:
+						qei_count_L_reset();
+						qei_count_R_reset();
 
-							// Set up next calibration trajectory:
-							calib_traj = CalibTraj_3_Travel_to_ORG;
+						// Set up next calibration trajectory:
+						calib_traj = CalibTraj_3_Travel_to_ORG;
 
-							p_calib_o[IDX_X] = 0;
-							p_calib_o[IDX_Y] = 0;
+						p_calib_o[IDX_X] = 0;
+						p_calib_o[IDX_Y] = 0;
 
-							p_calib_f[IDX_X] = 0.5*D_WKSPC_LL2_X;
-							p_calib_f[IDX_Y] = 0.5*D_WKSPC_LL2_Y;
+						p_calib_f[IDX_X] = 0.5*D_WKSPC_LL2_X;
+						p_calib_f[IDX_Y] = 0.5*D_WKSPC_LL2_Y;
 
-							// Control gains scale array:
-							idx_scale = IDX_SCALE_EXERCISE;
+						// Control gains scale array:
+						idx_scale = IDX_SCALE_EXERCISE;
 
-							// Trajectory initiation command:
-							init_calib_traj  = 1;
+						// Trajectory initiation command:
+						init_calib_traj  = 1;
 					}
-					else if (calib_traj == CalibTraj_3_Travel_to_ORG) {
+					else if (
+						calib_traj == CalibTraj_3_Travel_to_ORG &&
+						t_calib >= T_f_calib) {
 
-							// Encoders calibration exit condition:
-							if (t_calib >= T_f_calib) {
-								// Reset encoders - CRITICAL:
-								qei_count_L_reset();
-								qei_count_R_reset();
+						// Reset encoders - CRITICAL:
+						qei_count_L_reset();
+						qei_count_R_reset();
 
-								calib_enc_on = 0;
-							}
+						// Set up next calibration trajectory:
+						calib_traj = CalibTraj_4_Travel_to_P_Start_Exe;
+
+						p_calib_o[IDX_X] = 0;
+						p_calib_o[IDX_Y] = 0;
+
+						if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
+							// NOTE: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
+							traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
+								traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
+
+							p_calib_f[IDX_X] = p_ref[IDX_X];
+							p_calib_f[IDX_Y] = p_ref[IDX_Y];
+						}
+						else {
+							// Safety catch:
+							p_calib_f[IDX_X] = 0;
+							p_calib_f[IDX_Y] = 0;
+						}
+
+						// Active trajectory control: create initial condition for internal state (CRITICAL)
+						z_intern_o_dbl[IDX_X  ]    = p_ref[IDX_X];
+						z_intern_o_dbl[IDX_Y  ]    = p_ref[IDX_Y];
+						z_intern_o_dbl[IDX_PHI]    = phi_o;
+
+						z_intern_o_dbl[IDX_DT_X  ] = dt_p_x_o;
+						z_intern_o_dbl[IDX_DT_Y  ] = dt_p_y_o;
+						z_intern_o_dbl[IDX_DT_PHI] = dt_phi_o;
+
+						// Control gains scale array:
+						idx_scale = IDX_SCALE_EXERCISE;
+
+						// Trajectory initiation command:
+						init_calib_traj  = 1;
+					}
+					else if (calib_traj == CalibTraj_4_Travel_to_P_Start_Exe) {
+
+						// Encoders calibration exit condition:
+						if (t_calib >= T_f_calib)
+							calib_enc_on = 0;
 					}
 
 					#if USE_ITM_OUT_RT_CHECK
 						if (calib_traj_prev == CalibTraj_Null && calib_traj != CalibTraj_Null) {
-							printf("   test_real_time(): calib_traj  = [%s] \n", CALIB_TRAJ_STR[calib_traj]);
+							printf("   test_real_time(): calib_traj   = [%s] \n", CALIB_TRAJ_STR[calib_traj]);
 							printf("                     calib_enc_on = [%d] \n", calib_enc_on);
 							printf("                     t_ref_calib  = [%3.2f] \n\n", t_ref_calib);
 						}
@@ -612,17 +670,17 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					if (calib_traj_prev != calib_traj)
 						t_ref_calib = t_ref;
 
-					if (calib_traj != CalibTraj_Null)
-						t_calib = t_ref - t_ref_calib;
-					else
-						t_calib = 0;
+					t_calib = t_ref - t_ref_calib;
 
 					// Generate trajectory points:
-					traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
-										p_calib_o, p_calib_f, V_CALIB, FRAC_RAMP_CALIB, &init_calib_traj, &T_f_calib,
-										&pos_rel_calib, &dt_pos_rel_calib);
+					if (calib_enc_on)
+						traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
+											p_calib_o, p_calib_f, V_CALIB, FRAC_RAMP_CALIB, &init_calib_traj, &T_f_calib,
+											&pos_rel_calib, &dt_pos_rel_calib);
 
+					// Record active calibration trajectory for next iteration:
 					calib_traj_prev = calib_traj;
+
 				} // end if (LL_sys_info.activity_state == CALIB)
 
 				///////////////////////////////////////////////////////////////////////////////
@@ -656,7 +714,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 									p_ref, dt_p_ref,
 									&phi_ref, &dt_phi_ref,
 									u_t_ref, dt_k,
-									traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_ON);
+									traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE:  was TRAJ_PARAMS_VARIABLE_ON for both cases
 							}
 							else
 								// Isometric trajectory OR safety catch:
@@ -668,20 +726,12 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 						// Active trajectory control:
 						else if (LL_sys_info.exercise_mode == ActiveTrajectoryCtrl) {
-							if (traj_exerc_type == EllipticTraj)
+							if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj)
 								traj_ref_step_active_elliptic(
 									p_ref, dt_p_ref,
 									&phi_ref, &dt_phi_ref,
 									u_t_ref, dt_k, F_end_in, z_intern_o_dbl,
-									traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj, TRAJ_PARAMS_VARIABLE_ON);
-
-							else if (traj_exerc_type == LinearTraj)
-								traj_ref_step_active_elliptic(
-									p_ref, dt_p_ref,
-									&phi_ref, &dt_phi_ref,
-									u_t_ref, dt_k, F_end_in, z_intern_o_dbl,
-									traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj, TRAJ_PARAMS_VARIABLE_OFF);
-
+									traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: elliptic was TRAJ_PARAMS_VARIABLE_ON
 							else
 								// Isometric trajectory OR safety catch:
 								traj_ref_step_isometric(
@@ -693,7 +743,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						// Undefined exercise mode:
 						else {
 							#if USE_ITM_OUT_RT_CHECK
-								printf("   exercise_mode: [%s]\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
+								printf("\n\n");
+								printf("   [Invalid exercise_mode [%s] for activity_state == EXERCISE]\n\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
 							#endif
 						}
 					} // end if (LL_sys_info.exercise_state == RUNNING)
@@ -721,125 +772,128 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
 
-				if ( LL_sys_info.activity_state == CALIB ||
-					(LL_sys_info.activity_state == EXERCISE && (LL_sys_info.exercise_state == RUNNING || LL_sys_info.exercise_state == SLOWING)) ) {
+				// TODO: remove at a later date
+				// if ( LL_sys_info.activity_state == CALIB ||
+				// 	(LL_sys_info.activity_state == EXERCISE && (LL_sys_info.exercise_state == RUNNING || LL_sys_info.exercise_state == SLOWING))) {
 
-					///////////////////////////////////////////////////////////////////////////////
-					// Gravity compensation force command (end-effector coordinates):
-					///////////////////////////////////////////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////
+				// Gravity compensation force command (end-effector coordinates):
+				///////////////////////////////////////////////////////////////////////////////
 
-					// Low-pass filtered sensor forces:
-					for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
-						F_end_lo[c_i] = low_pass_discrete_fwd(F_end_m[c_i], F_end_lo_prev[c_i],
-							OMEGA_LO_F_END, (double)DT_STEP_MSEC/MSEC_PER_SEC);
+				// Low-pass filtered sensor forces:
+				for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
+					F_end_lo[c_i] = low_pass_discrete_fwd(F_end_m[c_i], F_end_lo_prev[c_i],
+						OMEGA_LO_F_END, (double)DT_STEP_MSEC/MSEC_PER_SEC);
 
-						F_end_lo_prev[c_i] = F_end_lo[c_i];
-					}
+					F_end_lo_prev[c_i] = F_end_lo[c_i];
+				}
 
-					// Dynamic gravity compensation:
-					F_gcomp_dyn = F_GCOMP_LIM*(1 - exp(-sig_F_gcomp*fmax(-F_end_lo[IDX_Y], 0)));
+				// Dynamic gravity compensation:
+				F_gcomp_dyn = F_GCOMP_LIM*(1 - exp(-sig_F_gcomp*fmax(-F_end_lo[IDX_Y], 0)));
 
-					// Total gravity compensation:
-					F_end_cmd_gcomp[IDX_X] = 0;
-					F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP[idx_scale]*F_G_COMP_DEF + F_gcomp_dyn;
+				// Total gravity compensation:
+				F_end_cmd_gcomp[IDX_X] = 0;
+				F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP[idx_scale]*F_G_COMP_DEF + F_gcomp_dyn;
 
-					///////////////////////////////////////////////////////////////////////////////
-					// FB force command:
-					///////////////////////////////////////////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////
+				// FB force command:
+				///////////////////////////////////////////////////////////////////////////////
 
-					// Kinematics error vector, array form:
-					err_pos_vel[0] =    p_ref[IDX_X] -    p_m[IDX_X];
-					err_pos_vel[1] = dt_p_ref[IDX_X] - dt_p_m[IDX_X];
+				// Kinematics error vector, array form:
+				err_pos_vel[0] =    p_ref[IDX_X] -    p_m[IDX_X];
+				err_pos_vel[1] = dt_p_ref[IDX_X] - dt_p_m[IDX_X];
 
-					err_pos_vel[2] =    p_ref[IDX_Y] -    p_m[IDX_Y];
-					err_pos_vel[3] = dt_p_ref[IDX_Y] - dt_p_m[IDX_Y];
+				err_pos_vel[2] =    p_ref[IDX_Y] -    p_m[IDX_Y];
+				err_pos_vel[3] = dt_p_ref[IDX_Y] - dt_p_m[IDX_Y];
 
-					// Kinematics error vector, nml matrix form:
-					for (c_i = 0; c_i < N_POS_VEL_2D; c_i++)
-						err_pos_vel_nml->data[c_i][0] = err_pos_vel[c_i];
+				// Kinematics error vector, nml matrix form:
+				for (c_i = 0; c_i < N_POS_VEL_2D; c_i++)
+					err_pos_vel_nml->data[c_i][0] = err_pos_vel[c_i];
 
-					// FB force command, nml matrix form:
-					nml_mat_dot_ref(F_end_cmd_fb_nml, K_lq_xv_nml, err_pos_vel_nml);
-					nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB[idx_scale]); // scale by switching variable
+				// FB force command, nml matrix form:
+				nml_mat_dot_ref(F_end_cmd_fb_nml, K_lq_xv_nml, err_pos_vel_nml);
+				nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB[idx_scale]); // scale by switching variable
 
-					// FB force commands, array form:
-					for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-						F_end_cmd_fb[c_i] = F_end_cmd_fb_nml->data[c_i][0];
+				// FB force commands, array form:
+				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
+					F_end_cmd_fb[c_i] = F_end_cmd_fb_nml->data[c_i][0];
 
-					///////////////////////////////////////////////////////////////////////////////
-					// FF force command:
-					///////////////////////////////////////////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////
+				// FF force command:
+				///////////////////////////////////////////////////////////////////////////////
 
-					// FF force commands, array form:
-					for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-						F_end_cmd_ff[c_i] = SCALE_FF[idx_scale]*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
+				// FF force commands, array form:
+				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
+					F_end_cmd_ff[c_i] = SCALE_FF[idx_scale]*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
 
-					///////////////////////////////////////////////////////////////////////////////
-					// Integral position error force command:
-					///////////////////////////////////////////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////
+				// Integral position error force command:
+				///////////////////////////////////////////////////////////////////////////////
 
-					// Integral position error:
-					err_pos[IDX_X] = err_pos_vel[0];
-					err_pos[IDX_Y] = err_pos_vel[2];
+				// Integral position error:
+				err_pos[IDX_X] = err_pos_vel[0];
+				err_pos[IDX_Y] = err_pos_vel[2];
 
-					for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
-						err_int_pos[c_i] = int_hi_pass_discrete_fwd(err_pos[c_i], err_int_pos_prev[c_i],
-							OMEGA_HI_ERR_INT_POS, (double)DT_STEP_MSEC/MSEC_PER_SEC);
+				for (c_i = IDX_X; c_i <= IDX_Y; c_i++) {
+					err_int_pos[c_i] = int_hi_pass_discrete_fwd(err_pos[c_i], err_int_pos_prev[c_i],
+						OMEGA_HI_ERR_INT_POS, (double)DT_STEP_MSEC/MSEC_PER_SEC);
 
-						err_int_pos_prev[c_i] = err_int_pos[c_i];
-					}
+					err_int_pos_prev[c_i] = err_int_pos[c_i];
+				}
 
-					// Force command:
-					for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-						F_end_cmd_int_err[c_i] = SCALE_INT_ERR[idx_scale]*err_int_pos[c_i];
+				// Force command:
+				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
+					F_end_cmd_int_err[c_i] = SCALE_INT_ERR[idx_scale]*err_int_pos[c_i];
 
-					///////////////////////////////////////////////////////////////////////////////
-					// Total force command:
-					///////////////////////////////////////////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////
+				// Total force command:
+				///////////////////////////////////////////////////////////////////////////////
 
-					for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-						F_end_cmd[c_i] = F_end_cmd_fb[c_i] + F_end_cmd_ff[c_i] + F_end_cmd_gcomp[c_i] + F_end_cmd_int_err[c_i];
+				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
+					F_end_cmd[c_i] = F_end_cmd_fb[c_i] + F_end_cmd_ff[c_i] + F_end_cmd_gcomp[c_i] + F_end_cmd_int_err[c_i];
 
-					///////////////////////////////////////////////////////////////////////////////
-					// Update motors' settings:
-					///////////////////////////////////////////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////
+				// Update motors' settings:
+				///////////////////////////////////////////////////////////////////////////////
 
-					clear_lowerlimb_motors_settings(&LL_motors_settings);
-					set_LL_motor_settings(&LL_motors_settings, F_end_cmd);
+				clear_lowerlimb_motors_settings(&LL_motors_settings);
+				set_LL_motor_settings(&LL_motors_settings, F_end_cmd);
 
-					///////////////////////////////////////////////////////////////////////////////
-					// Send motor commands:
-					///////////////////////////////////////////////////////////////////////////////
+				///////////////////////////////////////////////////////////////////////////////
+				// Send motor commands:
+				///////////////////////////////////////////////////////////////////////////////
 
-					// Check motor activation status:
-					if (	(LL_sys_info.activity_state == CALIB    && MOTOR_TORQUE_ACTIVE_CALIB) ||
-							(LL_sys_info.activity_state == JOG      && MOTOR_TORQUE_ACTIVE_JOG) ||
-							(LL_sys_info.activity_state == EXERCISE && MOTOR_TORQUE_ACTIVE_EXERCISE) )
-						motor_torque_active = 1;
-					else
-						motor_torque_active = 0;
+				// Check motor activation status:
+				if (      LL_sys_info.activity_state == CALIB    && MOTOR_TORQUE_ACTIVE_CALIB)
+								motor_torque_active = 1; // NOTE: this "clamps" motor activation even in future IDLE states
+				else if ((LL_sys_info.activity_state == JOG      && MOTOR_TORQUE_ACTIVE_JOG == 0     ) ||
+						 (LL_sys_info.activity_state == EXERCISE && MOTOR_TORQUE_ACTIVE_EXERCISE == 0) )
+								motor_torque_active = 0;
 
-					// Issue motion commands to motors::
-					if (motor_alert != 1 && motor_alert != 2) {
-						if (motor_torque_active) {
-							motor_L_move(LL_motors_settings.left.dac_in,  LL_motors_settings.left.motor_direction,  LL_motors_settings.left.en_motor_driver);
-							motor_R_move(LL_motors_settings.right.dac_in, LL_motors_settings.right.motor_direction, LL_motors_settings.right.en_motor_driver);
-						}
-					}
-					else {
-						stop_exercise(&LL_motors_settings);
-
-						// Disable motors:
-						motor_L_move(0, false, false);
-						motor_R_move(0, false, false);
-
-						// Display section:
-						#if USE_ITM_OUT_RT_CHECK
-							printf("\n");
-							printf("   MOTOR ALERT = [%d] \n\n", motor_alert);
-						#endif
+				// Issue motion commands to motors - CRITICAL:
+				if (motor_alert != 1 && motor_alert != 2) {
+					if (motor_torque_active) {
+						motor_L_move(LL_motors_settings.left.dac_in,  LL_motors_settings.left.motor_direction,  LL_motors_settings.left.en_motor_driver);
+						motor_R_move(LL_motors_settings.right.dac_in, LL_motors_settings.right.motor_direction, LL_motors_settings.right.en_motor_driver);
 					}
 				}
+				else {
+					stop_exercise(&LL_motors_settings);
+
+					// Disable motors:
+					motor_L_move(0, false, false);
+					motor_R_move(0, false, false);
+
+					// Display section:
+					#if USE_ITM_OUT_RT_CHECK
+						printf("\n");
+						printf("   MOTOR ALERT = [%d] \n\n", motor_alert);
+					#endif
+				}
+				// } // end if ( LL_sys_info.activity_state == CALIB ...) TODO: remove at a later date
+
+				// TODO: remove at a later date
+				/*
 				else {
 					// Reset sensor readings and motor settings:
 					clear_lowerlimb_mech_readings(&LL_mech_readings);
@@ -850,6 +904,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					motor_L_move(0, false, false);
 					motor_L_move(0, false, false);
 				}
+				*/
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Send feedback data to TCP/IP app:
@@ -859,20 +914,14 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				LL_mech_readings.Xforce = F_end_lo[IDX_X];
 				LL_mech_readings.Yforce = F_end_lo[IDX_Y];
 
-				// HACK: store integral position error temporarily in LL_mech_readings (for debugging):
-				/*
-				LL_mech_readings.velocity.x	= err_int_pos[IDX_X];
-				LL_mech_readings.velocity.y = err_int_pos[IDX_Y];
-				*/
-
 				send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
 
 				///////////////////////////////////////////////////////////////////////////////
 				// ITM console output:
 				///////////////////////////////////////////////////////////////////////////////
 
+				/*
 				#if USE_ITM_OUT_RT_CHECK
-					/*
 					if ((up_time_end - up_time) > DT_STEP_MSEC) {
 						printf("____________________________\n");
 						printf("rt_step_i [%d]: t_ref = %f\tDT MSEC = %d\n",
@@ -881,36 +930,18 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							(int)up_time_end - (int)up_time;
 						printf("____________________________\n");
 					}
-					*/
-
-					if (switch_traj != SWITCH_TRAJ_NULL) {
-						// Check uptime after computations:
-						up_time_end = getUpTime();
-
-						printf("   switch_traj = [%d] \n\n", switch_traj);
-						printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\tp_ref = [%3.3f, %3.3f]\tdt_p_ref = [%3.3f, %3.3f], p_m = [%3.3f, %3.3f]\tdt_p_m = [%3.3f, %3.3f]\tF_m = [%3.3f, %3.3f]\n",
-							rt_step_i,
-							t_ref,
-							(int)up_time_end - (int)up_time,
-							phi_ref,
-							dt_phi_ref,
-							p_ref[IDX_X],
-							p_ref[IDX_Y],
-							dt_p_ref[IDX_X],
-							dt_p_ref[IDX_Y],
-							p_m[IDX_X],
-							p_m[IDX_Y],
-							dt_p_m[IDX_X],
-							dt_p_m[IDX_Y],
-							F_end_m[IDX_X],
-							F_end_m[IDX_Y]);
-					}
 				#endif
+				*/
+
 			} // end if (LL_sys_info.system_state == ON)
 
 			else { // LL_sys_info.system_state != ON
 				// Change LEDs to system state OFF:
 				LED_sys_state_off();
+
+				// Disable motors:
+				motor_L_move(0, false, false);
+				motor_R_move(0, false, false);
 
 				// Engage brakes:
 				l_brakes(ENGAGE_BRAKES);
@@ -928,6 +959,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			system_state_prev   = LL_sys_info.system_state;
 			activity_state_prev = LL_sys_info.activity_state;
 			exercise_state_prev = LL_sys_info.exercise_state;
+
+			cmd_code_prev_to_last = cmd_code;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// ITM console output:
@@ -958,6 +991,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						dt_p_m[IDX_Y],
 						F_end_m[IDX_X],
 						F_end_m[IDX_Y]);
+
 					printf("   pos_rel = [%3.3f]\tdt_pos_rel = [%3.3f]\n",
 						pos_rel_calib, dt_pos_rel_calib);
 
@@ -972,14 +1006,17 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						p_calib_f[IDX_Y] - p_calib_o[IDX_Y]);
 
 					printf("\n");
-					// printf("   F_fb_x = [%3.2f]\tF_ff_x = [%3.2f]\tF_gc_x = [%3.2f]\tF_end_cmd_x = [%3.2f\t(%3.2f)]\n",
-					// 		F_end_cmd_fb[IDX_X], F_end_cmd_ff[IDX_X] , F_end_cmd_gcomp[IDX_X], F_end_cmd[IDX_X], LL_motors_settings.force_end[IDX_X]);
-					// printf("   F_fb_y = [%3.2f]\tF_ff_y = [%3.2f]\tF_gc_y = [%3.2f]\tF_end_cmd_y = [%3.2f\t(%3.2f)]\n",
-					//		F_end_cmd_fb[IDX_Y], F_end_cmd_ff[IDX_Y] , F_end_cmd_gcomp[IDX_Y], F_end_cmd[IDX_Y], LL_motors_settings.force_end[IDX_Y]);
 
-					// printf("   current[LEFT, RIGHT] = [%3.3f, %3.3f] \n", LL_motors_settings.left.current, LL_motors_settings.right.current);
-					// printf("   volt[LEFT, RIGHT]    = [%3.3f, %3.3f] \n", LL_motors_settings.left.volt,    LL_motors_settings.right.volt);
-					// printf("   dac_in[LEFT, RIGHT]  = [%i, %i] \n",       LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
+					/*
+					printf("   F_fb_x = [%3.2f]\tF_ff_x = [%3.2f]\tF_gc_x = [%3.2f]\tF_end_cmd_x = [%3.2f\t(%3.2f)]\n",
+							F_end_cmd_fb[IDX_X], F_end_cmd_ff[IDX_X] , F_end_cmd_gcomp[IDX_X], F_end_cmd[IDX_X], LL_motors_settings.force_end[IDX_X]);
+					printf("   F_fb_y = [%3.2f]\tF_ff_y = [%3.2f]\tF_gc_y = [%3.2f]\tF_end_cmd_y = [%3.2f\t(%3.2f)]\n",
+							F_end_cmd_fb[IDX_Y], F_end_cmd_ff[IDX_Y] , F_end_cmd_gcomp[IDX_Y], F_end_cmd[IDX_Y], LL_motors_settings.force_end[IDX_Y]);
+
+					printf("   current[LEFT, RIGHT] = [%3.3f, %3.3f] \n", LL_motors_settings.left.current, LL_motors_settings.right.current);
+					printf("   volt[LEFT, RIGHT]    = [%3.3f, %3.3f] \n", LL_motors_settings.left.volt,    LL_motors_settings.right.volt);
+					printf("   dac_in[LEFT, RIGHT]  = [%i, %i] \n",       LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
+					*/
 
 					printf("   t_calib  = [%3.2f], T_f_calib = [%3.2f], calib_enc_on = [%d], cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
 							t_calib, T_f_calib, calib_enc_on, CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
@@ -991,8 +1028,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			///////////////////////////////////////////////////////////////////////////////
 			// Increase real-time step counter:
 			///////////////////////////////////////////////////////////////////////////////
-
-			cmd_code_prev_to_last = cmd_code;
 
 			rt_step_i++;
 

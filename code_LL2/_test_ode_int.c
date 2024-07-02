@@ -106,25 +106,25 @@ void test_ode_int() {
 
 	if (ADMITT_MODEL_CONSTR_ON) {
 		// Positions:
-		z_intern_o_dbl[0] = traj_ctrl_params.semiaxis_x;
-		z_intern_o_dbl[1] = 0;
-		z_intern_o_dbl[2] = 0;
+		z_intern_o_dbl[IDX_X  ] = traj_ctrl_params.semiaxis_x;
+		z_intern_o_dbl[IDX_Y  ] = 0;
+		z_intern_o_dbl[IDX_PHI] = 0;
 
 		// Velocities:
-		z_intern_o_dbl[3] = 0;
-		z_intern_o_dbl[4] = 0.5;
-		z_intern_o_dbl[5] = 0;
+		z_intern_o_dbl[IDX_DT_X  ] = 0;
+		z_intern_o_dbl[IDX_DT_Y  ] = 0.5;
+		z_intern_o_dbl[IDX_DT_PHI] = 0;
 	}
 	else {
 		// Positions:
-		z_intern_o_dbl[0] = traj_ctrl_params.semiaxis_x;
-		z_intern_o_dbl[1] = traj_ctrl_params.semiaxis_y;
-		z_intern_o_dbl[2] = 0;
+		z_intern_o_dbl[IDX_X  ] = traj_ctrl_params.semiaxis_x;
+		z_intern_o_dbl[IDX_Y  ] = traj_ctrl_params.semiaxis_y;
+		z_intern_o_dbl[IDX_PHI] = 0;
 
 		// Velocities:
-		z_intern_o_dbl[3] = 0;
-		z_intern_o_dbl[4] = 0;
-		z_intern_o_dbl[5] = 0;
+		z_intern_o_dbl[IDX_DT_X  ] = 0;
+		z_intern_o_dbl[IDX_DT_Y  ] = 0;
+		z_intern_o_dbl[IDX_DT_PHI] = 0;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -180,7 +180,10 @@ void test_ode_int() {
 
 		t_ref = dt_k*step_i;
 
+		///////////////////////////////////////////////////////////////////////////////
 		// ITM console output:
+		///////////////////////////////////////////////////////////////////////////////
+
 		/*
 		if (step_i % (DT_DISP_MSEC_REALTIME/DT_STEP_MSEC) == 0)
 			printf("%d\t%f\t(%d)\t%f\t%f\t%f\t%f\t%f\t%f\n",

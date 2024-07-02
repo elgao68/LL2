@@ -1,9 +1,11 @@
-/*
- * _VALIDATE_CMD_START_EXE.h
- *
- *  Created on: Jun 27, 2024
- *      Author: Michael Frank
- */
+/////////////////////////////////////////////////////////////////////////////
+//
+// _VALIDATE_CMD_START_EXE.h
+//
+// Created on: 2024.07.01
+// Author: Gabriel Aguirre Ollinger
+//
+/////////////////////////////////////////////////////////////////////////////
 
 #ifndef CODE_LL2__VALIDATE_CMD_START_EXE_H_
 #define CODE_LL2__VALIDATE_CMD_START_EXE_H_

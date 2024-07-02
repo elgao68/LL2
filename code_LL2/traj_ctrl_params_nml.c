@@ -166,7 +166,9 @@ traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
 			frac_ramp = 0.5;
 
 		// Distance between points:
-		dist_max = pow(pow(p_f[IDX_X] - p_o[IDX_X],2) + pow(p_f[IDX_Y] - p_o[IDX_Y],2), 0.5);
+		dist_max = pow(
+				pow(p_f[IDX_X] - p_o[IDX_X],2) +
+				pow(p_f[IDX_Y] - p_o[IDX_Y],2), 0.5);
 
 		*initial = 0;
 	}

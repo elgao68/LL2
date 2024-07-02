@@ -1,9 +1,11 @@
-/*
- * _VALIDATE_CMD_CALIB.h
- *
- *  Created on: Jun 27, 2024
- *      Author: Michael Frank
- */
+/////////////////////////////////////////////////////////////////////////////
+//
+// _VALIDATE_CMD_CALIB.h
+//
+// Created on: 2024.07.01
+// Author: Gabriel Aguirre Ollinger
+//
+/////////////////////////////////////////////////////////////////////////////
 
 #ifndef CODE_LL2__VALIDATE_CMD_CALIB_H_
 #define CODE_LL2__VALIDATE_CMD_CALIB_H_

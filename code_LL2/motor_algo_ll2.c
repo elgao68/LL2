@@ -98,6 +98,12 @@ void traj_ref_step_active_elliptic(
 	double  u_t_int[N_COORD_2D] = {0.0, 0.0};
 
 	///////////////////////////////////////////////////////////////////////////////
+    // Sensitivity to sensor force inputs:
+    ///////////////////////////////////////////////////////////////////////////////
+
+	static double frac_F_end_in = 1.0;
+
+	///////////////////////////////////////////////////////////////////////////////
     // Counters:
     ///////////////////////////////////////////////////////////////////////////////
 
@@ -139,7 +145,7 @@ void traj_ref_step_active_elliptic(
 	double T_exp   = traj_ctrl_params.exp_blend_time;
 	double ax_x    = traj_ctrl_params.semiaxis_x;
 	double ax_y    = traj_ctrl_params.semiaxis_y;
-	double ax_ang  = traj_ctrl_params.rot_angle;
+	double rot_ang = traj_ctrl_params.rot_angle;
 	int cycle_dir  = (int)traj_ctrl_params.cycle_dir;
 
 	double sig_exp = 3.0/T_exp;
@@ -176,9 +182,6 @@ void traj_ref_step_active_elliptic(
 		initial = 0;
 	}
 
-	static double ax_x_o;
-	static double ax_y_o;
-
 	static int8_t traj_params_behav = TRAJ_PARAMS_STEADY;
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -186,30 +189,34 @@ void traj_ref_step_active_elliptic(
 	///////////////////////////////////////////////////////////////////////////////
 
 	static int step_int = 0; // algorithm step counter
-
 	double t_ref = dt_k*step_int;
+
 	static double t_param_o = 0;
 
-	if (switch_traj == SWITCH_TRAJ_START && traj_params_behav != TRAJ_PARAMS_GROW)	{
-		traj_params_behav = TRAJ_PARAMS_GROW;
-
-		t_param_o = t_ref;
-		ax_x_o = ax_x_adj;
-		ax_y_o = ax_y_adj;
-	}
-	else if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
-		traj_params_behav = TRAJ_PARAMS_DECAY;
-
-		t_param_o = t_ref;
-		ax_x_o = ax_x_adj;
-		ax_y_o = ax_y_adj;
-	}
-
     ///////////////////////////////////////////////////////////////////////////////
-    //  Adjusted trajectory path parameters:
+    //  Variable trajectory path parameters - behaviors:
     ///////////////////////////////////////////////////////////////////////////////
 
 	if (use_traj_params_variable) {
+
+		static double ax_x_o;
+		static double ax_y_o;
+
+		if (switch_traj == SWITCH_TRAJ_START && traj_params_behav != TRAJ_PARAMS_GROW)	{
+			traj_params_behav = TRAJ_PARAMS_GROW;
+
+			t_param_o = t_ref;
+			ax_x_o = ax_x_adj;
+			ax_y_o = ax_y_adj;
+		}
+		else if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
+			traj_params_behav = TRAJ_PARAMS_DECAY;
+
+			t_param_o = t_ref;
+			ax_x_o = ax_x_adj;
+			ax_y_o = ax_y_adj;
+		}
+
 		if (traj_params_behav == TRAJ_PARAMS_GROW) {
 			ax_x_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_x - ax_x_o) + ax_x_o;
 			ax_y_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_y - ax_y_o) + ax_y_o;
@@ -218,6 +225,25 @@ void traj_ref_step_active_elliptic(
 			ax_x_adj = exp(-sig_exp*(t_ref - t_param_o))*ax_x_o;
 			ax_y_adj = exp(-sig_exp*(t_ref - t_param_o))*ax_y_o;
 		}
+	}
+
+    ///////////////////////////////////////////////////////////////////////////////
+    //  Fixed trajectory path parameters - behaviors:
+    ///////////////////////////////////////////////////////////////////////////////
+
+	else {
+		if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
+			traj_params_behav = TRAJ_PARAMS_DECAY;
+
+			t_param_o = t_ref;
+		}
+
+		///////////////////////////////////////////////////////////////////////////////
+		// Make frequency decay:
+		///////////////////////////////////////////////////////////////////////////////
+
+		if (traj_params_behav == TRAJ_PARAMS_DECAY)
+			frac_F_end_in = exp(-sig_exp*(t_ref - t_param_o));
 	}
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -232,8 +258,8 @@ void traj_ref_step_active_elliptic(
 
 		// Obtain trajectory path constraint (only A_con will be used for now):
 		if (use_admitt_model_constr) {
-			// traj_ellipse_constraints(*phi_ref, *dt_phi_ref, A_con, b_con, ax_x_adj, ax_y_adj, ax_ang);
-			traj_ellipse_help(*phi_ref, *dt_phi_ref, p_int, dt_p_int, u_t_int, A_con, b_con, ax_x_adj, ax_y_adj, ax_ang); // needed to compute tangential force
+			// traj_ellipse_constraints(*phi_ref, *dt_phi_ref, A_con, b_con, ax_x_adj, ax_y_adj, rot_ang);
+			traj_ellipse_help(*phi_ref, *dt_phi_ref, p_int, dt_p_int, u_t_int, A_con, b_con, ax_x_adj, ax_y_adj, rot_ang); // needed to compute tangential force
 
 			// Include constraint matrix in ODE parameters:
 			nml_mat_cp_ref(ode_params.par_nml[IDX_PAR_NML_A_CON], A_con);
@@ -254,8 +280,8 @@ void traj_ref_step_active_elliptic(
 		}
 
 		// Input forces:
-		ode_params.par_dbl[IDX_X]   = F_end_in[IDX_X] + F_tang[IDX_X];
-		ode_params.par_dbl[IDX_Y]   = F_end_in[IDX_Y] + F_tang[IDX_Y];
+		ode_params.par_dbl[IDX_X]   = frac_F_end_in*(F_end_in[IDX_X] + F_tang[IDX_X]);
+		ode_params.par_dbl[IDX_Y]   = frac_F_end_in*(F_end_in[IDX_Y] + F_tang[IDX_Y]);
 		ode_params.par_dbl[IDX_PHI] = 0.0;
 
 		///////////////////////////////////////////////////////////////////////////////
@@ -281,16 +307,17 @@ void traj_ref_step_active_elliptic(
 			printf("   T_exp   = %f\n", T_exp);
 			printf("   ax_x    = %f\n", ax_x);
 			printf("   ax_y    = %f\n", ax_y);
-			printf("   ax_ang  = %f\n", ax_ang);
+			printf("   rot_ang  = %f\n", rot_ang);
 			printf("   cycle_dir = %f\n", (double)cycle_dir);
 			printf("\n");
 		}
 
 		if (step_int % (DT_DISP_MSEC_ALGO/(int)(1000*dt_k)) == 0) {
-			printf("[%d] phi = [%3.2f] \tdt_phi = [%3.2f] \tF_end_in = [%3.2f, %3.2f] \tu_t_int = [%3.2f, %3.2f]\tF_tang = [%3.2f, %3.2f] \tz = [",
+			printf("[%d] phi = [%3.2f] \tdt_phi = [%3.2f] \tF_end_in = [%3.2f, %3.2f] \tfrac_F_end_in = [%3.2f] \tu_t_int = [%3.2f, %3.2f]\tF_tang = [%3.2f, %3.2f] \tz = [",
 				step_int,
 				*phi_ref, *dt_phi_ref,
-				F_end_in[IDX_X], F_end_in[IDX_Y], u_t_int[IDX_X], u_t_int[IDX_Y], F_tang[IDX_X], F_tang[IDX_Y]);
+				F_end_in[IDX_X], F_end_in[IDX_Y], frac_F_end_in,
+				u_t_int[IDX_X], u_t_int[IDX_Y], F_tang[IDX_X], F_tang[IDX_Y]);
 
 			for (int r_i = 0; r_i < 2*N_COORD_EXT; r_i++)
 				printf("%3.2f ", z_intern->data[r_i][0]);
@@ -310,7 +337,7 @@ void traj_ref_step_active_elliptic(
 
 		// Compute reference trajectory position and velocity from PHASE:
 		traj_ellipse_points(*phi_ref, *dt_phi_ref, p_ref, dt_p_ref, u_t_ref,
-			ax_x_adj, ax_y_adj, ax_ang);
+			ax_x_adj, ax_y_adj, rot_ang);
 	}
 	else {
 		// Phase and instantaneous frequency are not updated:
@@ -339,32 +366,30 @@ void traj_ref_step_passive_elliptic(
 		traj_ctrl_params_t traj_ctrl_params, int8_t switch_traj, int8_t use_traj_params_variable) {
 
 	///////////////////////////////////////////////////////////////////////////////
-	// COPY TRAJECTORY PARAMETERS TO LOCAL SCOPE VARIABLES - GAO
+	// COPY TRAJECTORY PARAMETERS TO LOCAL SCOPE VARIABLES:
 	///////////////////////////////////////////////////////////////////////////////
 
 	static double T_cycle;
 	static double T_exp;
 	static double ax_x;
 	static double ax_y;
-	static double ax_ang;
+	static double rot_ang;
 	static int cycle_dir;
 	static double sig_exp;
 
-	///////////////////////////////////////////////////////////////////////////////
-	// Additional parameters:
-	///////////////////////////////////////////////////////////////////////////////
-
-	static uint8_t initial = 1;
-
 	static double ax_x_adj;
 	static double ax_y_adj;
+
+	static double frac_dt_phi = 1.0;
+
+	static uint8_t initial = 1;
 
 	if (initial) {
 		T_cycle = traj_ctrl_params.cycle_period;
 		T_exp   = traj_ctrl_params.exp_blend_time;
 		ax_x    = traj_ctrl_params.semiaxis_x;
 		ax_y    = traj_ctrl_params.semiaxis_y;
-		ax_ang  = traj_ctrl_params.rot_angle;
+		rot_ang  = traj_ctrl_params.rot_angle;
 		cycle_dir  = (int)traj_ctrl_params.cycle_dir;
 		sig_exp = 3.0/T_exp;
 
@@ -380,41 +405,48 @@ void traj_ref_step_passive_elliptic(
 		initial = 0;
 	}
 
-	static double ax_x_o;
-	static double ax_y_o;
-
-	static int8_t traj_params_behav = TRAJ_PARAMS_STEADY;
-
 	///////////////////////////////////////////////////////////////////////////////
 	// Set up timers & behaviors:
 	///////////////////////////////////////////////////////////////////////////////
 
 	static int step_int = 0; // algorithm step counter
-
 	double t_ref = dt_k*step_int;
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Variable parameters - behaviors:
+	///////////////////////////////////////////////////////////////////////////////
+
+	static int8_t traj_params_behav = TRAJ_PARAMS_STEADY;
 	static double t_param_o = 0;
 
-	if (switch_traj == SWITCH_TRAJ_START && traj_params_behav != TRAJ_PARAMS_GROW)	{
-		traj_params_behav = TRAJ_PARAMS_GROW;
+	if (use_traj_params_variable)  {
+		static double ax_x_o;
+		static double ax_y_o;
 
-		t_param_o = t_ref;
-		ax_x_o = ax_x_adj;
-		ax_y_o = ax_y_adj;
+		///////////////////////////////////////////////////////////////////////////////
+		// Trajectory start and stop: reference values
+		///////////////////////////////////////////////////////////////////////////////
 
-	}
-	else if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
-		traj_params_behav = TRAJ_PARAMS_DECAY;
+		if (switch_traj == SWITCH_TRAJ_START && traj_params_behav != TRAJ_PARAMS_GROW)	{
+			traj_params_behav = TRAJ_PARAMS_GROW;
 
-		t_param_o = t_ref;
-		ax_x_o = ax_x_adj;
-		ax_y_o = ax_y_adj;
-	}
+			t_param_o = t_ref;
+			ax_x_o = ax_x_adj;
+			ax_y_o = ax_y_adj;
 
-	///////////////////////////////////////////////////////////////////////////////
-	//  Adjusted trajectory path parameters:
-	///////////////////////////////////////////////////////////////////////////////
+		}
+		else if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
+			traj_params_behav = TRAJ_PARAMS_DECAY;
 
-	if (use_traj_params_variable) {
+			t_param_o = t_ref;
+			ax_x_o = ax_x_adj;
+			ax_y_o = ax_y_adj;
+		}
+
+		///////////////////////////////////////////////////////////////////////////////
+		//  Adjusted trajectory path parameters:
+		///////////////////////////////////////////////////////////////////////////////
+
 		if (traj_params_behav == TRAJ_PARAMS_GROW) {
 			ax_x_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_x - ax_x_o) + ax_x_o;
 			ax_y_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_y - ax_y_o) + ax_y_o;
@@ -425,7 +457,29 @@ void traj_ref_step_passive_elliptic(
 		}
 	}
 
+	///////////////////////////////////////////////////////////////////////////////
+	// Fixed parameters:
+	///////////////////////////////////////////////////////////////////////////////
+
+	else {
+		if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
+			traj_params_behav = TRAJ_PARAMS_DECAY;
+
+			t_param_o = t_ref;
+		}
+
+		///////////////////////////////////////////////////////////////////////////////
+		// Make frequency decay:
+		///////////////////////////////////////////////////////////////////////////////
+
+		if (traj_params_behav == TRAJ_PARAMS_DECAY)
+			frac_dt_phi = exp(-sig_exp*(t_ref - t_param_o));
+	}
+
+	///////////////////////////////////////////////////////////////////////////////
 	// ITM console output:
+	///////////////////////////////////////////////////////////////////////////////
+
 	#if USE_ITM_OUT_TRAJ_REF
 		if (step_int == 0) {
 			printf("\n");
@@ -434,7 +488,7 @@ void traj_ref_step_passive_elliptic(
 			printf("   T_exp   = %f\n", T_exp);
 			printf("   ax_x    = %f\n", ax_x);
 			printf("   ax_y    = %f\n", ax_y);
-			printf("   ax_ang  = %f\n", ax_ang);
+			printf("   rot_ang  = %f\n", rot_ang);
 			printf("   cycle_dir  = %f\n", (double)cycle_dir);
 			printf("\n");
 		}
@@ -445,12 +499,12 @@ void traj_ref_step_passive_elliptic(
 	///////////////////////////////////////////////////////////////////////////////
 
 	// Compute instantaneous frequency and phase:
-	*dt_phi_ref = 2*PI/T_cycle;
+	*dt_phi_ref = frac_dt_phi*2*PI/T_cycle;
 	*phi_ref    = (*dt_phi_ref)*t_ref;
 
 	// Compute reference trajectory position and velocity from PHASE:
 	traj_ellipse_points(*phi_ref, *dt_phi_ref, p_ref, dt_p_ref, u_t_ref,
-		ax_x_adj, ax_y_adj, ax_ang);
+		ax_x_adj, ax_y_adj, rot_ang);
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Increase step counter:
@@ -495,7 +549,6 @@ ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct ode_par
 	static nml_mat* B_sys_q;
 	static nml_mat* K_sys_q;
 
-	// static nml_mat* dt_z_nml; // TODO: remove at a later date
 	static nml_mat* A_con;
 
 	static nml_mat* Q_in_nml;

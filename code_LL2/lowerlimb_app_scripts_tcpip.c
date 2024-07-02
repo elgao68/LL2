@@ -314,9 +314,6 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 				printf("   lowerlimb_app_state_tcpip(): [Encoders calibrated] \n\n");
 			#endif
 
-			// Send calibration response - TODO: what does this imply?
-			// send_calibration_resp(lowerlimb_sys_info.calib_prot_req, 100, 2);
-
 			// Reset activity to IDLE:
 			lowerlimb_sys_info.activity_state = IDLE;
 
@@ -391,8 +388,8 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 	// CMD 05: STOP_EXE_CMD
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == STOP_EXE_CMD) { //stop exercise
-
+	else if (cmd_code == STOP_EXE_CMD) {
+		/*
 		#if USE_ITM_CMD_CHECK
 			printf("   [STOP_EXE_CMD]: \n");
 			printf("   BEFORE: \n");
@@ -401,13 +398,15 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
 			printf("\n");
 		#endif
+		*/
 
 		if (TRAJ_PARAMS_VARIABLE_ON) {
 			stop_exe_cmd_count++;
 
-			if (stop_exe_cmd_count == 1)
+			if (stop_exe_cmd_count == 1) { // initiate slowing down
 				lowerlimb_sys_info.exercise_state = SLOWING;
-			else if (stop_exe_cmd_count == 2) {
+			}
+			else if (stop_exe_cmd_count == 2) { // bring robot to full stop
 				lowerlimb_sys_info.activity_state = IDLE;
 				lowerlimb_sys_info.exercise_state = STOPPED;
 
@@ -424,6 +423,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 
 		send_OK_resp(cmd_code);
 
+		/*
 		#if USE_ITM_CMD_CHECK
 			idx_sys_state   = lowerlimb_sys_info.system_state;
 			idx_activ_state = lowerlimb_sys_info.activity_state;
@@ -435,13 +435,14 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
 			printf("\n");
 		#endif
+		*/
 	}
 
 	///////////////////////////////////////////////////////////////////////////
 	// CMD 06: STOP_SYS_CMD
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == STOP_SYS_CMD) { //stop system
+	else if (cmd_code == STOP_SYS_CMD) { // stop system
 		lowerlimb_sys_info.system_state   = SYS_OFF;
 		lowerlimb_sys_info.activity_state = IDLE;
 		lowerlimb_sys_info.exercise_state = STOPPED;
@@ -457,7 +458,7 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 		send_error_msg(cmd_code, ERR_UNKNOWN);
 		lowerlimb_sys_info.app_status = ERR_UNKNOWN + 3;
 		return lowerlimb_sys_info;
-	} // end (if cmd_code == )
+	}
 
 	return lowerlimb_sys_info;
 }

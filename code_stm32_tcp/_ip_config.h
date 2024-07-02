@@ -1,9 +1,11 @@
-/*
- * _ip_config.h
- *
- *  Created on: Apr 25, 2024
- *      Author: Michael Frank
- */
+/////////////////////////////////////////////////////////////////////////////
+//
+//  _ip_config.h
+//
+// Created on: 2024.04.25
+// Author: Gabriel Aguirre Ollinger
+//
+/////////////////////////////////////////////////////////////////////////////
 
 #ifndef CODE_STM32_TCP__IP_CONFIG_H_
 #define CODE_STM32_TCP__IP_CONFIG_H_
