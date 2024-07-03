@@ -191,11 +191,6 @@ typedef struct {
 	float F_tang_magn;
 } admitt_model_params_t;
 
-admitt_model_params_t
-set_admitt_model_params(	float inertia_x, float inertia_y,
-							float damping, float stiffness,
-							float p_eq_x, float p_eq_y);
-
 #endif /* ALL_CODES_CONTROL_SETTINGS_LL2_ */
 
 
