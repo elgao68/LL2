@@ -34,7 +34,7 @@
 #include <_VALIDATE_IDLE_START_EXE.h>
 
 ///////////////////////////////////////////////////////
-// CONTROL / SIMULATION SETTINGS - GAO
+// CONTROL / SIMULATION SETTINGS
 ///////////////////////////////////////////////////////
 
 #define USE_ITM_CMD_CHECK    1
@@ -134,16 +134,17 @@ enum {
 
 // exercise_state:
 enum {
-	STOPPED = 0, RUNNING = 1, PAUSED = 2, SETUP = 3, SLOWING = 4
+	STOPPED = 0, RUNNING = 1, PAUSED = 2, SETUP = 3, SLOWING = 4, HOMING = 5
 };
 
-#define LEN_EXERC_STATE 5
+#define LEN_EXERC_STATE 6
 static char EXERC_STATE_STR[LEN_EXERC_STATE][LEN_STR_MAX] = {
 	"STOPPED",
 	"RUNNING",
 	"PAUSED",
 	"SETUP",
-	"SLOWING"
+	"SLOWING",
+	"HOMING"
 };
 
 // emergency_state:
@@ -357,7 +358,7 @@ typedef struct {
 #define DISENGAGE_BRAKES	1
 
 ///////////////////////////////////////////////////////
-// System info message struct - GAO
+// System info message struct
 ///////////////////////////////////////////////////////
 
 typedef struct {
@@ -392,7 +393,7 @@ typedef struct {
 } lowerlimb_sys_info_t;	//System Info
 
 ///////////////////////////////////////////////////////
-// Data logging message struct - GAO
+// Data logging message struct
 ///////////////////////////////////////////////////////
 
 typedef struct {
@@ -422,8 +423,8 @@ typedef struct {
 // Messaging variables:
 ///////////////////////////////////////////////////////
 
-static lowerlimb_sys_info_t lowerlimb_sys_info;
-//static uint64_t ui64CalibNextTime = 0;
+static lowerlimb_sys_info_t lowerlimb_sys_info; // moved to source file to keep scope local
+
 static lowerlimb_brakes_command_t lowerlimb_brakes_command;
 
 //TCP messages:
@@ -507,7 +508,7 @@ lowerlimb_sys_info_t lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert,
 // Template function for the firmware state machine:
 lowerlimb_sys_info_t lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
-		uint8_t* calib_enc_on);
+		uint8_t* calib_enc_on, uint8_t* homing_on);
 
 ///////////////////////////////////////////////////////////////////////
 // Helper functions:

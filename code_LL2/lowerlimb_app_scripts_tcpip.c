@@ -18,7 +18,7 @@
 lowerlimb_sys_info_t
 lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
-		uint8_t* calib_enc_on ) {
+		uint8_t* calib_enc_on, uint8_t* homing_on) {
 
 	static uint16_t cmd_code = 0; // CRITICAL to make it static
 
@@ -389,17 +389,9 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 	///////////////////////////////////////////////////////////////////////////
 
 	else if (cmd_code == STOP_EXE_CMD) {
-		/*
-		#if USE_ITM_CMD_CHECK
-			printf("   [STOP_EXE_CMD]: \n");
-			printf("   BEFORE: \n");
-			printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-			printf("\n");
-		#endif
-		*/
 
+		// TODO: delete at a later date
+		/*
 		if (TRAJ_PARAMS_VARIABLE_ON) {
 			stop_exe_cmd_count++;
 
@@ -420,22 +412,24 @@ lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_para
 
 		// Clear motor settings:
 		clear_lowerlimb_motors_settings(LL_motors_settings);
+		*/
+
+		lowerlimb_sys_info.exercise_state = SLOWING;
 
 		send_OK_resp(cmd_code);
 
-		/*
 		#if USE_ITM_CMD_CHECK
 			idx_sys_state   = lowerlimb_sys_info.system_state;
 			idx_activ_state = lowerlimb_sys_info.activity_state;
 			idx_exerc_state = lowerlimb_sys_info.exercise_state;
 
+			printf("   [STOP_EXE_CMD] \n");
 			printf("   AFTER: \n");
 			printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
 			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
 			printf("\n");
 		#endif
-		*/
 	}
 
 	///////////////////////////////////////////////////////////////////////////

@@ -11,7 +11,7 @@
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
-// TEST SCRIPT - REAL-TIME - GAO
+// TEST SCRIPT - REAL-TIME
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 
@@ -19,7 +19,7 @@ void
 test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	///////////////////////////////////////////////////////////////////////////////
-	// MOTOR STATE VARS - GAO:
+	// MOTOR STATE VARS:
 	///////////////////////////////////////////////////////////////////////////////
 
 	uint8_t motor_result        = 0;
@@ -66,6 +66,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 		double damp_ratio = DAMP_RATIO_DEF;
 		double w_n        = OMEGA_N_DEF; // natural frequency
 		double sigma      = damp_ratio*w_n;
+
+		double T_exp      = traj_ctrl_params.exp_blend_time;
 
 		//////////////////////////////////////////////////////////////////////////////////
 		// Admittance parameters:
@@ -136,7 +138,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double dt_p_y_o = 0.0;
 	double dt_phi_o = 0.0;
 
-	// Calibration end points:
+	// Linear trajectory end points ( for calibration, homing, etc):
 	double p_calib_o[N_COORD_2D] = {0.0, 0.0};
 	double p_calib_f[N_COORD_2D] = {0.0, 0.0};
 
@@ -198,15 +200,20 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// Position & velocity error vector:
 	double err_pos_vel[N_POS_VEL_2D]    = {0.0, 0.0, 0.0, 0.0};
 
-	// Integral position error filter - cutoff frequency:
-	double OMEGA_HI_ERR_INT_POS         = 2*PI*0.2;
+	// Integral position error:
+	double OMEGA_HI_ERR_INT_POS         = 2*PI*0.2; // hi-pass filter cutoff frequency
 
 	double err_pos[N_COORD_2D]          = {0.0, 0.0};
 	double err_int_pos[N_COORD_2D]      = {0.0, 0.0};
 	double err_int_pos_prev[N_COORD_2D] = {0.0, 0.0};
 
+	// FF control:
 	double scale_ff_dyn      = 0.0; // FF control: dynamic scaling
 	double F_end_cmd_ff_norm = 0.0;
+
+	// Exercise substate - SLOWING:
+	double t_slow   = 0.0;
+	double t_slow_ref = 0.0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Calibration variables:
@@ -227,7 +234,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// Calibration states:
 	uint8_t calib_fsens_on    = 0;
 	uint8_t calib_enc_on      = 0;
-	uint8_t calib_enc_on_prev = 0;
+
+	// Homing states:
+	double OMEGA_THR_HOMING = 0.03;
+	uint8_t homing_on     = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TCP/IP variables:
@@ -263,6 +273,16 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	int r_i, c_i, v_i; // general-purpose counters
 
 	int8_t switch_traj  = SWITCH_TRAJ_NULL;
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Display variables:
+	///////////////////////////////////////////////////////////////////////////////
+
+	#if USE_ITM_OUT_RT_CHECK
+		uint8_t idx_sys_state   = LL_sys_info.system_state;
+		uint8_t idx_activ_state = LL_sys_info.activity_state;
+		uint8_t idx_exerc_state = LL_sys_info.exercise_state;
+	#endif
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Initialize app:
@@ -360,21 +380,23 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			#endif
 
 			//////////////////////////////////////////////////////////////////////////////////
-			// GET TCP/IP APP STATE - GAO
+			// GET TCP/IP APP STATE
 			//////////////////////////////////////////////////////////////////////////////////
 
 			#if USE_APP_TCP_IP
 				// Template function for the firmware state machine:
 				LL_sys_info = lowerlimb_app_state_tcpip(Read_Haptic_Button(), motor_alert,
 						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
-						&calib_enc_on);
+						&calib_enc_on, &homing_on);
 			#else
 				LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
 						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
 			#endif
 
-			// HACK: override SETUP state
-			if (LL_sys_info.exercise_state == SETUP)
+			// HACK: exercise state overrides:
+			if (homing_on == 1)
+				LL_sys_info.exercise_state = HOMING;
+			else if (LL_sys_info.exercise_state == SETUP)
 				LL_sys_info.exercise_state = RUNNING;
 
 			///////////////////////////////////////////////////////////////////////////////
@@ -518,19 +540,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						dt_p_ref[IDX_X] = 0.0;
 						dt_p_ref[IDX_Y] = 0.0;
 					}
-
-					// TODO: remove at a later date:
-					/*
-					// Disable motors:
-					motor_L_move(0, false, false);
-					motor_R_move(0, false, false);
-
-					// Restart motor algorithm (CRITICAL problem: may cause encoders to zero unexpectedly):
-					init_motor_algo(&LL_mech_readings, &LL_motors_settings);
-
-					// Reset calibration state:
-					reset_calibration_state();
-					*/
 				}
 
 				///////////////////////////////////////////////////////////////////////////////
@@ -623,7 +632,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						p_calib_o[IDX_Y] = 0;
 
 						if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
-							// NOTE: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
+							// CALIBRATION: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
 							traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
 								traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
 
@@ -658,6 +667,12 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							calib_enc_on = 0;
 					}
 
+					// Calibration timer:
+					if (calib_traj_prev != calib_traj)
+						t_ref_calib = t_ref;
+
+					t_calib = t_ref - t_ref_calib;
+
 					#if USE_ITM_OUT_RT_CHECK
 						if (calib_traj_prev == CalibTraj_Null && calib_traj != CalibTraj_Null) {
 							printf("   test_real_time(): calib_traj   = [%s] \n", CALIB_TRAJ_STR[calib_traj]);
@@ -665,12 +680,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							printf("                     t_ref_calib  = [%3.2f] \n\n", t_ref_calib);
 						}
 					#endif
-
-					// Calibration timer:
-					if (calib_traj_prev != calib_traj)
-						t_ref_calib = t_ref;
-
-					t_calib = t_ref - t_ref_calib;
 
 					// Generate trajectory points:
 					if (calib_enc_on)
@@ -704,6 +713,26 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					if (LL_sys_info.exercise_state == RUNNING || LL_sys_info.exercise_state == SLOWING) {
 
 						///////////////////////////////////////////////////////////////////////////////
+						// SLOWING substate: reference time
+						///////////////////////////////////////////////////////////////////////////////
+
+						if (LL_sys_info.exercise_state == SLOWING && exercise_state_prev != SLOWING) {
+							t_slow_ref = t_ref;
+
+							idx_sys_state   = LL_sys_info.system_state;
+							idx_activ_state = LL_sys_info.activity_state;
+							idx_exerc_state = LL_sys_info.exercise_state;
+
+							printf("   SLOWING (no cmd code):\n");
+							printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+							printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+							printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+							printf("\n");
+							printf("   t_slow_ref = [%3.2f]\n", t_slow_ref);
+							printf("\n");
+						}
+
+						///////////////////////////////////////////////////////////////////////////////
 						// Generate reference trajectory:
 						///////////////////////////////////////////////////////////////////////////////
 
@@ -714,7 +743,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 									p_ref, dt_p_ref,
 									&phi_ref, &dt_phi_ref,
 									u_t_ref, dt_k,
-									traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE:  was TRAJ_PARAMS_VARIABLE_ON for both cases
+									traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
 							}
 							else
 								// Isometric trajectory OR safety catch:
@@ -740,14 +769,83 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 									u_t_ref);
 						}
 
-						// Undefined exercise mode:
-						else {
-							#if USE_ITM_OUT_RT_CHECK
-								printf("\n\n");
-								printf("   [Invalid exercise_mode [%s] for activity_state == EXERCISE]\n\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
-							#endif
+						///////////////////////////////////////////////////////////////////////////////
+						// SLOWING substate: detect "ready for HOMING" condition
+						///////////////////////////////////////////////////////////////////////////////
+
+						if (LL_sys_info.exercise_state == SLOWING) {
+							t_slow = t_ref - t_slow_ref;
+
+							if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING) {
+								homing_on       = 1; // HACK: specifically to bypass [LL_sys_info.exercise_state] returned by [lowerlimb_app_state_tcpip()]
+								init_calib_traj = 1; // CRITICAL: enables homing starting from the correct start point
+
+								#if USE_ITM_OUT_RT_CHECK
+									printf("   [HOMING condition detected] \n");
+									printf("   t_slow = [%3.2f], t_slow_ref = [%3.2f]\n", t_slow, t_slow_ref);
+									printf("\n");
+								#endif
+							}
 						}
 					} // end if (LL_sys_info.exercise_state == RUNNING)
+
+					else if (LL_sys_info.exercise_state == HOMING) {
+
+						if (init_calib_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
+							// Set up next HOMING trajectory:
+							p_calib_o[IDX_X] = p_m[IDX_X];
+							p_calib_o[IDX_Y] = p_m[IDX_Y];
+
+							// HOMING: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
+							traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
+									traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
+
+							p_calib_f[IDX_X] = p_ref[IDX_X];
+							p_calib_f[IDX_Y] = p_ref[IDX_Y];
+
+							// Control gains scale array:
+							idx_scale = IDX_SCALE_CALIB;
+
+							// Homing time reference:
+							t_ref_calib = t_ref;
+						}
+
+						// Homing timer:
+						t_calib = t_ref - t_ref_calib;
+
+						#if USE_ITM_OUT_RT_CHECK
+							if (init_calib_traj) {
+								idx_sys_state   = LL_sys_info.system_state;
+								idx_activ_state = LL_sys_info.activity_state;
+								idx_exerc_state = LL_sys_info.exercise_state;
+
+								printf("   HOMING (no cmd code): \n");
+								printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+								printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+								printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+								printf("\n");
+								printf("   t_ref_calib = [%3.2f]\n", t_ref_calib);
+								printf("\n");
+							}
+						#endif
+
+						// Generate trajectory points:
+						traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
+											p_calib_o, p_calib_f, V_CALIB, FRAC_RAMP_CALIB, &init_calib_traj, &T_f_calib,
+											&pos_rel_calib, &dt_pos_rel_calib);
+
+						// Exit condition:
+						if (t_calib >= T_f_calib)
+							LL_sys_info.exercise_state = IDLE;
+					}
+
+					// Invalid exercise mode:
+					else {
+						#if USE_ITM_OUT_RT_CHECK
+							printf("\n\n");
+							printf("   [Invalid exercise_mode [%s] for activity_state == EXERCISE]\n\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
+						#endif
+					}
 					// end Exercise substate switch
 
 				} // end if (LL_sys_info.activity_state == EXERCISE)
@@ -771,10 +869,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// End-effector force commands:
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
-
-				// TODO: remove at a later date
-				// if ( LL_sys_info.activity_state == CALIB ||
-				// 	(LL_sys_info.activity_state == EXERCISE && (LL_sys_info.exercise_state == RUNNING || LL_sys_info.exercise_state == SLOWING))) {
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Gravity compensation force command (end-effector coordinates):
@@ -890,21 +984,6 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						printf("   MOTOR ALERT = [%d] \n\n", motor_alert);
 					#endif
 				}
-				// } // end if ( LL_sys_info.activity_state == CALIB ...) TODO: remove at a later date
-
-				// TODO: remove at a later date
-				/*
-				else {
-					// Reset sensor readings and motor settings:
-					clear_lowerlimb_mech_readings(&LL_mech_readings);
-					clear_lowerlimb_motors_settings(&LL_motors_settings);
-					clear_ctrl_params();
-
-					// Set the motors to 0 and disable the motor driver
-					motor_L_move(0, false, false);
-					motor_L_move(0, false, false);
-				}
-				*/
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Send feedback data to TCP/IP app:
@@ -995,10 +1074,10 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					printf("   pos_rel = [%3.3f]\tdt_pos_rel = [%3.3f]\n",
 						pos_rel_calib, dt_pos_rel_calib);
 
-					printf("   p_cal_o = [%3.3f, %3.3f]\n",
+					printf("   p_calib_o = [%3.3f, %3.3f]\n",
 						p_calib_o[IDX_X],
 						p_calib_o[IDX_Y]);
-					printf("   p_cal_f = [%3.3f, %3.3f]\n",
+					printf("   p_calib_f = [%3.3f, %3.3f]\n",
 						p_calib_f[IDX_X],
 						p_calib_f[IDX_Y]);
 					printf("   D_p_cal = [%3.3f, %3.3f]\n",
@@ -1018,8 +1097,8 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					printf("   dac_in[LEFT, RIGHT]  = [%i, %i] \n",       LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
 					*/
 
-					printf("   t_calib  = [%3.2f], T_f_calib = [%3.2f], calib_enc_on = [%d], cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
-							t_calib, T_f_calib, calib_enc_on, CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
+					printf("   t_calib  = [%3.2f], T_f_calib = [%3.2f], t_slow = [%3.2f], calib_enc_on = [%d], cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
+							t_calib, T_f_calib, t_slow, calib_enc_on, CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
 					printf("   LL_sys_info.activity_state = [%s] \n",   ACTIV_STATE_STR[LL_sys_info.activity_state]);
 					printf("\n");
 				}

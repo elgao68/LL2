@@ -7,7 +7,11 @@
 //
 /////////////////////////////////////////////////////////////////////////////
 
-#include "motor_algo_ll2_multi.h"
+#include <motor_algo_ll2.h>
+
+///////////////////////////////////////////////////////////////////////////////
+// Dynamic system parameters:
+///////////////////////////////////////////////////////////////////////////////
 
 extern admitt_model_params_t admitt_model_params_local;
 
@@ -92,13 +96,13 @@ traj_ref_step_active_elliptic(
 	}
 
 	///////////////////////////////////////////////////////////////////////////////
-	// COPY ADMITTANCE PARAMETERS TO LOCAL SCOPE VARIABLES - GAO
+	// COPY ADMITTANCE PARAMETERS TO LOCAL SCOPE VARIABLES
 	///////////////////////////////////////////////////////////////////////////////
 
     memcpy(&admitt_model_params_local, &admitt_model_params, sizeof(admitt_model_params_t));
 
 	///////////////////////////////////////////////////////////////////////////////
-	// COPY TRAJECTORY PARAMETERS TO LOCAL SCOPE VARIABLES - GAO
+	// COPY TRAJECTORY PARAMETERS TO LOCAL SCOPE VARIABLES
 	///////////////////////////////////////////////////////////////////////////////
 
 	// double T_cycle = traj_ctrl_params.cycle_period;
@@ -272,6 +276,7 @@ traj_ref_step_active_elliptic(
 			printf("\n");
 		}
 
+		/*
 		if (step_int % (DT_DISP_MSEC_ALGO/(int)(1000*dt_k)) == 0) {
 			printf("[%d] phi = [%3.2f] \tdt_phi = [%3.2f] \tF_end_in = [%3.2f, %3.2f] \tfrac_F_end_in = [%3.2f] \tu_t_int = [%3.2f, %3.2f]\tF_tang = [%3.2f, %3.2f] \tz = [",
 				step_int,
@@ -284,6 +289,7 @@ traj_ref_step_active_elliptic(
 
 			printf("]\n\n");
 		}
+		*/
 	#endif
 
     ///////////////////////////////////////////////////////////////////////////////

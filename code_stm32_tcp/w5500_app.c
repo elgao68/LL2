@@ -362,7 +362,7 @@ static int32_t ethernet_w5500_tcp_state(uint8_t sn, uint8_t* rbuf, uint16_t *rLe
 			if (W5500_DEBUG_PRINTF && socket_status != socket_status_prev) {
 				printf("SOCK_ESTABLISHED, sn = [%d]: ", sn);
 
-				uint8_t sn_mask = getSn_IR(sn) & Sn_IR_CON; // TODO: make sure type cast is correct
+				uint8_t sn_mask = getSn_IR(sn) & Sn_IR_CON;
 				if (sn_mask)
 					printf("Connected to %d.%d.%d.%d : %d\r\n\n", destip[0], destip[1], destip[2], destip[3], destport);
 				else
