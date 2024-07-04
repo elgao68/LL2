@@ -16,7 +16,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 void
-test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
+test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// MOTOR STATE VARS:
@@ -315,7 +315,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	}
 
 	#if USE_ITM_OUT_RT_CHECK
-		printf("test_real_time():\n\n");
+		printf("test_real_time_control():\n\n");
 		printf("K_lq_xv_nml:\n");
 		for (r_i = 0; r_i < K_lq_xv_nml->num_rows; r_i++) {
 			for (c_i = 0; c_i < K_lq_xv_nml->num_cols; c_i++)
@@ -383,15 +383,9 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// GET TCP/IP APP STATE
 			//////////////////////////////////////////////////////////////////////////////////
 
-			#if USE_APP_TCP_IP
-				// Template function for the firmware state machine:
-				LL_sys_info = lowerlimb_app_state_tcpip(Read_Haptic_Button(), motor_alert,
-						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
-						&calib_enc_on, &homing_on);
-			#else
-				LL_sys_info = lowerlimb_app_state(Read_Haptic_Button(), motor_alert,
-						&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code);
-			#endif
+			LL_sys_info = lowerlimb_app_tcpip(Read_Haptic_Button(), motor_alert,
+					&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
+					&calib_enc_on, &homing_on);
 
 			// HACK: exercise state overrides:
 			if (homing_on == 1)
@@ -546,11 +540,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// CALIBRATION activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_state_tcpip()
+				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_tcpip()
 
 					#if USE_ITM_OUT_RT_CHECK
 						if (cmd_code != cmd_code_prev_to_last) {
-							printf("   test_real_time(): cmd_code_prev = [%s], cmd_code = [%s]\n\n", CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
+							printf("   test_real_time_control(): cmd_code_prev = [%s], cmd_code = [%s]\n\n", CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
 						}
 					#endif
 
@@ -675,7 +669,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 					#if USE_ITM_OUT_RT_CHECK
 						if (calib_traj_prev == CalibTraj_Null && calib_traj != CalibTraj_Null) {
-							printf("   test_real_time(): calib_traj   = [%s] \n", CALIB_TRAJ_STR[calib_traj]);
+							printf("   test_real_time_control(): calib_traj   = [%s] \n", CALIB_TRAJ_STR[calib_traj]);
 							printf("                     calib_enc_on = [%d] \n", calib_enc_on);
 							printf("                     t_ref_calib  = [%3.2f] \n\n", t_ref_calib);
 						}
@@ -777,7 +771,7 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							t_slow = t_ref - t_slow_ref;
 
 							if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING) {
-								homing_on       = 1; // HACK: specifically to bypass [LL_sys_info.exercise_state] returned by [lowerlimb_app_state_tcpip()]
+								homing_on       = 1; // HACK: specifically to bypass [LL_sys_info.exercise_state] returned by [lowerlimb_app_tcpip()]
 								init_calib_traj = 1; // CRITICAL: enables homing starting from the correct start point
 
 								#if USE_ITM_OUT_RT_CHECK
@@ -839,11 +833,11 @@ test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							LL_sys_info.exercise_state = IDLE;
 					}
 
-					// Invalid exercise mode:
+					// Invalid exercise substate:
 					else {
 						#if USE_ITM_OUT_RT_CHECK
 							printf("\n\n");
-							printf("   [Invalid exercise_mode [%s] for activity_state == EXERCISE]\n\n", EXERC_MODE_STR[LL_sys_info.exercise_mode]);
+							printf("   [test_real_time_control(): Invalid exercise substate [%s] for activity_state == EXERCISE] \n\n", EXERC_STATE_STR[LL_sys_info.exercise_state]);
 						#endif
 					}
 					// end Exercise substate switch

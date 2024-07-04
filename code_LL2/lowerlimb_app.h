@@ -190,9 +190,9 @@ static char CALIB_MODE_STR[LEN_CALIB_MODES][LEN_STR_MAX] = {
 
 // App messages (internal)	MSG_APP				
 #define	OFFS_MSG_APP		400		
-#define	LEN_MSG_APP		4		
+#define	LEN_MSG_APP			4
 enum MSG_APP {	
-	MSG_APP_EXERCISE_ON	=	401	,	
+	MSG_APP_EXERCISE_ON		=	401	,
 	MSG_APP_SELECT_EXERCISE	=	402	,	
 	MSG_APP_SELECT_PATIENT	=	403	,	
 	MSG_FW_ADJUST_EXERCISE	=	404	};	
@@ -201,34 +201,34 @@ enum MSG_APP {
 #define	OFFS_MSG_FW		500		
 #define	LEN_MSG_FW		3		
 enum MSG_FW {	
-	MSG_FW_CALIBRATING	=	501	,	
-	MSG_FW_EXERCISE_ON	=	502	,	
+	MSG_FW_CALIBRATING			=	501	,
+	MSG_FW_EXERCISE_ON			=	502	,
 	MSG_FW_STDBY_START_POINT	=	503	};	
 					
 // TCP messages	MSG_TCP				
 #define	OFFS_MSG_TCP		600		
-#define	LEN_MSG_TCP		13		
+#define	LEN_MSG_TCP			13
 enum MSG_TCP {	
-	MSG_TCP_calibrate_done	=	601	,	// dist_x, dist_y
-	MSG_TCP_calibrate_robot	=	602	,	
-	MSG_TCP_connect_done	=	603	,	
+	MSG_TCP_calibrate_done		=	601	,	// dist_x, dist_y
+	MSG_TCP_calibrate_robot		=	602	,
+	MSG_TCP_connect_done		=	603	,
 	MSG_TCP_connect_to_robot	=	604	,	
 	MSG_TCP_F_therapy_change	=	605	,	
-	MSG_TCP_go_to_exercise	=	606	,	// F_therapy
-	MSG_TCP_move_to_start	=	607	,	// EX_MODE, EX_TYPE, speed_ex, point_ex_start, point_ex_end
+	MSG_TCP_go_to_exercise		=	606	,	// F_therapy
+	MSG_TCP_move_to_start		=	607	,	// EX_MODE, EX_TYPE, speed_ex, point_ex_start, point_ex_end
 	MSG_TCP_move_to_start_done	=	608	,	
-	MSG_TCP_pedal_travel	=	609	,	
-	MSG_TCP_robot_shutdown	=	610	,	
-	MSG_TCP_start_exercise	=	611	,	
+	MSG_TCP_pedal_travel		=	609	,
+	MSG_TCP_robot_shutdown		=	610	,
+	MSG_TCP_start_exercise		=	611	,
 	MSG_TCP_stdby_start_point	=	612	,	
-	MSG_TCP_stop_exercise	=	613	};	
+	MSG_TCP_stop_exercise		=	613	};
 
 // App states	ST_APP				
 #define	OFFS_ST_APP		700		
 #define	LEN_ST_APP		6		
 enum ST_APP {	
 	ST_APP_ADJUST_EXERCISE	=	701	,	
-	ST_APP_EXERCISE_ON	=	702	,	
+	ST_APP_EXERCISE_ON		=	702	,
 	ST_APP_SELECT_EXERCISE	=	703	,	
 	ST_APP_SELECT_PATIENT	=	704	,	
 	ST_APP_STDBY_CALIBRATE	=	705	,	
@@ -239,9 +239,9 @@ enum ST_APP {
 #define	LEN_ST_FW		5		
 enum ST_FW {	
 	ST_FW_ADJUST_EXERCISE	=	801	,	
-	ST_FW_CALIBRATING	=	802	,	
-	ST_FW_CONNECTING	=	803	,	
-	ST_FW_EXERCISE_ON	=	804	,	
+	ST_FW_CALIBRATING		=	802	,
+	ST_FW_CONNECTING		=	803	,
+	ST_FW_EXERCISE_ON		=	804	,
 	ST_FW_STDBY_START_POINT	=	805	};	
 
 ///////////////////////////////////////////////////////
@@ -283,7 +283,8 @@ static char STR_MSG_TCP[LEN_MSG_TCP][LEN_STR_MAX] = {
 		
 		
 // App states	ST_APP	
-static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {	"ST_APP_ADJUST_EXERCISE"	,
+static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {
+	"ST_APP_ADJUST_EXERCISE"	,
 	"ST_APP_EXERCISE_ON"	,
 	"ST_APP_SELECT_EXERCISE"	,
 	"ST_APP_SELECT_PATIENT"	,
@@ -292,7 +293,8 @@ static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {	"ST_APP_ADJUST_EXERCISE"	,
 
 		
 // Firmware states	ST_FW	
-static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {	"ST_FW_ADJUST_EXERCISE"	,
+static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {
+	"ST_FW_ADJUST_EXERCISE"	,
 	"ST_FW_CALIBRATING"	,
 	"ST_FW_CONNECTING"	,
 	"ST_FW_EXERCISE_ON"	,
@@ -486,27 +488,19 @@ uint8_t send_lowerlimb_exercise_feedback_help(uint64_t up_time,
 								float fRefPhase, float fRefFreq);
 
 ///////////////////////////////////////////////////////////////////////
-// TCP/IP scripts (see lowerlimb_tcp_scripts.c):
+// TCP/IP scripts:
 ///////////////////////////////////////////////////////////////////////
 
-/**
- @brief: Start in the APP.
- @retval: 0 = success, 1 = failed
- */
 uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings);
 
-/**
- @brief: Run in the main().
- @param[in]: ui8EBtnState = emergency button (1 = normal, 0 = asserted)
- @param[in]: ui8Alert = alert msg from motor algo (0 = no alert, 1 = sampling alert, 2 = RT vel alert)
- @retval: 0 = success, 1 = failed
- */
-lowerlimb_sys_info_t lowerlimb_app_state(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
-		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last);
+// Script for TCP/IP app:
+lowerlimb_sys_info_t lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
+		uint8_t* calib_enc_on, uint8_t* homing_on);
 
-// Template function for the firmware state machine:
-lowerlimb_sys_info_t lowerlimb_app_state_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+// Script for software app (STATE MACHINE):
+lowerlimb_sys_info_t lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
 		uint8_t* calib_enc_on, uint8_t* homing_on);
 
@@ -532,15 +526,7 @@ uint8_t set_activity_idle(void);
 uint8_t set_activity_exercise(void);
 uint8_t set_activity_calib(void);
 
-/**
- @brief: stop exercise
- @retval: 0 = success, 1 = failed
- */
 uint8_t stop_exercise(lowerlimb_motors_settings_t* LL_motors_settings);
-
-/**
- @brief: reset all alerts and set normal state.
- */
 void reset_emergency_alerts(void);
 
 bool get_l_brake_cmd(void);

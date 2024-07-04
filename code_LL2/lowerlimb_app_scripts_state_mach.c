@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-//  lowerlimb_app_scripts_tcpip.c
+//  lowerlimb_app_scripts_state_mach.c
 //
 // Created on: 2024.03.20
 // Author: Gabriel Aguirre Ollinger
@@ -16,7 +16,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 lowerlimb_sys_info_t
-lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
 		uint8_t* calib_enc_on, uint8_t* homing_on) {
 
@@ -124,7 +124,7 @@ lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 		}
 		else {
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_tcpip(): is_valid_msg = [0] \n\n");
+				printf("   <<lowerlimb_app_state_mach()>>: is_valid_msg = [0] \n\n");
 			#endif
 			return lowerlimb_sys_info;
 		}
@@ -139,7 +139,7 @@ lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 				lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status)) {
 
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_tcpip(): invalid cmd_code [%d] \n\n", cmd_code);
+				printf("   <<lowerlimb_app_state_mach()>>: invalid cmd_code [%d] \n\n", cmd_code);
 			#endif
 
 			return lowerlimb_sys_info;
@@ -288,7 +288,7 @@ lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 			set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
 
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_tcpip(): [Force sensors calibrated] \n\n");
+				printf("   <<lowerlimb_app_state_mach()>>: [Force sensors calibrated] \n\n");
 			#endif
 
 			// Reset encoders - CRITICAL:
@@ -311,7 +311,7 @@ lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 		if (lowerlimb_sys_info.activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_control()
 
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_tcpip(): [Encoders calibrated] \n\n");
+				printf("   <<lowerlimb_app_state_mach()>>: [Encoders calibrated] \n\n");
 			#endif
 
 			// Reset activity to IDLE:
@@ -390,30 +390,6 @@ lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 
 	else if (cmd_code == STOP_EXE_CMD) {
 
-		// TODO: delete at a later date
-		/*
-		if (TRAJ_PARAMS_VARIABLE_ON) {
-			stop_exe_cmd_count++;
-
-			if (stop_exe_cmd_count == 1) { // initiate slowing down
-				lowerlimb_sys_info.exercise_state = SLOWING;
-			}
-			else if (stop_exe_cmd_count == 2) { // bring robot to full stop
-				lowerlimb_sys_info.activity_state = IDLE;
-				lowerlimb_sys_info.exercise_state = STOPPED;
-
-				stop_exe_cmd_count = 0;
-			}
-		}
-		else {
-			lowerlimb_sys_info.activity_state = IDLE;
-			lowerlimb_sys_info.exercise_state = STOPPED;
-		}
-
-		// Clear motor settings:
-		clear_lowerlimb_motors_settings(LL_motors_settings);
-		*/
-
 		lowerlimb_sys_info.exercise_state = SLOWING;
 
 		send_OK_resp(cmd_code);
@@ -447,6 +423,11 @@ lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 
 		send_OK_resp(cmd_code);
 	}
+
+	///////////////////////////////////////////////////////////////////////////
+	// Unknown command:
+	///////////////////////////////////////////////////////////////////////////
+
 	else {
 		// tx unknown command error:
 		send_error_msg(cmd_code, ERR_UNKNOWN);

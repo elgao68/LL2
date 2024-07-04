@@ -64,7 +64,6 @@ static uint32_t current_sensor_R = 0;
 
 #define OVERR_DYN_PARAMS_RT			1
 #define OVERR_FORCE_SENSORS_CALIB	0
-#define USE_APP_TCP_IP				1
 
 // Assorted timers:
 #define DT_EXPIRE_MSEC				1000
@@ -73,7 +72,7 @@ static uint32_t current_sensor_R = 0;
 
 // ITM Data Console switches:
 #define USE_ITM_OUT_RT_CHECK		1
-#define USE_ITM_OUT_RT_CHECK_LONG	0
+#define USE_ITM_OUT_RT_CHECK_LONG	1
 #define USE_ITM_OUT_GUI_PARAMS		0
 #define USE_ITM_TCP_CHECK		    0
 
@@ -82,13 +81,13 @@ static uint32_t current_sensor_R = 0;
 ////////////////////////////////////////////////////////////////////////////////
 
 void cycle_haptic_buttons();
-
 void LED_sys_state_off();
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare tester function:
 ////////////////////////////////////////////////////////////////////////////////
 
-void test_real_time(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
+void test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
+void test_real_time_state_mach(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
 
 #endif /* CODE_LL2__TEST_REAL_TIME_H_ */
