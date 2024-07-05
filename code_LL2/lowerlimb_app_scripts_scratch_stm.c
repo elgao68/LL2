@@ -149,9 +149,8 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 
 		if (cmd_code == NO_CMD)
 			return lowerlimb_sys_info;
-		else if (!is_valid_cmd_code(cmd_code, rxPayload,
-				lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status)) {
 
+		else if (is_valid_stm_cmd_payload_size(cmd_code, rxPayload, &lowerlimb_sys_info.app_status)) {
 			#if USE_ITM_CMD_CHECK
 				printf("   <<lowerlimb_app_state_mach()>>: invalid cmd_code [%d] \n\n", cmd_code);
 			#endif
@@ -194,310 +193,11 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 	Stdby_Start_Point_STM_CMD	= 13
 	*/
 
-#if USE_STATE_MACHINE_CMD
-
 	///////////////////////////////////////////////////////////////////////////
-	// Connect_To_Robot_STM_CMD	 = 3
+	// Connect_To_Robot_STM_CMD	 = 3 (CMD 01, CMD 02)
 	///////////////////////////////////////////////////////////////////////////
 
 	if (cmd_code == Connect_To_Robot_STM_CMD) { //connect robot
-
-		//check if rxPayload is long enough
-		if (rxPayload != 1) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		if (lowerlimb_sys_info.system_state != SYS_OFF){
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		reset_lowerlimb_sys_info();
-
-		lowerlimb_sys_info.system_state = SYS_ON;
-		lowerlimb_sys_info.activity_state = IDLE;
-		lowerlimb_sys_info.exercise_state = STOPPED;
-
-		send_OK_resp(cmd_code);
-	}
-
-	///////////////////////////////////////////////////////////////////////////
-	// Calibrate_Robot_STM_CMD	 = 4
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == Calibrate_Robot_STM_CMD) { //calibrate robot
-
-		//check if rxPayload is long enough
-		if (rxPayload != 1) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		//check if system is on
-		if (lowerlimb_sys_info.system_state != SYS_ON) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		// SET FIRMWARE STATE:
-		// lowerlimb_sys_info.ST_FW = ST_FW_STDBY_START_POINT;
-
-		send_OK_resp(cmd_code);
-	}
-
-	///////////////////////////////////////////////////////////////////////////
-	// Move_To_Start_STM_CMD	 = 5
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == Move_To_Start_STM_CMD) { //move to start point
-
-		//check if rxPayload is long enough
-		if (rxPayload != 1) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		// SET FIRMWARE STATE:
-		// lowerlimb_sys_info.ST_FW = ST_FW_ADJUST_EXERCISE;
-
-		// ITM console output:
-		printf("Move to start Done \n");
-
-		send_OK_resp(cmd_code);
-	}
-
-	///////////////////////////////////////////////////////////////////////////
-	// Go_To_Exercise_STM_CMD	 = 7
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == Go_To_Exercise_STM_CMD) { //set Move to start
-		//check if rxPayload is long enough
-		if (rxPayload != 20) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		// SET FIRMWARE STATE:
-		// lowerlimb_sys_info.ST_FW = ST_FW_EXERCISE_ON;
-
-		// PARSE TARGET PARAMETERS:
-		// tmp_parsed_targ_params.index = tcpRxData[rx_payload_index];
-		// rx_payload_index += sizeof(tmp_parsed_targ_params.index);
-
-		 //Reset Memory
-		memset(&tmp_parsed_targ_params, 0, sizeof(tmp_parsed_targ_params));
-
-		memcpy_msb(&tmp_parsed_targ_params.EX_MODE, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.EX_MODE));
-		rx_payload_index += sizeof(tmp_parsed_targ_params.EX_MODE);
-
-		memcpy_msb(&tmp_parsed_targ_params.EX_TYPE, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.EX_TYPE));
-		rx_payload_index += sizeof(tmp_parsed_targ_params.EX_TYPE);
-
-		memcpy_msb(&tmp_parsed_targ_params.speed_ex, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.speed_ex));
-		rx_payload_index += sizeof(tmp_parsed_targ_params.speed_ex);
-
-		memcpy_msb(&tmp_parsed_targ_params.point_ext_start, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.point_ext_start));
-		rx_payload_index += sizeof(tmp_parsed_targ_params.point_ext_start);
-
-		memcpy_msb(&tmp_parsed_targ_params.point_ext_end, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.point_ext_end));
-		rx_payload_index += sizeof(tmp_parsed_targ_params.point_ext_end);
-
-		//Motor Algo goes here
-
-
-		send_OK_resp(cmd_code);
-	}
-
-	///////////////////////////////////////////////////////////////////////////
-	// Pedal_Travel_STM_CMD			= 8
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == Pedal_Travel_STM_CMD) { //Move Pedal
-
-		//check if rxPayload is long enough
-		if (rxPayload != 8) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		// PARSE TARGET PARAMETERS:
-		memset(&tmp_parsed_targ_params, 0, sizeof(tmp_parsed_targ_params));
-
-		memcpy_msb(&tmp_parsed_targ_params.dist_x, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.dist_x));
-		rx_payload_index += sizeof(tmp_parsed_targ_params.dist_x);
-
-		memcpy_msb(&tmp_parsed_targ_params.dist_y, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.dist_y));
-		rx_payload_index += sizeof(tmp_parsed_targ_params.dist_y);
-
-		send_OK_resp(cmd_code);
-	}
-
-	///////////////////////////////////////////////////////////////////////////
-	// Robot_Shutdown_STM_CMD	 = 9
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == Robot_Shutdown_STM_CMD) { //shutdown robot
-
-		//check if rxPayload is long enough
-		if (rxPayload != 1) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		if (lowerlimb_sys_info.system_state != SYS_ON){
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		lowerlimb_sys_info.system_state = SYS_OFF;
-		lowerlimb_sys_info.activity_state = IDLE;
-		lowerlimb_sys_info.exercise_state = STOPPED;
-
-		lowerlimb_brakes_command.l_brake_disengage = false;
-		lowerlimb_brakes_command.r_brake_disengage = false;
-
-		send_OK_resp(cmd_code);
-	}
-
-	///////////////////////////////////////////////////////////////////////////
-	// F_Therapy_Change_STM_CMD	= 10
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == F_Therapy_Change_STM_CMD) { //Change F_therapy
-
-		//check if rxPayload is long enough
-		if (rxPayload != 4) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		// PARSE TARGET PARAMETERS:
-		memset(&tmp_parsed_targ_params, 0, sizeof(tmp_parsed_targ_params));
-
-		memcpy_msb(&tmp_parsed_targ_params.F_Therapy_change, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.F_Therapy_change));
-		rx_payload_index += sizeof(tmp_parsed_targ_params.F_Therapy_change);
-
-		send_OK_resp(cmd_code);
-	}
-
-	///////////////////////////////////////////////////////////////////////////
-	// Start_Exercise_STM_CMD	 = 11
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == Start_Exercise_STM_CMD) { //start exercise
-
-		//check if rxPayload is long enough
-		if (rxPayload != 1) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		reset_emergency_alerts();
-
-		//check if system is active
-		if (lowerlimb_sys_info.system_state != SYS_ON) {
-			send_error_msg(cmd_code, ERR_SYSTEM_OFF);
-			lowerlimb_sys_info.app_status = ERR_SYSTEM_OFF + 3;
-			return lowerlimb_sys_info;
-		}
-
-		lowerlimb_sys_info.exercise_state = RUNNING;
-
-		//send OK resp
-		send_OK_resp(cmd_code);
-	}
-	///////////////////////////////////////////////////////////////////////////
-	// Stop_Exercise_STM_CMD	 = 12
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == Stop_Exercise_STM_CMD) { //stop exercise
-
-		//check if rxPayload is long enough
-		if (rxPayload != 1) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		//check if system is active
-		if (lowerlimb_sys_info.system_state != SYS_ON) {
-			send_error_msg(cmd_code, ERR_SYSTEM_OFF);
-			lowerlimb_sys_info.app_status = ERR_SYSTEM_OFF + 3;
-			return lowerlimb_sys_info;
-		}
-
-		if (lowerlimb_sys_info.exercise_state == STOPPED) {
-			send_error_msg(cmd_code, ERR_EXERCISE_NOT_RUNNING);
-			lowerlimb_sys_info.app_status = ERR_EXERCISE_NOT_RUNNING + 3;
-			return lowerlimb_sys_info;
-		}
-
-		lowerlimb_sys_info.activity_state = IDLE;
-		lowerlimb_sys_info.exercise_state = STOPPED;
-
-		//reset
-		clear_lowerlimb_motors_settings(LL_motors_settings);
-
-		//send OK resp
-		send_OK_resp(cmd_code);
-	}
-
-	///////////////////////////////////////////////////////////////////////////
-	// Stdby_Start_Point_STM_CMD	= 13
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == Stdby_Start_Point_STM_CMD) { //standby start point
-		//check if rxPayload is long enough
-		if (rxPayload != 1) {
-			send_error_msg(cmd_code, ERR_GENERAL_NOK);
-			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
-			return lowerlimb_sys_info;
-		}
-
-		// SET FIRMWARE STATE:
-		// lowerlimb_sys_info.ST_FW = ST_FW_ADJUST_EXERCISE;
-
-		// ITM console output:
-		printf("Move to start Done \n");
-
-		send_OK_resp(cmd_code);
-	}
-
-#else
-
-	///////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////
-	// EXECUTE COMMAND CODE (TCP/IP original codes):
-	///////////////////////////////////////////////////////////////////////////
-	///////////////////////////////////////////////////////////////////////////
-
-	// Command codes in use:
-	/*
-	CMD 01: START_SYS_CMD
-	CMD 02: BRAKES_CMD
-	CMD 03: AUTO_CALIB_MODE_CMD
-	CMD 04: START_RESUME_EXE_CMD
-	CMD 05: STOP_EXE_CMD
-	CMD 06: STOP_SYS_CMD
-	*/
-
-	///////////////////////////////////////////////////////////////////////////
-	// CMD 01: START_SYS_CMD
-	///////////////////////////////////////////////////////////////////////////
-
-	if (cmd_code == START_SYS_CMD) { //start system
 
 		reset_lowerlimb_sys_info();
 
@@ -505,47 +205,22 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 		lowerlimb_sys_info.activity_state = IDLE;
 		lowerlimb_sys_info.exercise_state = STOPPED;
 
-		send_OK_resp(cmd_code);
+		// HARDWARE: disengage brakes:
+		/*
+		lowerlimb_brakes_command.l_brake_disengage = true;
+		lowerlimb_brakes_command.r_brake_disengage = true;
 
-		#if USE_ITM_CMD_CHECK
-			printf("   [START_SYS_CMD]: lowerlimb_sys_info.system_state = [%s]\n\n", SYS_STATE_STR[lowerlimb_sys_info.system_state]);
-		#endif
-	}
-
-	///////////////////////////////////////////////////////////////////////////
-	// CMD 02: BRAKES_CMD
-	///////////////////////////////////////////////////////////////////////////
-
-	else if (cmd_code == BRAKES_CMD) {
-
-		#if USE_ITM_CMD_CHECK
-			printf("   [BRAKES_CMD] \n");
-			printf("   BEFORE: \n");
-			printf("   system_state = [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-			printf("\n");
-			printf("   BRAKES_CMD data: [%d]\n\n", tcpRxData[rx_payload_index]);
-		#endif
-
-		if (tcpRxData[rx_payload_index] == 0x01) {
-			lowerlimb_brakes_command.l_brake_disengage = true;
-			lowerlimb_brakes_command.r_brake_disengage = true;
-
-			l_brakes(DISENGAGE_BRAKES);
-			r_brakes(DISENGAGE_BRAKES);
-		}
-		else {
-			lowerlimb_brakes_command.l_brake_disengage = false;
-			lowerlimb_brakes_command.r_brake_disengage = false;
-
-			l_brakes(ENGAGE_BRAKES);
-			r_brakes(ENGAGE_BRAKES);
-		}
+		l_brakes(DISENGAGE_BRAKES);
+		r_brakes(DISENGAGE_BRAKES);
+		*/
 
 		send_OK_resp(cmd_code);
 
 		#if USE_ITM_CMD_CHECK
+			printf("____________________________________\n");
+			printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+
+			printf("   system_state = [%s]\n\n", SYS_STATE_STR[lowerlimb_sys_info.system_state]);
 			printf("   brakes disengaged: [");
 			if (lowerlimb_brakes_command.l_brake_disengage)
 				printf("TRUE] \n\n");
@@ -555,21 +230,25 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 03: AUTO_CALIB_MODE_CMD
+	// Calibrate_Robot_STM_CMD	 = 4 (CMD 03)
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == AUTO_CALIB_MODE_CMD) { //enter calibration
+	else if (cmd_code == Calibrate_Robot_STM_CMD) { //calibrate robot
 
 		#if USE_ITM_CMD_CHECK
-			static uint8_t init_calib = 1;
-			if (init_calib) {
-				printf("   [AUTO_CALIB_MODE_CMD] \n");
+			static uint8_t init_calib_itm = 1;
+
+			if (init_calib_itm) {
+				printf("____________________________________\n");
+				printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+
 				printf("   BEFORE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
 				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
 				printf("\n");
-				init_calib = 0;
+
+				init_calib_itm = 0;
 			}
 		#endif
 
@@ -594,7 +273,8 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 				printf("\n");
 			#endif
 
-			// Zero-calibrate force sensor:
+			// HARDWARE: zero-calibrate force sensor:
+			/*
 			for (int i = 1; i <= 50; i++) {
 				force_sensors_read(&hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor,
 						&dum_force_end_in_x, &dum_force_end_in_y);
@@ -607,14 +287,17 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 			force_end_in_y_sensor_f = force_end_in_y_sensor_f / 50.0f;
 
 			set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
+			*/
 
 			#if USE_ITM_CMD_CHECK
 				printf("   <<lowerlimb_app_state_mach()>>: [Force sensors calibrated] \n\n");
 			#endif
 
-			// Reset encoders - CRITICAL:
+			// HARDWARE: reset encoders - CRITICAL:
+			/*
 			qei_count_L_reset();
 			qei_count_R_reset();
+			*/
 
 			// Activate encoder calibration:
 			*calib_enc_on = 1;
@@ -632,6 +315,9 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 		if (lowerlimb_sys_info.activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_control()
 
 			#if USE_ITM_CMD_CHECK
+				printf("____________________________________\n");
+				printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+
 				printf("   <<lowerlimb_app_state_mach()>>: [Encoders calibrated] \n\n");
 			#endif
 
@@ -655,13 +341,139 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 04: START_RESUME_EXE_CMD
+	// Move_To_Start_STM_CMD	 = 5
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == START_RESUME_EXE_CMD) {
+	else if (cmd_code == Move_To_Start_STM_CMD) { //move to start point
+
+		send_OK_resp(cmd_code);
 
 		#if USE_ITM_CMD_CHECK
-			printf("   [START_RESUME_EXE_CMD]: \n");
+			printf("____________________________________\n");
+			printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+		#endif
+	}
+
+	///////////////////////////////////////////////////////////////////////////
+	// Go_To_Exercise_STM_CMD	 = 7
+	///////////////////////////////////////////////////////////////////////////
+
+	else if (cmd_code == Go_To_Exercise_STM_CMD) { //set Move to start
+
+		// PARSE TARGET PARAMETERS:
+		// tmp_parsed_targ_params.index = tcpRxData[rx_payload_index];
+		// rx_payload_index += sizeof(tmp_parsed_targ_params.index);
+
+		memset(&tmp_parsed_targ_params, 0, sizeof(tmp_parsed_targ_params));
+
+		memcpy_msb(&tmp_parsed_targ_params.EX_MODE, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.EX_MODE));
+		rx_payload_index += sizeof(tmp_parsed_targ_params.EX_MODE);
+
+		memcpy_msb(&tmp_parsed_targ_params.EX_TYPE, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.EX_TYPE));
+		rx_payload_index += sizeof(tmp_parsed_targ_params.EX_TYPE);
+
+		memcpy_msb(&tmp_parsed_targ_params.speed_ex, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.speed_ex));
+		rx_payload_index += sizeof(tmp_parsed_targ_params.speed_ex);
+
+		memcpy_msb(&tmp_parsed_targ_params.point_ext_start, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.point_ext_start));
+		rx_payload_index += sizeof(tmp_parsed_targ_params.point_ext_start);
+
+		memcpy_msb(&tmp_parsed_targ_params.point_ext_end, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.point_ext_end));
+		rx_payload_index += sizeof(tmp_parsed_targ_params.point_ext_end);
+
+		send_OK_resp(cmd_code);
+
+		#if USE_ITM_CMD_CHECK
+			printf("____________________________________\n");
+			printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+		#endif
+	}
+
+	///////////////////////////////////////////////////////////////////////////
+	// Pedal_Travel_STM_CMD			= 8
+	///////////////////////////////////////////////////////////////////////////
+
+	else if (cmd_code == Pedal_Travel_STM_CMD) { //Move Pedal
+
+		// PARSE TARGET PARAMETERS:
+		memset(&tmp_parsed_targ_params, 0, sizeof(tmp_parsed_targ_params));
+
+		memcpy_msb(&tmp_parsed_targ_params.dist_x, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.dist_x));
+		rx_payload_index += sizeof(tmp_parsed_targ_params.dist_x);
+
+		memcpy_msb(&tmp_parsed_targ_params.dist_y, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.dist_y));
+		rx_payload_index += sizeof(tmp_parsed_targ_params.dist_y);
+
+		send_OK_resp(cmd_code);
+
+		#if USE_ITM_CMD_CHECK
+			printf("____________________________________\n");
+			printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+		#endif
+	}
+
+	///////////////////////////////////////////////////////////////////////////
+	// Robot_Shutdown_STM_CMD	 = 9 (CMD 06)
+	///////////////////////////////////////////////////////////////////////////
+
+	else if (cmd_code == Robot_Shutdown_STM_CMD) { //shutdown robot
+
+		/*
+		if (lowerlimb_sys_info.system_state != SYS_ON){
+			send_error_msg(cmd_code, ERR_GENERAL_NOK);
+			lowerlimb_sys_info.app_status = ERR_GENERAL_NOK + 3;
+			return lowerlimb_sys_info;
+		}
+		*/
+
+		lowerlimb_sys_info.system_state   = SYS_OFF;
+		lowerlimb_sys_info.activity_state = IDLE;
+		lowerlimb_sys_info.exercise_state = STOPPED;
+
+		// HARDWARE: engage brakes
+		/*
+		lowerlimb_brakes_command.l_brake_disengage = false;
+		lowerlimb_brakes_command.r_brake_disengage = false;
+		*/
+
+		send_OK_resp(cmd_code);
+
+		#if USE_ITM_CMD_CHECK
+			printf("____________________________________\n");
+			printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+		#endif
+	}
+
+	///////////////////////////////////////////////////////////////////////////
+	// F_Therapy_Change_STM_CMD	= 10
+	///////////////////////////////////////////////////////////////////////////
+
+	else if (cmd_code == F_Therapy_Change_STM_CMD) { //Change F_therapy
+
+		// PARSE TARGET PARAMETERS:
+		memset(&tmp_parsed_targ_params, 0, sizeof(tmp_parsed_targ_params));
+
+		memcpy_msb(&tmp_parsed_targ_params.F_Therapy_change, &tcpRxData[rx_payload_index], sizeof(tmp_parsed_targ_params.F_Therapy_change));
+		rx_payload_index += sizeof(tmp_parsed_targ_params.F_Therapy_change);
+
+		send_OK_resp(cmd_code);
+
+		#if USE_ITM_CMD_CHECK
+			printf("____________________________________\n");
+			printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+		#endif
+	}
+
+	///////////////////////////////////////////////////////////////////////////
+	// Start_Exercise_STM_CMD	 = 11 (CMD 04)
+	///////////////////////////////////////////////////////////////////////////
+
+	else if (cmd_code == Start_Exercise_STM_CMD) { //start exercise
+
+		#if USE_ITM_CMD_CHECK
+			printf("____________________________________\n");
+			printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+
 			printf("   BEFORE: \n");
 			printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
@@ -674,6 +486,7 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 
 		// If activity is in IDLE state, start exercise to SETUP state:
 		if (lowerlimb_sys_info.activity_state == IDLE) {
+
 			// Validate command code:
 			_VALIDATE_IDLE_START_EXE
 
@@ -704,12 +517,11 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 			printf("\n");
 		#endif
 	}
-
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 05: STOP_EXE_CMD
+	// Stop_Exercise_STM_CMD	 = 12 (CMD 05)
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == STOP_EXE_CMD) {
+	else if (cmd_code == Stop_Exercise_STM_CMD) { //stop exercise
 
 		lowerlimb_sys_info.exercise_state = SLOWING;
 
@@ -720,7 +532,8 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 			idx_activ_state = lowerlimb_sys_info.activity_state;
 			idx_exerc_state = lowerlimb_sys_info.exercise_state;
 
-			printf("   [STOP_EXE_CMD] \n");
+			printf("____________________________________\n");
+			printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
 			printf("   AFTER: \n");
 			printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
@@ -730,28 +543,24 @@ lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_param
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 06: STOP_SYS_CMD
+	// Stdby_Start_Point_STM_CMD	= 13
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == STOP_SYS_CMD) { // stop system
-		lowerlimb_sys_info.system_state   = SYS_OFF;
-		lowerlimb_sys_info.activity_state = IDLE;
-		lowerlimb_sys_info.exercise_state = STOPPED;
-
-		//Reset brake command
-		lowerlimb_brakes_command.l_brake_disengage = false;
-		lowerlimb_brakes_command.r_brake_disengage = false;
+	else if (cmd_code == Stdby_Start_Point_STM_CMD) { //standby start point
 
 		send_OK_resp(cmd_code);
+
+		#if USE_ITM_CMD_CHECK
+			printf("____________________________________\n");
+			printf("STM_CMD [%s] \n", STM_CMD_STR[cmd_code]);
+		#endif
 	}
-#endif
 
 	///////////////////////////////////////////////////////////////////////////
 	// Unknown command:
 	///////////////////////////////////////////////////////////////////////////
 
 	else {
-		// tx unknown command error:
 		send_error_msg(cmd_code, ERR_UNKNOWN);
 		lowerlimb_sys_info.app_status = ERR_UNKNOWN + 3;
 		return lowerlimb_sys_info;

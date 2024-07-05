@@ -39,7 +39,7 @@
 
 #define USE_ITM_CMD_CHECK    1
 #define SET_CTRL_PARAMETERS  1
-#define USE_STATE_MACHINE_CMD 1
+// #define USE_STATE_MACHINE_CMD 1 // TODO: remove at a later date
 
 #define TRAJ_PARAMS_VARIABLE_OFF 	0
 #define TRAJ_PARAMS_VARIABLE_ON 	1
@@ -307,7 +307,13 @@ static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {
 // Messages and message strings (STATE MACHINE COMMANDS):
 ///////////////////////////////////////////////////////
 
-#define	LEN_STM_CMD			14
+// Payload sizes:
+#define N_PAYL_Def_STM_CMD_DEF  		 1
+#define N_PAYL_Go_To_Exercise_STM_CMD	20
+#define N_PAYL_Pedal_Travel_STM_CMD		 8
+#define N_PAYL_F_Therapy_Change_STM_CMD	 4
+
+#define LEN_STM_CMD		14
 
 enum STM_CMD {
 	_0_STM_CMD 					= 0,
@@ -317,10 +323,10 @@ enum STM_CMD {
 	Calibrate_Robot_STM_CMD		= 4,
 	Move_To_Start_STM_CMD		= 5,
 	_6_STM_CMD					= 6,
-	Go_To_Exercise_STM_CMD		= 7,   //Payload = 20 Bytes
-	Pedal_Travel_STM_CMD		= 8,   // Payload = 8 Bytes
+	Go_To_Exercise_STM_CMD		= 7,
+	Pedal_Travel_STM_CMD		= 8,
 	Robot_Shutdown_STM_CMD		= 9,
-	F_Therapy_Change_STM_CMD	= 10,   // Payload = 4 Bytes
+	F_Therapy_Change_STM_CMD	= 10,
 	Start_Exercise_STM_CMD		= 11,
 	Stop_Exercise_STM_CMD		= 12,
 	Stdby_Start_Point_STM_CMD	= 13 };
@@ -518,8 +524,8 @@ static uint8_t POSTAMP_TCP[2] = { 0x68, 0x6D };
 ///////////////////////////////////////////////////////
 
 uint8_t is_valid_w5500_msg(uint8_t tcp_rx_data[]);
-
 uint8_t is_valid_cmd_code(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status);
+uint8_t is_valid_stm_cmd_payload_size(uint16_t cmd_code, uint8_t rxPayload, uint16_t* app_status);
 
 /**
  @brief: Send calibration response message

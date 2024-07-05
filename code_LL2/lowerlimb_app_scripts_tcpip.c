@@ -240,15 +240,17 @@ lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 	else if (cmd_code == AUTO_CALIB_MODE_CMD) { //enter calibration
 
 		#if USE_ITM_CMD_CHECK
-			static uint8_t init_calib = 1;
-			if (init_calib) {
+			static uint8_t init_calib_itm = 1;
+
+			if (init_calib_itm) {
 				printf("   [AUTO_CALIB_MODE_CMD] \n");
 				printf("   BEFORE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
 				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
 				printf("\n");
-				init_calib = 0;
+
+				init_calib_itm = 0;
 			}
 		#endif
 
@@ -390,30 +392,6 @@ lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 
 	else if (cmd_code == STOP_EXE_CMD) {
 
-		// TODO: delete at a later date
-		/*
-		if (TRAJ_PARAMS_VARIABLE_ON) {
-			stop_exe_cmd_count++;
-
-			if (stop_exe_cmd_count == 1) { // initiate slowing down
-				lowerlimb_sys_info.exercise_state = SLOWING;
-			}
-			else if (stop_exe_cmd_count == 2) { // bring robot to full stop
-				lowerlimb_sys_info.activity_state = IDLE;
-				lowerlimb_sys_info.exercise_state = STOPPED;
-
-				stop_exe_cmd_count = 0;
-			}
-		}
-		else {
-			lowerlimb_sys_info.activity_state = IDLE;
-			lowerlimb_sys_info.exercise_state = STOPPED;
-		}
-
-		// Clear motor settings:
-		clear_lowerlimb_motors_settings(LL_motors_settings);
-		*/
-
 		lowerlimb_sys_info.exercise_state = SLOWING;
 
 		send_OK_resp(cmd_code);
@@ -447,6 +425,11 @@ lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* 
 
 		send_OK_resp(cmd_code);
 	}
+
+	///////////////////////////////////////////////////////////////////////////
+	// Unknown command:
+	///////////////////////////////////////////////////////////////////////////
+
 	else {
 		// tx unknown command error:
 		send_error_msg(cmd_code, ERR_UNKNOWN);
