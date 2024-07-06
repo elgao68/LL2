@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-//  lowerlimb_app_scripts_tcpip.c
+//  lowerlimb_app_onepass_tcp_app.c
 //
 // Created on: 2024.03.20
 // Author: Gabriel Aguirre Ollinger
@@ -16,7 +16,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 lowerlimb_sys_info_t
-lowerlimb_app_onepass_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
 		uint8_t* calib_enc_on, uint8_t* homing_on) {
 
@@ -124,7 +124,7 @@ lowerlimb_app_onepass_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_pa
 		}
 		else {
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcpip(): is_valid_msg = [0] \n\n");
+				printf("   lowerlimb_app_onepass_tcp_app(): is_valid_msg = [0] \n\n");
 			#endif
 			return lowerlimb_sys_info;
 		}
@@ -139,7 +139,7 @@ lowerlimb_app_onepass_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_pa
 				lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status)) {
 
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcpip(): invalid cmd_code [%d] \n\n", cmd_code);
+				printf("   lowerlimb_app_onepass_tcp_app(): invalid cmd_code [%d] \n\n", cmd_code);
 			#endif
 
 			return lowerlimb_sys_info;
@@ -290,7 +290,7 @@ lowerlimb_app_onepass_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_pa
 			set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
 
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcpip(): [Force sensors calibrated] \n\n");
+				printf("   lowerlimb_app_onepass_tcp_app(): [Force sensors calibrated] \n\n");
 			#endif
 
 			// Reset encoders - CRITICAL:
@@ -313,7 +313,7 @@ lowerlimb_app_onepass_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_pa
 		if (lowerlimb_sys_info.activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_control()
 
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcpip(): [Encoders calibrated] \n\n");
+				printf("   lowerlimb_app_onepass_tcp_app(): [Encoders calibrated] \n\n");
 			#endif
 
 			// Reset activity to IDLE:

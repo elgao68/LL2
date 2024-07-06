@@ -88,6 +88,6 @@ void LED_sys_state_off();
 ////////////////////////////////////////////////////////////////////////////////
 
 void test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
-void test_real_time_state_mach(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
+void test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
 
 #endif /* CODE_LL2__TEST_REAL_TIME_H_ */

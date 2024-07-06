@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-//  lowerlimb_app_scripts_scratch_stm.c
+// lowerlimb_app_onepass_software.c
 //
 // Created on: 2024.03.20
 // Author: Gabriel Aguirre Ollinger
@@ -33,8 +33,8 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 	// Constants & variables for parsing index:
 	////////////////////////////////////
 
-	const uint8_t cmdCode_index = 3;
-	const uint8_t payloadLen_index = 5;
+	const uint8_t cmdCode_index      = 3;
+	const uint8_t payloadLen_index   = 5;
 	const uint8_t payloadStart_index = 7;
 
 	uint8_t rx_payload_index = payloadStart_index;
@@ -47,10 +47,10 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 
 	uint32_t force_end_in_x_sensor = 0;
 	uint32_t force_end_in_y_sensor = 0;
-	uint32_t dum_force_end_in_x = 0;
-	uint32_t dum_force_end_in_y = 0;
-	float force_end_in_x_sensor_f = 0;
-	float force_end_in_y_sensor_f = 0;
+	uint32_t dum_force_end_in_x    = 0;
+	uint32_t dum_force_end_in_y    = 0;
+	float force_end_in_x_sensor_f  = 0;
+	float force_end_in_y_sensor_f  = 0;
 
 	////////////////////////////////////
 	// Counters:
@@ -104,7 +104,7 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 	// Validate TCP messages:
 	////////////////////////////////////////////////////////////////////////////////
 
-	if (lowerlimb_sys_info.activity_state != CALIB) { // see persistent_activ_state
+	// if (lowerlimb_sys_info.activity_state != CALIB) { // see persistent_activ_state
 
 		////////////////////////////////////////////////////////////////////////////////
 		// Check if there is a valid message:
@@ -122,8 +122,8 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 		////////////////////////////////////////////////////////////////////////////////
 
 		if (is_valid_msg) {
-			cmd_code = ((uint16_t) tcpRxData[cmdCode_index] << 8) +
-						(uint16_t) tcpRxData[cmdCode_index + 1];
+			cmd_code =  ((uint16_t) tcpRxData[cmdCode_index] << 8) +
+						 (uint16_t) tcpRxData[cmdCode_index + 1];
 
 			rxPayload = ((uint16_t) tcpRxData[payloadLen_index] << 8) +
 						 (uint16_t) tcpRxData[payloadLen_index + 1];
@@ -132,6 +132,7 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 			#if USE_ITM_CMD_CHECK
 				printf("   <<lowerlimb_app_onepass_software()>>: is_valid_msg = [0] \n\n");
 			#endif
+
 			return lowerlimb_sys_info;
 		}
 
@@ -139,19 +140,18 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 		// Validate command code:
 		////////////////////////////////////////////////////////////////////////////////
 
-		if (cmd_code == NO_CMD)
-			return lowerlimb_sys_info;
-
-		else if (!is_valid_stm_cmd_payload_size(cmd_code, rxPayload, &lowerlimb_sys_info.app_status)) {
+		if (is_valid_msg_tcp_payload_size(cmd_code, rxPayload, &lowerlimb_sys_info.app_status)) {
+			*cmd_code_last = cmd_code;
+		}
+		else {
 			#if USE_ITM_CMD_CHECK
-				printf("   <<lowerlimb_app_onepass_software()>>: invalid cmd_code [%d] \n\n", cmd_code);
+				printf("   <<lowerlimb_app_onepass_software()>>: invalid cmd_code [%d] payload \n\n", cmd_code);
 			#endif
 
 			return lowerlimb_sys_info;
 		}
-		else
-			*cmd_code_last = cmd_code;
-	} // !persistent_activ_state
+
+	// }
 
 	// Console output:
 	#if USE_ITM_CMD_CHECK
@@ -169,20 +169,20 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 
 	// State-machine command codes in use:
 	/*
-	_0 					= 0
-	_1 					= 1
-	_2					= 2
-	Connect_To_Robot	= 3
-	Calibrate_Robot		= 4
-	Move_To_Start		= 5
-	_6					= 6
-	Go_To_Exercise		= 7
-	Pedal_Travel		= 8
-	Robot_Shutdown		= 9
-	F_Therapy_Change	= 10
-	Start_Exercise		= 11
-	Stop_Exercise		= 12
-	Stdby_Start_Point	= 13
+	_0_MSG_TCP 					= 0,
+	_1_MSG_TCP 					= 1,
+	_2_MSG_TCP					= 2,
+	Connect_To_Robot_MSG_TCP	= 3,
+	Calibrate_Robot_MSG_TCP		= 4,
+	Move_To_Start_MSG_TCP		= 5,
+	_6_MSG_TCP					= 6,
+	Go_To_Exercise_MSG_TCP		= 7,
+	Pedal_Travel_MSG_TCP		= 8,
+	Robot_Shutdown_MSG_TCP		= 9,
+	F_Therapy_Change_MSG_TCP	= 10,
+	Start_Exercise_MSG_TCP		= 11,
+	Stop_Exercise_MSG_TCP		= 12,
+	Stdby_Start_Point_MSG_TCP	= 13
 	*/
 
 	#if USE_ITM_CMD_CHECK
@@ -190,7 +190,7 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 		if (cmd_code >= _0_MSG_TCP && cmd_code <= Stdby_Start_Point_MSG_TCP)
 			printf("MSG_TCP (%d) [%s] \n", cmd_code, MSG_TCP_STR[cmd_code]);
 		else
-			printf("MSG_TCP (%d): INVALID cmd_code \n");
+			printf("MSG_TCP (%d): INVALID cmd_code \n", cmd_code);
 	#endif
 
 	///////////////////////////////////////////////////////////////////////////
@@ -247,10 +247,10 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 		#endif
 
 		///////////////////////////////////////////////////////////////////////////
-		// Update activity state to CALIB, otherwise check for errors:
+		// Update activity state to CALIB & calibrate force sensors, otherwise check for errors:
 		///////////////////////////////////////////////////////////////////////////
 
-		if (lowerlimb_sys_info.activity_state == IDLE) {
+		// if (lowerlimb_sys_info.activity_state == IDLE) {
 
 			// Update activity state:
 			lowerlimb_sys_info.activity_state = CALIB;
@@ -295,23 +295,27 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 
 			// Activate encoder calibration:
 			*calib_enc_on = 1;
+		/*
 		}
 
 		// Check for errors:
 		else {
 			// _VALIDATE_CMD_CALIB
 		}
+		*/
 
 		///////////////////////////////////////////////////////////////////////////
-		// Perform calibration per requisites in lowerlimb_sys_info.:
+		// Check for encoders calibration in real-time process:
 		///////////////////////////////////////////////////////////////////////////
+
+		*calib_enc_on = 0; // HACK: this flag should be updated by the real-time control process
 
 		if (lowerlimb_sys_info.activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_control()
 
 			// Reset activity to IDLE:
 			lowerlimb_sys_info.activity_state = IDLE;
 
-			send_OK_resp(cmd_code);
+			send_OK_resp(cmd_code); // CRITICAL for software app to continue
 
 			#if USE_ITM_CMD_CHECK
 				printf("   <<lowerlimb_app_onepass_software()>>: [Encoders calibrated] \n\n");

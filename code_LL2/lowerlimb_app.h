@@ -526,7 +526,7 @@ static uint8_t POSTAMP_TCP[2] = { 0x68, 0x6D };
 
 uint8_t is_valid_w5500_msg(uint8_t tcp_rx_data[]);
 uint8_t is_valid_cmd_code(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status);
-uint8_t is_valid_stm_cmd_payload_size(uint16_t cmd_code, uint8_t rxPayload, uint16_t* app_status);
+uint8_t is_valid_msg_tcp_payload_size(uint16_t cmd_code, uint8_t rxPayload, uint16_t* app_status);
 
 /**
  @brief: Send calibration response message
@@ -577,7 +577,7 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings);
 
 // Script for TCP/IP app:
-lowerlimb_sys_info_t lowerlimb_app_onepass_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+lowerlimb_sys_info_t lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
 		uint8_t* calib_enc_on, uint8_t* homing_on);
 

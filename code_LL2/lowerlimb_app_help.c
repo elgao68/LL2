@@ -250,14 +250,14 @@ is_valid_cmd_code(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, ui
 }
 
 uint8_t
-is_valid_stm_cmd_payload_size(uint16_t cmd_code, uint8_t rxPayload, uint16_t* app_status) {
+is_valid_msg_tcp_payload_size(uint16_t cmd_code, uint8_t rxPayload, uint16_t* app_status) {
 
 	uint8_t n_payload;
 
 	#if USE_ITM_CMD_CHECK
-		printf("   <<is_valid_stm_cmd()>>:\n");
-		printf("   cmd_code     = [%s] (%d)\n", MSG_TCP_STR[cmd_code], cmd_code);
-		printf("   app_status   = [%d]\n\n", *app_status);
+		printf("   <<is_valid_msg_tcp_payload_size()>>:\n");
+		printf("   cmd_code   = [%s] (%d)\n", MSG_TCP_STR[cmd_code], cmd_code);
+		printf("   app_status = [%d]\n\n",    *app_status);
 	#endif
 
 	// Validate command code:
@@ -712,7 +712,7 @@ uint8_t valid_app_status(uint8_t property, uint8_t value, uint16_t* app_status, 
 				ERR_CODE = LEN_ERR_LIST - 1;
 
 			printf("\n");
-			printf("valid_app_status() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_CODE]);
+			printf("valid_app_status() ERROR: cmd_code [%d] generated error [%s]\n\n", cmd_code, ERR_STR[ERR_CODE]);
 		#endif
 
 		return 0;

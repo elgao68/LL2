@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-//  _test_real_time_state_mach.c
+//  _test_real_time_msg_tcp.c
 //
 // Created on: 2024.07.04
 // Author: Gabriel Aguirre Ollinger
@@ -16,7 +16,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 void
-test_real_time_state_mach(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
+test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// MOTOR STATE VARS:
@@ -271,8 +271,6 @@ test_real_time_state_mach(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Extract measured end-effector forces:
 				///////////////////////////////////////////////////////////////////////////////
 
-
-
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
 				// EXERCISE start / stop switches:
@@ -303,14 +301,14 @@ test_real_time_state_mach(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// CALIBRATION activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcpip()
+				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcp_app()
 
-					calib_enc_on = 0;
+					// calib_enc_on = 0; // HACK: executed directly in lowerlimb_app_onepass_software(()
 
 					#if USE_ITM_OUT_RT_CHECK
 						if (cmd_code != cmd_code_prev_to_last) {
-							printf("   <<test_real_time_state_mach()>>: cmd_code_prev = [%s], cmd_code = [%s], calib_enc_on = [%d] MANUAL\n\n",
-									MSG_TCP_STR[cmd_code_prev_to_last], MSG_TCP_STR[cmd_code], calib_enc_on);
+							printf("   <<test_real_time_msg_tcp()>>: cmd_code_prev = [%s], cmd_code = [%s], calib_enc_on = [%d] MANUAL\n\n",
+										MSG_TCP_STR[cmd_code_prev_to_last], MSG_TCP_STR[cmd_code], calib_enc_on);
 						}
 					#endif
 
@@ -346,7 +344,7 @@ test_real_time_state_mach(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					else {
 						#if USE_ITM_OUT_RT_CHECK
 							printf("\n\n");
-							printf("   <<test_real_time_state_mach()>>: Invalid exercise substate [%s] for activity_state == EXERCISE \n\n", EXERC_STATE_STR[LL_sys_info.exercise_state]);
+							printf("   <<test_real_time_msg_tcp()>>: Invalid exercise substate [%s] for activity_state == EXERCISE \n\n", EXERC_STATE_STR[LL_sys_info.exercise_state]);
 						#endif
 					}
 					// end Exercise substate switch
