@@ -256,32 +256,32 @@ is_valid_stm_cmd_payload_size(uint16_t cmd_code, uint8_t rxPayload, uint16_t* ap
 
 	#if USE_ITM_CMD_CHECK
 		printf("   <<is_valid_stm_cmd()>>:\n");
-		printf("   cmd_code     = [%s] (%d)\n", CMD_STR[cmd_code], cmd_code);
+		printf("   cmd_code     = [%s] (%d)\n", MSG_TCP_STR[cmd_code], cmd_code);
 		printf("   app_status   = [%d]\n\n", *app_status);
 	#endif
 
 	// Validate command code:
-	if (cmd_code == Connect_To_Robot_STM_CMD	||
-		cmd_code == Calibrate_Robot_STM_CMD	||
-		cmd_code == Move_To_Start_STM_CMD	||
-		cmd_code == Robot_Shutdown_STM_CMD	||
-		cmd_code == Start_Exercise_STM_CMD	||
-		cmd_code == Stop_Exercise_STM_CMD	||
-		cmd_code == Stdby_Start_Point_STM_CMD)
-			n_payload = N_PAYL_Def_STM_CMD_DEF;
+	if (cmd_code == Connect_To_Robot_MSG_TCP	||
+		cmd_code == Calibrate_Robot_MSG_TCP		||
+		cmd_code == Move_To_Start_MSG_TCP		||
+		cmd_code == Robot_Shutdown_MSG_TCP		||
+		cmd_code == Start_Exercise_MSG_TCP		||
+		cmd_code == Stop_Exercise_MSG_TCP		||
+		cmd_code == Stdby_Start_Point_MSG_TCP)
+			n_payload = N_PAYL_Def_MSG_TCP;
 
-	else if (cmd_code == Go_To_Exercise_STM_CMD)
-			n_payload  = N_PAYL_Go_To_Exercise_STM_CMD;
+	else if (cmd_code == Go_To_Exercise_MSG_TCP)
+			n_payload = N_PAYL_Go_To_Exercise_MSG_TCP;
 
-	else if (cmd_code == Pedal_Travel_STM_CMD)
-		n_payload  = N_PAYL_Pedal_Travel_STM_CMD;
+	else if (cmd_code == Pedal_Travel_MSG_TCP)
+			n_payload = N_PAYL_Pedal_Travel_MSG_TCP;
 
-	else if (cmd_code == F_Therapy_Change_STM_CMD)
-		n_payload  = N_PAYL_F_Therapy_Change_STM_CMD;
+	else if (cmd_code == F_Therapy_Change_MSG_TCP)
+			n_payload = N_PAYL_F_Therapy_Change_MSG_TCP;
 
 	else {
 		#if USE_ITM_CMD_CHECK
-			printf("   invalid cmd code (%d)\n", cmd_code);
+			printf("   invalid cmd_code (%d)\n", cmd_code);
 		#endif
 
 		return 0;

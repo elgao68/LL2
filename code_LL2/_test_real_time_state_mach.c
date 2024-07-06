@@ -213,7 +213,7 @@ test_real_time_state_mach(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// Obtain system state:
 			//////////////////////////////////////////////////////////////////////////////////
 
-			LL_sys_info = lowerlimb_app_state_mach(Read_Haptic_Button(), motor_alert,
+			LL_sys_info = lowerlimb_app_onepass_software(Read_Haptic_Button(), motor_alert,
 					&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
 					&calib_enc_on, &homing_on);
 
@@ -303,14 +303,14 @@ test_real_time_state_mach(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// CALIBRATION activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_tcpip()
+				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcpip()
 
 					calib_enc_on = 0;
 
 					#if USE_ITM_OUT_RT_CHECK
 						if (cmd_code != cmd_code_prev_to_last) {
 							printf("   <<test_real_time_state_mach()>>: cmd_code_prev = [%s], cmd_code = [%s], calib_enc_on = [%d] MANUAL\n\n",
-									CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code], calib_enc_on);
+									MSG_TCP_STR[cmd_code_prev_to_last], MSG_TCP_STR[cmd_code], calib_enc_on);
 						}
 					#endif
 
@@ -427,17 +427,15 @@ test_real_time_state_mach(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					up_time_end = getUpTime();
 
 					if ((up_time_end - up_time) > DT_STEP_MSEC) {
-						printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\n",
+						printf("\n");
+						printf("   rt_step_i = [%d], rt_step_i = [%3.3f], D_up_time = [%d] \n",
 							rt_step_i,
 							t_ref,
-							(int)up_time_end - (int)up_time,
-							0,
-							0);
+							(int)up_time_end - (int)up_time);
 
 						printf("   cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
-									CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
-						printf("   LL_sys_info.activity_state = [%s] \n",   ACTIV_STATE_STR[LL_sys_info.activity_state]);
-						printf("\n");
+									MSG_TCP_STR[cmd_code_prev_to_last], MSG_TCP_STR[cmd_code]);
+						printf("   LL_sys_info.activity_state = [%s] \n\n",   ACTIV_STATE_STR[LL_sys_info.activity_state]);
 					}
 				// }
 			#endif

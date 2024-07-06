@@ -383,7 +383,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// GET TCP/IP APP STATE
 			//////////////////////////////////////////////////////////////////////////////////
 
-			LL_sys_info = lowerlimb_app_tcpip(Read_Haptic_Button(), motor_alert,
+			LL_sys_info = lowerlimb_app_onepass_tcpip(Read_Haptic_Button(), motor_alert,
 					&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
 					&calib_enc_on, &homing_on);
 
@@ -540,7 +540,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// CALIBRATION activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_tcpip()
+				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcpip()
 
 					#if USE_ITM_OUT_RT_CHECK
 						if (cmd_code != cmd_code_prev_to_last) {
@@ -771,7 +771,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							t_slow = t_ref - t_slow_ref;
 
 							if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING) {
-								homing_on       = 1; // HACK: specifically to bypass [LL_sys_info.exercise_state] returned by [lowerlimb_app_tcpip()]
+								homing_on       = 1; // HACK: specifically to bypass [LL_sys_info.exercise_state] returned by [lowerlimb_app_onepass_tcpip()]
 								init_calib_traj = 1; // CRITICAL: enables homing starting from the correct start point
 
 								#if USE_ITM_OUT_RT_CHECK

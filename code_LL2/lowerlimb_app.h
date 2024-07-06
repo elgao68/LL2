@@ -185,11 +185,14 @@ static char CALIB_MODE_STR[LEN_CALIB_MODES][LEN_STR_MAX] = {
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
-// MESSAGES & STATES: TYPE DEFINITIONS (NEW FIRMWARE):
+// MESSAGES & STATES: TYPE DEFINITIONS (NEW FIRMWARE)
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 
-// App messages (internal)	MSG_APP				
+///////////////////////////////////////////////////////
+// App messages (internal)	MSG_APP
+///////////////////////////////////////////////////////
+
 #define	OFFS_MSG_APP		400		
 #define	LEN_MSG_APP			4
 enum MSG_APP {	
@@ -197,18 +200,37 @@ enum MSG_APP {
 	MSG_APP_SELECT_EXERCISE	=	401	,
 	MSG_APP_SELECT_PATIENT	=	402	,
 	MSG_FW_ADJUST_EXERCISE	=	403	};
-					
-// Firmware messages (internal)	MSG_FW				
+
+static char STR_MSG_APP[LEN_MSG_APP][LEN_STR_MAX] = {
+	"MSG_APP_EXERCISE_ON"	,
+	"MSG_APP_SELECT_EXERCISE"	,
+	"MSG_APP_SELECT_PATIENT"	,
+	"MSG_APP_ADJUST_EXERCISE"	};
+
+///////////////////////////////////////////////////////
+// Firmware messages (internal)	MSG_FW
+///////////////////////////////////////////////////////
+
 #define	OFFS_MSG_FW		500		
 #define	LEN_MSG_FW		3		
 enum MSG_FW {	
 	MSG_FW_CALIBRATING			=	500	,
 	MSG_FW_EXERCISE_ON			=	501	,
 	MSG_FW_STDBY_START_POINT	=	502	};
-					
-// TCP messages	MSG_TCP				
+
+static char STR_MSG_FW[LEN_MSG_FW][LEN_STR_MAX] = {
+	"MSG_FW_CALIBRATING"	,
+	"MSG_FW_EXERCISE_ON"	,
+	"MSG_FW_STDBY_START_POINT"	};
+
+///////////////////////////////////////////////////////
+// TCP messages	MSG_TCP	(1st VERSION):
+///////////////////////////////////////////////////////
+
+/*
 #define	OFFS_MSG_TCP		600		
 #define	LEN_MSG_TCP			13
+
 enum MSG_TCP {	
 	MSG_TCP_calibrate_done		=	600	,	// dist_x, dist_y
 	MSG_TCP_calibrate_robot		=	601	,
@@ -224,50 +246,6 @@ enum MSG_TCP {
 	MSG_TCP_stdby_start_point	=	611	,
 	MSG_TCP_stop_exercise		=	612	};
 
-
-// App states	ST_APP				
-#define	OFFS_ST_APP		700		
-#define	LEN_ST_APP		6		
-enum ST_APP {	
-	ST_APP_ADJUST_EXERCISE	=	700	,
-	ST_APP_EXERCISE_ON		=	701	,
-	ST_APP_SELECT_EXERCISE	=	702	,
-	ST_APP_SELECT_PATIENT	=	703	,
-	ST_APP_STDBY_CALIBRATE	=	704	,
-	ST_APP_STDBY_CONNECT	=	705	};
-					
-// Firmware states	ST_FW				
-#define	OFFS_ST_FW		800		
-#define	LEN_ST_FW		5		
-enum ST_FW {	
-	ST_FW_ADJUST_EXERCISE	=	800	,
-	ST_FW_CALIBRATING		=	801	,
-	ST_FW_CONNECTING		=	802	,
-	ST_FW_EXERCISE_ON		=	803	,
-	ST_FW_STDBY_START_POINT	=	804	};
-
-///////////////////////////////////////////////////////
-///////////////////////////////////////////////////////
-// MESSAGES & STATES STRINGS (NEW FIRMWARE):
-///////////////////////////////////////////////////////
-///////////////////////////////////////////////////////
-
-// App messages (internal)	MSG_APP	
-static char STR_MSG_APP[LEN_MSG_APP][LEN_STR_MAX] = {
-	"MSG_APP_EXERCISE_ON"	,
-	"MSG_APP_SELECT_EXERCISE"	,
-	"MSG_APP_SELECT_PATIENT"	,
-	"MSG_APP_ADJUST_EXERCISE"	};
-		
-		
-// Firmware messages (internal)	MSG_FW	
-static char STR_MSG_FW[LEN_MSG_FW][LEN_STR_MAX] = {
-	"MSG_FW_CALIBRATING"	,
-	"MSG_FW_EXERCISE_ON"	,
-	"MSG_FW_STDBY_START_POINT"	};
-		
-
-// TCP messages	MSG_TCP	
 static char STR_MSG_TCP[LEN_MSG_TCP][LEN_STR_MAX] = {
 	"MSG_TCP_calibrate_done"	,
 	"MSG_TCP_calibrate_robot"	,
@@ -282,9 +260,67 @@ static char STR_MSG_TCP[LEN_MSG_TCP][LEN_STR_MAX] = {
 	"MSG_TCP_start_exercise"	,
 	"MSG_TCP_stdby_start_point"	,
 	"MSG_TCP_stop_exercise"	};
-		
-		
-// App states	ST_APP	
+*/
+
+///////////////////////////////////////////////////////
+// TCP messages	MSG_TCP	(2nd VERSION, based on software app command codes 06.07.2024):
+///////////////////////////////////////////////////////
+
+// Payload sizes:
+#define N_PAYL_Def_MSG_TCP      		 1
+#define N_PAYL_Go_To_Exercise_MSG_TCP	20
+#define N_PAYL_Pedal_Travel_MSG_TCP		 8
+#define N_PAYL_F_Therapy_Change_MSG_TCP	 4
+
+#define LEN_MSG_TCP		14
+
+enum MSG_TCP {
+	_0_MSG_TCP 					= 0,
+	_1_MSG_TCP 					= 1,
+	_2_MSG_TCP					= 2,
+	Connect_To_Robot_MSG_TCP	= 3,
+	Calibrate_Robot_MSG_TCP		= 4,
+	Move_To_Start_MSG_TCP		= 5,
+	_6_MSG_TCP					= 6,
+	Go_To_Exercise_MSG_TCP		= 7,
+	Pedal_Travel_MSG_TCP		= 8,
+	Robot_Shutdown_MSG_TCP		= 9,
+	F_Therapy_Change_MSG_TCP	= 10,
+	Start_Exercise_MSG_TCP		= 11,
+	Stop_Exercise_MSG_TCP		= 12,
+	Stdby_Start_Point_MSG_TCP	= 13 };
+
+static char MSG_TCP_STR[LEN_MSG_TCP][LEN_STR_MAX] = {
+	"_0_MSG_TCP",
+	"_1_MSG_TCP",
+	"_2_MSG_TCP",
+	"Connect_To_Robot_MSG_TCP",
+	"Calibrate_Robot_MSG_TCP",
+	"Move_To_Start_MSG_TCP",
+	"_6_MSG_TCP",
+	"Go_To_Exercise_MSG_TCP",
+	"Pedal_Travel_MSG_TCP",
+	"Robot_Shutdown_MSG_TCP",
+	"F_Therapy_Change_MSG_TCP",
+	"Start_Exercise_MSG_TCP",
+	"Stop_Exercise_MSG_TCP",
+	"Stdby_Start_Point_MSG_TCP"
+};
+
+///////////////////////////////////////////////////////
+// App states	ST_APP
+///////////////////////////////////////////////////////
+
+#define	OFFS_ST_APP		700		
+#define	LEN_ST_APP		6		
+enum ST_APP {	
+	ST_APP_ADJUST_EXERCISE	=	700	,
+	ST_APP_EXERCISE_ON		=	701	,
+	ST_APP_SELECT_EXERCISE	=	702	,
+	ST_APP_SELECT_PATIENT	=	703	,
+	ST_APP_STDBY_CALIBRATE	=	704	,
+	ST_APP_STDBY_CONNECT	=	705	};
+
 static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {
 	"ST_APP_ADJUST_EXERCISE"	,
 	"ST_APP_EXERCISE_ON"	,
@@ -292,61 +328,26 @@ static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {
 	"ST_APP_SELECT_PATIENT"	,
 	"ST_APP_STDBY_CALIBRATE"	,
 	"ST_APP_STDBY_CONNECT"	};
+					
+///////////////////////////////////////////////////////
+// Firmware states	ST_FW
+///////////////////////////////////////////////////////
 
-		
-// Firmware states	ST_FW	
+#define	OFFS_ST_FW		800		
+#define	LEN_ST_FW		5		
+enum ST_FW {	
+	ST_FW_ADJUST_EXERCISE	=	800	,
+	ST_FW_CALIBRATING		=	801	,
+	ST_FW_CONNECTING		=	802	,
+	ST_FW_EXERCISE_ON		=	803	,
+	ST_FW_STDBY_START_POINT	=	804	};
+
 static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {
 	"ST_FW_ADJUST_EXERCISE"	,
 	"ST_FW_CALIBRATING"	,
 	"ST_FW_CONNECTING"	,
 	"ST_FW_EXERCISE_ON"	,
 	"ST_FW_STDBY_START_POINT"	};
-
-
-///////////////////////////////////////////////////////
-// Messages and message strings (STATE MACHINE COMMANDS):
-///////////////////////////////////////////////////////
-
-// Payload sizes:
-#define N_PAYL_Def_STM_CMD_DEF  		 1
-#define N_PAYL_Go_To_Exercise_STM_CMD	20
-#define N_PAYL_Pedal_Travel_STM_CMD		 8
-#define N_PAYL_F_Therapy_Change_STM_CMD	 4
-
-#define LEN_STM_CMD		14
-
-enum STM_CMD {
-	_0_STM_CMD 					= 0,
-	_1_STM_CMD 					= 1,
-	_2_STM_CMD					= 2,
-	Connect_To_Robot_STM_CMD	= 3,
-	Calibrate_Robot_STM_CMD		= 4,
-	Move_To_Start_STM_CMD		= 5,
-	_6_STM_CMD					= 6,
-	Go_To_Exercise_STM_CMD		= 7,
-	Pedal_Travel_STM_CMD		= 8,
-	Robot_Shutdown_STM_CMD		= 9,
-	F_Therapy_Change_STM_CMD	= 10,
-	Start_Exercise_STM_CMD		= 11,
-	Stop_Exercise_STM_CMD		= 12,
-	Stdby_Start_Point_STM_CMD	= 13 };
-
-static char STM_CMD_STR[LEN_STM_CMD][LEN_STR_MAX] = {
-	"_0_STM_CMD" ,
-	"_1_STM_CMD" ,
-	"_2_STM_CMD" ,
-	"Connect_To_Robot_STM_CMD" ,
-	"Calibrate_Robot_STM_CMD" ,
-	"Move_To_Start_STM_CMD" ,
-	"_6_STM_CMD" ,
-	"Go_To_Exercise_STM_CMD" ,
-	"Pedal_Travel_STM_CMD" ,
-	"Robot_Shutdown_STM_CMD" ,
-	"F_Therapy_Change_STM_CMD" ,
-	"Start_Exercise_STM_CMD" ,
-	"Stop_Exercise_STM_CMD" ,
-	"Stdby_Start_Point_STM_CMD"
-};
 
 ///////////////////////////////////////////////////////
 // Error codes:
@@ -576,12 +577,12 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings);
 
 // Script for TCP/IP app:
-lowerlimb_sys_info_t lowerlimb_app_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+lowerlimb_sys_info_t lowerlimb_app_onepass_tcpip(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
 		uint8_t* calib_enc_on, uint8_t* homing_on);
 
 // Script for software app (STATE MACHINE):
-lowerlimb_sys_info_t lowerlimb_app_state_mach(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+lowerlimb_sys_info_t lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
 		uint8_t* calib_enc_on, uint8_t* homing_on);
 
