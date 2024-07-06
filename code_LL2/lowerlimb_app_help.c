@@ -62,7 +62,135 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 }
 
 ///////////////////////////////////////////////////////////////////////
-// Messaging functions:
+// Message validation functions, high-level:
+///////////////////////////////////////////////////////////////////////
+
+uint8_t
+is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t USE_VARS_TCP_MSG) {
+
+	static uint16_t cmd_code_recv = 0; // CRITICAL to make it static
+	uint8_t rxPayload  = 0;
+
+	/*
+	uint8_t tmp_index  = 0;
+	uint8_t tmp_chk    = 0;
+	uint64_t ui64_tmp  = 0;
+	uint8_t tmp_resp_msg[465];
+	*/
+
+	////////////////////////////////////
+	// Constants & variables for parsing index:
+	////////////////////////////////////
+
+	const uint8_t cmdCode_index      = 3;
+	const uint8_t payloadLen_index   = 5;
+
+	/*
+	const uint8_t payloadStart_index = 7;
+	uint8_t rx_payload_index = payloadStart_index;
+	tcp_exercise_targ_params_t tmp_parsed_targ_params;
+	*/
+
+	////////////////////////////////////
+	// Auxiliary variables:
+	////////////////////////////////////
+
+	uint8_t is_valid_msg_test = 0; // NOTE: this variable gets reused for several tests
+
+	////////////////////////////////////
+	// Reset lower-limb system info:
+	////////////////////////////////////
+
+	// CRITICAL: lowerlimb_sys_info is a global variable
+	lowerlimb_sys_info.app_status    = 0;
+
+	////////////////////////////////////
+	// Update system operation status:
+	////////////////////////////////////
+
+	update_operation_state(&lowerlimb_sys_info.operation_state, ui8EBtnState, ui8Alert);
+
+	////////////////////////////////////
+	// Update local Unix time:
+	////////////////////////////////////
+
+	update_unix_time();
+
+	////////////////////////////////////
+	// Check if TCP connected:
+	////////////////////////////////////
+
+	if (isTCPConnected() == 0) {
+		#if USE_ITM_CMD_CHECK
+			printf("   <is_valid_cmd_code_tcp()>: iisTCPConnected() FAILED \n\n");
+		#endif
+
+		return 0;
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+	// Validate TCP messages:
+	////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Check if there is a valid message:
+	////////////////////////////////////////////////////////////////////////////////
+
+	if (ethernet_w5500_new_rcv_data()) {
+		memset(tcpRxData, 0, sizeof(tcpRxData)); // CRITICAL: tcpRxData is a global variable
+		is_valid_msg_test = is_valid_w5500_msg(tcpRxData);
+	}
+	else
+		return 0;
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Parse command code & payload:
+	////////////////////////////////////////////////////////////////////////////////
+
+	if (is_valid_msg_test) {
+		cmd_code_recv =  ((uint16_t) tcpRxData[cmdCode_index] << 8) +
+					      (uint16_t) tcpRxData[cmdCode_index + 1];
+
+		rxPayload = ((uint16_t) tcpRxData[payloadLen_index] << 8) +
+					 (uint16_t) tcpRxData[payloadLen_index + 1];
+	}
+	else {
+		#if USE_ITM_CMD_CHECK
+			printf("   <is_valid_cmd_code_tcp()>: s_valid_w5500_msg() FAILED \n\n");
+		#endif
+
+		return 0;
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Validate command code:
+	////////////////////////////////////////////////////////////////////////////////
+
+	if (USE_VARS_TCP_MSG)
+		is_valid_msg_test = is_valid_msg_tcp_payload_size(cmd_code_recv, rxPayload,
+				&lowerlimb_sys_info.app_status);
+	else
+		is_valid_msg_test = is_valid_cmd_code(cmd_code, rxPayload,
+			lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status);
+
+	if (is_valid_msg_test) {
+		*cmd_code = cmd_code_recv;
+
+		return 1;
+	}
+	else {
+		#if USE_ITM_CMD_CHECK
+			printf("   <is_valid_cmd_code_tcp()>: invalid cmd_code_recv [%d] (possible payload problem) \n\n", cmd_code_recv);
+		#endif
+
+		return 0;
+	}
+}
+
+///////////////////////////////////////////////////////////////////////
+// Message validation functions, low-level:
 ///////////////////////////////////////////////////////////////////////
 
 uint8_t

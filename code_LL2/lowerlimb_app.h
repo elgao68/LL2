@@ -503,11 +503,18 @@ typedef struct {
 	uint8_t r_brake_status;
 } lowerlimb_exercise_feedback_params_t;
 
+///////////////////////////////////////////////////////////////////////
+// Message validation functions, high-level:
+///////////////////////////////////////////////////////////////////////
+
+uint8_t
+is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t USE_VARS_TCP_MSG);
+
 ///////////////////////////////////////////////////////
-// Messaging variables:
+// Message validation functions, low-level:
 ///////////////////////////////////////////////////////
 
-static lowerlimb_sys_info_t lowerlimb_sys_info; // moved to source file to keep scope local
+static lowerlimb_sys_info_t lowerlimb_sys_info; // moved here to keep scope local
 
 static lowerlimb_brakes_command_t lowerlimb_brakes_command;
 
@@ -521,7 +528,7 @@ static uint8_t PREAMP_TCP[2] = { 0x48, 0x4D };
 static uint8_t POSTAMP_TCP[2] = { 0x68, 0x6D };
 
 ///////////////////////////////////////////////////////
-// Messaging functions:
+// Message validation functions:
 ///////////////////////////////////////////////////////
 
 uint8_t is_valid_w5500_msg(uint8_t tcp_rx_data[]);
