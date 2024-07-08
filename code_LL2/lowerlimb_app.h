@@ -22,6 +22,8 @@
 #include <traj_ctrl_params_nml.h>
 #include <motor_algo_ll2.h>
 #include <qei_motor_drivers_LL2.h>
+#include <sensors_ll2.h>
+
 #include "stm32f4xx_hal.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -36,6 +38,8 @@
 ///////////////////////////////////////////////////////
 // CONTROL / SIMULATION SETTINGS
 ///////////////////////////////////////////////////////
+
+#define TEST_FORCE_SENS_CALIB_FUNC 1
 
 #define USE_ITM_CMD_CHECK    1
 #define SET_CTRL_PARAMETERS  1

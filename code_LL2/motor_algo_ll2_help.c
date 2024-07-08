@@ -212,7 +212,8 @@ ode_admitt_model_nml(nml_mat* dt_z_nml, nml_mat* z_nml, ode_param_struct ode_par
 	step_i++;
 }
 
-void admitt_model_matrices_nml(nml_mat* M_sys, nml_mat* B_sys, nml_mat* K_sys, double m_val[], double b_val[], double k_val[], size_t N_q) {
+void
+admitt_model_matrices_nml(nml_mat* M_sys, nml_mat* B_sys, nml_mat* K_sys, double m_val[], double b_val[], double k_val[], size_t N_q) {
 
 	int r_i, c_i;
 	for (r_i = 0; r_i < N_q; r_i++)
@@ -234,11 +235,12 @@ void admitt_model_matrices_nml(nml_mat* M_sys, nml_mat* B_sys, nml_mat* K_sys, d
 // LOWER-LIMB UTILITY FUNCTIONS:
 ///////////////////////////////////////////////////////////////////////////////
 
-uint8_t set_LL_mech_readings(lowerlimb_mech_readings_t* mech, uint64_t current_upTime,
-		int32_t L_count, int32_t R_count,
-		uint32_t L_currsens, uint32_t R_currsens,
-		uint32_t force_end_in_x, uint32_t force_end_in_y,
-		uint8_t isCalibration) {
+uint8_t
+set_LL_mech_readings(lowerlimb_mech_readings_t* mech, uint64_t current_upTime,
+	int32_t L_count, int32_t R_count,
+	uint32_t L_currsens, uint32_t R_currsens,
+	uint32_t force_end_in_x, uint32_t force_end_in_y,
+	uint8_t isCalibration) {
 
     float delta_time_s;
     uint8_t motor_result = 0;
@@ -389,7 +391,8 @@ uint8_t set_LL_mech_readings(lowerlimb_mech_readings_t* mech, uint64_t current_u
 	return motor_alert;
 }
 
-void set_LL_motor_settings(lowerlimb_motors_settings_t* motors, float force_end[]) {
+void
+set_LL_motor_settings(lowerlimb_motors_settings_t* motors, float force_end[]) {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Adding offset forces
@@ -471,13 +474,15 @@ void set_LL_motor_settings(lowerlimb_motors_settings_t* motors, float force_end[
 ///////////////////////////////////////////////////////////////////////////////
 
 // @param[in]: en: 1 = disable safety, 0 = enable safety
-void set_safetyOff(uint8_t en) {
+void
+set_safetyOff(uint8_t en) {
     //limit
     en = en > 1? 1 : en;
     ui8SafetyOff = en;
 }
 
-uint8_t get_safetyOff(void) {
+uint8_t
+get_safetyOff(void) {
     return ui8SafetyOff;
 }
 
@@ -485,7 +490,8 @@ uint8_t get_safetyOff(void) {
 // Sensor readings:
 ///////////////////////////////////////////////////////////////////////////////
 
-void clear_lowerlimb_mech_readings(lowerlimb_mech_readings_t* LL_mech_readings)
+void
+clear_lowerlimb_mech_readings(lowerlimb_mech_readings_t* LL_mech_readings)
 {
     memset(LL_mech_readings, 0, sizeof(lowerlimb_mech_readings_t));
 }
@@ -494,37 +500,44 @@ void clear_lowerlimb_mech_readings(lowerlimb_mech_readings_t* LL_mech_readings)
 // Motor settings:
 ///////////////////////////////////////////////////////////////////////////////
 
-void clear_lowerlimb_motors_settings(lowerlimb_motors_settings_t* LL_motors_settings)
+void
+clear_lowerlimb_motors_settings(lowerlimb_motors_settings_t* LL_motors_settings)
 {
     memset(LL_motors_settings, 0, sizeof(lowerlimb_motors_settings_t));
 }
 
-uint32_t get_motor_L_dac(lowerlimb_motors_settings_t* LL_motors_settings)
+uint32_t
+get_motor_L_dac(lowerlimb_motors_settings_t* LL_motors_settings)
 {
 	return LL_motors_settings->left.dac_in;
 }
 
-uint32_t get_motor_R_dac(lowerlimb_motors_settings_t* LL_motors_settings)
+uint32_t
+get_motor_R_dac(lowerlimb_motors_settings_t* LL_motors_settings)
 {
 	return LL_motors_settings->right.dac_in;
 }
 
-bool get_motor_L_direction(lowerlimb_motors_settings_t* LL_motors_settings)
+bool
+get_motor_L_direction(lowerlimb_motors_settings_t* LL_motors_settings)
 {
 	return LL_motors_settings->left.motor_direction;
 }
 
-bool get_motor_R_direction(lowerlimb_motors_settings_t* LL_motors_settings)
+bool
+get_motor_R_direction(lowerlimb_motors_settings_t* LL_motors_settings)
 {
 	return LL_motors_settings->right.motor_direction;
 }
 
-bool get_motor_L_enable(lowerlimb_motors_settings_t* LL_motors_settings)
+bool
+get_motor_L_enable(lowerlimb_motors_settings_t* LL_motors_settings)
 {
 	return LL_motors_settings->left.en_motor_driver;
 }
 
-bool get_motor_R_enable(lowerlimb_motors_settings_t* LL_motors_settings)
+bool
+get_motor_R_enable(lowerlimb_motors_settings_t* LL_motors_settings)
 {
 	return LL_motors_settings->right.en_motor_driver;
 }
@@ -533,7 +546,8 @@ bool get_motor_R_enable(lowerlimb_motors_settings_t* LL_motors_settings)
 // Exercise functions:
 ///////////////////////////////////////////////////////////////////////////////
 
-void init_motor_algo(lowerlimb_mech_readings_t* LL_mech_readings, lowerlimb_motors_settings_t* LL_motors_settings)
+void
+init_motor_algo(lowerlimb_mech_readings_t* LL_mech_readings, lowerlimb_motors_settings_t* LL_motors_settings)
 {
     clear_lowerlimb_motors_settings(LL_motors_settings); // CRITICAL: might cause encoders to reset unexpectedly
     clear_lowerlimb_mech_readings(LL_mech_readings);
@@ -542,7 +556,8 @@ void init_motor_algo(lowerlimb_mech_readings_t* LL_mech_readings, lowerlimb_moto
     ui8SafetyOff = 0;
 }
 
-uint8_t lowerlimb_motor_safety_limiter(uint8_t type, uint8_t targ_index)
+uint8_t
+lowerlimb_motor_safety_limiter(uint8_t type, uint8_t targ_index)
 {
 #if (lowerlimb_SAFETY)
     uint8_t status = 0;

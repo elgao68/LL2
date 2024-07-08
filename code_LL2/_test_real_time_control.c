@@ -25,7 +25,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	uint8_t motor_result        = 0;
 	uint8_t motor_alert         = 0;
 
-	uint8_t motor_torque_active = 0;
+	uint8_t motor_torque_active = 1;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// FIRMWARE / CONTROL PARAMETERS:
@@ -713,17 +713,19 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						if (LL_sys_info.exercise_state == SLOWING && exercise_state_prev != SLOWING) {
 							t_slow_ref = t_ref;
 
-							idx_sys_state   = LL_sys_info.system_state;
-							idx_activ_state = LL_sys_info.activity_state;
-							idx_exerc_state = LL_sys_info.exercise_state;
+							#if USE_ITM_OUT_RT_CHECK
+								idx_sys_state   = LL_sys_info.system_state;
+								idx_activ_state = LL_sys_info.activity_state;
+								idx_exerc_state = LL_sys_info.exercise_state;
 
-							printf("   SLOWING (no cmd code):\n");
-							printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-							printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-							printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-							printf("\n");
-							printf("   t_slow_ref = [%3.2f]\n", t_slow_ref);
-							printf("\n");
+								printf("   SLOWING (no cmd code):\n");
+								printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+								printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+								printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+								printf("\n");
+								printf("   t_slow_ref = [%3.2f]\n", t_slow_ref);
+								printf("\n");
+							#endif
 						}
 
 						///////////////////////////////////////////////////////////////////////////////

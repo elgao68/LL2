@@ -25,8 +25,6 @@ test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	uint8_t motor_result        = 0;
 	uint8_t motor_alert         = 0;
 
-	uint8_t motor_torque_active = 0;
-
 	///////////////////////////////////////////////////////////////////////////////
 	// FIRMWARE / CONTROL PARAMETERS:
 	///////////////////////////////////////////////////////////////////////////////

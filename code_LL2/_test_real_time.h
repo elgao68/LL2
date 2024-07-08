@@ -33,13 +33,35 @@
 #include "socket.h"
 
 ////////////////////////////////////////////////////////////////////////////////
-// USER CODE BEGIN PV
+// Program settings:
 ////////////////////////////////////////////////////////////////////////////////
+
+// Dynamic system mode: unconstrained / constrained:
+#define ADMITT_MODEL_CONSTR_ON		1
+#define ADMITT_MODEL_CONSTR_OFF		0
+
+#define OVERR_DYN_PARAMS_RT			1
+#define OVERR_FORCE_SENSORS_CALIB	0
+
+// Assorted timers:
+#define DT_EXPIRE_MSEC				1000
+#define DT_DISP_MSEC_REALTIME		1000
+#define DT_DISP_MSEC_GUI_PARAMS		2000
+
+// ITM Data Console switches:
+#define USE_ITM_OUT_RT_CHECK		1
+#define USE_ITM_OUT_RT_CHECK_LONG	0
+#define USE_ITM_OUT_GUI_PARAMS		0
+#define USE_ITM_TCP_CHECK		    0
 
 // TCP ethernet related - Demo Firmware Version:
 #define VER_H		0x00
 #define VER_L		0x00
 #define VER_P		0x00
+
+////////////////////////////////////////////////////////////////////////////////
+// Control variables:
+////////////////////////////////////////////////////////////////////////////////
 
 static uint64_t algo_nextTime = 0;
 static uint64_t brakes_nextTime = 0;
@@ -57,24 +79,6 @@ static uint32_t current_sensor_R = 0;
 // static uint8_t tcpTxData[292];
 // static uint64_t L_brakes_powersavetimer = 0;
 // static uint64_t R_brakes_powersavetimer = 0;
-
-// Dynamic system mode: unconstrained / constrained:
-#define ADMITT_MODEL_CONSTR_ON		1
-#define ADMITT_MODEL_CONSTR_OFF		0
-
-#define OVERR_DYN_PARAMS_RT			1
-#define OVERR_FORCE_SENSORS_CALIB	0
-
-// Assorted timers:
-#define DT_EXPIRE_MSEC				1000
-#define DT_DISP_MSEC_REALTIME		1000
-#define DT_DISP_MSEC_GUI_PARAMS		2000
-
-// ITM Data Console switches:
-#define USE_ITM_OUT_RT_CHECK		1
-#define USE_ITM_OUT_RT_CHECK_LONG	1
-#define USE_ITM_OUT_GUI_PARAMS		0
-#define USE_ITM_TCP_CHECK		    0
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare helper functions (see main.c):

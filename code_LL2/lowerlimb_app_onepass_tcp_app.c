@@ -36,13 +36,17 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 
 	uint8_t rx_payload_index = payloadStart_index;
 
-	//Force Sensor:
-	uint32_t force_end_in_x_sensor = 0;
-	uint32_t force_end_in_y_sensor = 0;
-	uint32_t dum_force_end_in_x = 0;
-	uint32_t dum_force_end_in_y = 0;
-	float force_end_in_x_sensor_f = 0;
-	float force_end_in_y_sensor_f = 0;
+	//Force sensors - TODO: remove at a later date
+	#if TEST_FORCE_SENS_CALIB_FUNC
+
+	#else
+		uint32_t force_end_in_x_sensor = 0;
+		uint32_t force_end_in_y_sensor = 0;
+		uint32_t dum_force_end_in_x = 0;
+		uint32_t dum_force_end_in_y = 0;
+		float force_end_in_x_sensor_f = 0;
+		float force_end_in_y_sensor_f = 0;
+	#endif
 
 	// Counters:
 	static int step_i = 0;
@@ -275,19 +279,24 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 				printf("\n");
 			#endif
 
-			// Zero-calibrate force sensor:
-			for (int i = 1; i <= 50; i++) {
-				force_sensors_read(&hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor,
-						&dum_force_end_in_x, &dum_force_end_in_y);
+			// Zero-calibrate force sensors:
+			#if TEST_FORCE_SENS_CALIB_FUNC
+				force_sensors_zero_calibrate(&hadc3);
+			#else
+				// TODO: remove at a later date:
+				for (int i = 1; i <= 50; i++) {
+					force_sensors_read(&hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor,
+							&dum_force_end_in_x, &dum_force_end_in_y);
 
-				force_end_in_x_sensor_f += (float) force_end_in_x_sensor * 3.3f / 4095.0f;
-				force_end_in_y_sensor_f += (float) force_end_in_y_sensor * 3.3f / 4095.0f;
-			}
+					force_end_in_x_sensor_f += (float) force_end_in_x_sensor * 3.3f / 4095.0f;
+					force_end_in_y_sensor_f += (float) force_end_in_y_sensor * 3.3f / 4095.0f;
+				}
 
-			force_end_in_x_sensor_f = force_end_in_x_sensor_f / 50.0f;
-			force_end_in_y_sensor_f = force_end_in_y_sensor_f / 50.0f;
+				force_end_in_x_sensor_f = force_end_in_x_sensor_f / 50.0f;
+				force_end_in_y_sensor_f = force_end_in_y_sensor_f / 50.0f;
 
-			set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
+				set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
+			#endif
 
 			#if USE_ITM_CMD_CHECK
 				printf("   lowerlimb_app_onepass_tcp_app(): [Force sensors calibrated] \n\n");

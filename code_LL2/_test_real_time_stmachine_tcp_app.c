@@ -24,7 +24,6 @@ test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 
 	uint8_t motor_alert         = 0;
 	// uint8_t motor_result        = 0;
-	// uint8_t motor_torque_active = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// FIRMWARE / CONTROL PARAMETERS:
