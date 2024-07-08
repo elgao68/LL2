@@ -37,6 +37,11 @@ norm2(double* vect, int dim) {
 }
 
 double
+norm2_2d(double x, double y) {
+	return sqrt(x*x + y*y);
+}
+
+double
 int_trapezoidal(double* x, double y_init, double n, double T_INC) {
 	// n: number of time intervals
 	double	y0, y1 = 0;

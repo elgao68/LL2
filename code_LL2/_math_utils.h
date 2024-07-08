@@ -37,8 +37,9 @@ typedef struct param_struct {
 // General-purpose functions:
 ////////////////////////////////////////////////////////////////////////////
 
-int	round_dbl(double value);
+int	    round_dbl(double value);
 double	norm2(double* vect, int dim);
+double  norm2_2d(double x, double y);
 double	int_trapezoidal(double* x, double y_init, double n, double T_INC);
 double	normald_angle(double ang);
 int		sgn(double val);

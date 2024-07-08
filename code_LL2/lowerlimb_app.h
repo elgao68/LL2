@@ -39,8 +39,6 @@
 // CONTROL / SIMULATION SETTINGS
 ///////////////////////////////////////////////////////
 
-#define TEST_FORCE_SENS_CALIB_FUNC 1
-
 #define USE_ITM_CMD_CHECK    1
 #define SET_CTRL_PARAMETERS  1
 // #define USE_STATE_MACHINE_CMD 1 // TODO: remove at a later date

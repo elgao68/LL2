@@ -10,7 +10,7 @@
 #include <motor_algo_ll2.h>
 
 ///////////////////////////////////////////////////////////////////////////////
-// MOTION ALGORITHMS - ELLIPTICAL TRAJECTORY - PASSIVE:
+// ELLIPTICAL TRAJECTORY - PASSIVE:
 ///////////////////////////////////////////////////////////////////////////////
 
 void
@@ -169,7 +169,7 @@ traj_ref_step_passive_elliptic(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// MOTION ALGORITHMS - ISOMETRIC "TRAJECTORY":
+// ISOMETRIC "TRAJECTORY":
 ///////////////////////////////////////////////////////////////////////////////
 
 void traj_ref_step_isometric(
@@ -186,3 +186,224 @@ void traj_ref_step_isometric(
 	*phi_ref    = 0.0;
 	*dt_phi_ref = 0.0;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// CALIBRATION TRAJECTORY:
+///////////////////////////////////////////////////////////////////////////////
+
+void
+traj_ref_calibration_ll2(
+	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale, double z_intern_o_dbl[],
+	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
+	lowerlimb_motors_settings_t* LL_motors_settings, traj_ctrl_params_t* traj_ctrl_params, uint8_t traj_exerc_type, double v_calib, double frac_ramp_calib) {
+
+	// Switching variables:
+	static uint8_t init_calib_traj = 0;
+	static uint8_t calib_traj_prev = CalibTraj_Null;
+
+	const double ERR_POS_REL = 0.005; // HACK: we specify a minimum relative displacement before checking for contact conditions
+
+	// Calibration end points:
+	static double p_calib_o[N_COORD_2D] = {0.0, 0.0};
+	static double p_calib_f[N_COORD_2D] = {0.0, 0.0};
+
+	// Timers:
+	static uint16_t step_i = 0;
+	static double T_f_calib = 0.0;
+
+	static double t_calib = 0.0;
+
+	// Dummy variables:
+	double u_t_ref_dum[N_COORD_2D] = {0.0, 0.0};
+	double pos_rel_calib_dum       = 0.0;
+	double dt_pos_rel_calib_dum    = 0.0;
+
+	if (*calib_traj == CalibTraj_Null) {
+
+		// Set up next calibration trajectory:
+		*calib_traj = CalibTraj_1_Y_Travel;
+
+		p_calib_o[IDX_X] = p_m[IDX_X];
+		p_calib_o[IDX_Y] = p_m[IDX_Y];
+
+		p_calib_f[IDX_X] = p_calib_o[IDX_X];
+		p_calib_f[IDX_Y] = p_calib_o[IDX_Y] - DIST_CALIB_MAX;
+
+		// Control gains scale array:
+		*idx_scale = IDX_SCALE_CALIB;
+
+		// Trajectory initiation command:
+		init_calib_traj  = 1;
+	}
+
+	else if (
+		*calib_traj == CalibTraj_1_Y_Travel &&
+		fabs(dt_p_m[IDX_Y]) < THR_DT_P_CONTACT &&
+		fabs(LL_motors_settings->left.volt)  > THR_VOLTAGE_CONTACT &&
+		fabs(LL_motors_settings->right.volt) > THR_VOLTAGE_CONTACT &&
+		norm2_2d(p_m[IDX_X] - p_calib_o[IDX_X], p_m[IDX_Y] - p_calib_o[IDX_Y]) > ERR_POS_REL) {
+
+		// Set up next calibration trajectory:
+		*calib_traj = CalibTraj_2_X_Travel;
+
+		p_calib_o[IDX_X] = p_m[IDX_X];
+		p_calib_o[IDX_Y] = p_m[IDX_Y];
+
+		p_calib_f[IDX_X] = p_calib_o[IDX_X] - DIST_CALIB_MAX;
+		p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
+
+		// Control gains scale array:
+		*idx_scale = IDX_SCALE_CALIB;
+
+		// Trajectory initiation command:
+		init_calib_traj  = 1;
+	}
+
+	else if (
+		*calib_traj == CalibTraj_2_X_Travel &&
+		fabs(dt_p_m[IDX_X]) < THR_DT_P_CONTACT &&
+		fabs(LL_motors_settings->left.volt)  > THR_VOLTAGE_CONTACT &&
+		fabs(LL_motors_settings->right.volt) > THR_VOLTAGE_CONTACT &&
+		norm2_2d(p_m[IDX_X] - p_calib_o[IDX_X], p_m[IDX_Y] - p_calib_o[IDX_Y]) > ERR_POS_REL) {
+
+		// Reset encoders - CRITICAL:
+		qei_count_L_reset();
+		qei_count_R_reset();
+
+		// Set up next calibration trajectory:
+		*calib_traj = CalibTraj_3_Travel_to_ORG;
+
+		p_calib_o[IDX_X] = 0;
+		p_calib_o[IDX_Y] = 0;
+
+		p_calib_f[IDX_X] = 0.5*D_WKSPC_LL2_X;
+		p_calib_f[IDX_Y] = 0.5*D_WKSPC_LL2_Y;
+
+		// Control gains scale array:
+		*idx_scale = IDX_SCALE_EXERCISE;
+
+		// Trajectory initiation command:
+		init_calib_traj  = 1;
+	}
+
+	else if (
+		*calib_traj == CalibTraj_3_Travel_to_ORG &&
+		t_calib >= T_f_calib) {
+
+		/*
+		#if USE_ITM_OUT_CALIB_CHECK
+			printf("   ----------------------------\n");
+			printf("   CalibTraj_3_Travel_to_ORG: \n");
+			printf("   calib_traj (%d)\t= [%s] \n", *calib_traj, CALIB_TRAJ_STR[*calib_traj]);
+			printf("   calib_enc_on\t\t= [%d] \n", *calib_enc_on);
+			printf("   t_calib (%d)\t= [%3.2f], T_f_calib = [%3.2f] \n\n", step_i, t_calib, T_f_calib);
+		#endif
+		*/
+
+		// Reset encoders - CRITICAL:
+		qei_count_L_reset();
+		qei_count_R_reset();
+
+		// Set up next calibration trajectory:
+		*calib_traj = CalibTraj_4_Travel_to_P_Start_Exe;
+
+		p_calib_o[IDX_X] = 0;
+		p_calib_o[IDX_Y] = 0;
+
+		if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
+			// CALIBRATION: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
+			traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref_dum,
+				traj_ctrl_params->semiaxis_x, traj_ctrl_params->semiaxis_y, traj_ctrl_params->rot_angle);
+
+			p_calib_f[IDX_X] = p_ref[IDX_X];
+			p_calib_f[IDX_Y] = p_ref[IDX_Y];
+		}
+		else {
+			// Safety catch:
+			p_calib_f[IDX_X] = 0;
+			p_calib_f[IDX_Y] = 0;
+		}
+
+		// Active trajectory control: create initial condition for internal state (CRITICAL)
+		z_intern_o_dbl[IDX_X  ]    = p_ref[IDX_X];
+		z_intern_o_dbl[IDX_Y  ]    = p_ref[IDX_Y];
+		z_intern_o_dbl[IDX_PHI]    = phi_o;
+
+		z_intern_o_dbl[IDX_DT_X  ] = 0;
+		z_intern_o_dbl[IDX_DT_Y  ] = 0;
+		z_intern_o_dbl[IDX_DT_PHI] = dt_phi_o;
+
+		// Control gains scale array:
+		*idx_scale = IDX_SCALE_EXERCISE;
+
+		// Trajectory initiation command:
+		init_calib_traj  = 1;
+	}
+
+	else if (
+		*calib_traj == CalibTraj_4_Travel_to_P_Start_Exe &&
+		t_calib >= T_f_calib) {
+
+		// Encoders calibration exit condition:
+		*calib_enc_on = 0;
+	}
+
+	// Calibration timer:
+	if (init_calib_traj)
+		step_i = 0;
+
+	t_calib = (double)step_i*dt_k; // HACK: eliminate the minutest chance of a bad type cast, don't ask why
+
+	// Generate trajectory points:
+	if (*calib_enc_on)
+		traj_linear_points(	p_ref, dt_p_ref, u_t_ref_dum, dt_k,
+							p_calib_o, p_calib_f, v_calib, frac_ramp_calib, &init_calib_traj, &T_f_calib,
+							&pos_rel_calib_dum, &dt_pos_rel_calib_dum);
+
+	// ITM console output:
+	#if USE_ITM_OUT_CALIB_CHECK
+		if (calib_traj_prev != *calib_traj) { // || step_i % (DT_DISP_MSEC_CALIB/DT_STEP_MSEC) == 0)
+			printf("   ____________________________\n");
+			printf("   traj_ref_calibration_ll2(): \n");
+			printf("   calib_traj (%d)\t= [%s] \n", *calib_traj, CALIB_TRAJ_STR[*calib_traj]);
+			printf("   calib_enc_on\t\t= [%d] \n", *calib_enc_on);
+			printf("   t_calib (%d)\t= [%3.2f], T_f_calib = [%3.2f] \n", step_i, t_calib, T_f_calib);
+
+			printf("\n");
+			printf("   ax_x = [%3.3f], ax_y = [%3.3f], rot_ang = [%3.3f], traj_exerc_type (%d) = [%s] \n",
+					traj_ctrl_params->semiaxis_x, traj_ctrl_params->semiaxis_y, traj_ctrl_params->rot_angle, traj_exerc_type, TRAJ_TYPE_STR[traj_exerc_type]);
+
+			if (*calib_traj == CalibTraj_1_Y_Travel)
+				printf("   vel_y = [%3.3f], THR_DT_P_CONTACT = [%3.3f] \n", fabs(dt_p_m[IDX_Y]), THR_DT_P_CONTACT);
+			else if (*calib_traj == CalibTraj_2_X_Travel)
+				printf("   vel_x = [%3.3f], THR_DT_P_CONTACT = [%3.3f] \n", fabs(dt_p_m[IDX_X]), THR_DT_P_CONTACT);
+
+			printf("   voltages = [%3.3f, %3.3f], THR_VOLTAGE_CONTACT = [%3.3f] \n\n",
+					fabs(LL_motors_settings->left.volt), fabs(LL_motors_settings->right.volt), THR_VOLTAGE_CONTACT);
+
+			if (*calib_traj == CalibTraj_1_Y_Travel || *calib_traj == CalibTraj_2_X_Travel)
+				printf("   dist p_calib_o = [%3.3f], ERR_POS_REL = [%3.3f] \n",
+					norm2_2d(p_m[IDX_X] - p_calib_o[IDX_X], p_m[IDX_Y] - p_calib_o[IDX_Y]), ERR_POS_REL);
+
+			printf("\n");
+			printf("   pos_rel = [%3.3f], dt_pos_rel = [%3.3f]\n", pos_rel_calib_dum, dt_pos_rel_calib_dum);
+			printf("   p_ref   = [%3.3f, %3.3f], dt_p_ref = [%3.3f, %3.3f]\n",
+				p_ref[IDX_X],
+				p_ref[IDX_Y],
+				dt_p_ref[IDX_X],
+				dt_p_ref[IDX_Y]);
+			/*
+			printf("   p_calib_o = [%3.3f, %3.3f]\n", p_calib_o[IDX_X], p_calib_o[IDX_Y]);
+			printf("   p_calib_f = [%3.3f, %3.3f]\n", p_calib_f[IDX_X], p_calib_f[IDX_Y]);
+			printf("   D_p_cal   = [%3.3f, %3.3f]\n", p_calib_f[IDX_X] - p_calib_o[IDX_X], p_calib_f[IDX_Y] - p_calib_o[IDX_Y]);
+			*/
+		}
+	#endif
+
+	// Record active calibration trajectory for next iteration:
+	calib_traj_prev = *calib_traj;
+
+	// Increase step counter:
+	step_i++;
+}
+

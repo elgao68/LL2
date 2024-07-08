@@ -37,7 +37,7 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 	uint8_t rx_payload_index = payloadStart_index;
 
 	//Force sensors - TODO: remove at a later date
-	#if TEST_FORCE_SENS_CALIB_FUNC
+	#if TEST_FUNC_CALIB_FORCE_SENSORS
 
 	#else
 		uint32_t force_end_in_x_sensor = 0;
@@ -120,8 +120,8 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 		////////////////////////////////////////////////////////////////////////////////
 
 		if (is_valid_msg) {
-			cmd_code = ((uint16_t) tcpRxData[cmdCode_index] << 8) +
-						(uint16_t) tcpRxData[cmdCode_index + 1];
+			cmd_code  = ((uint16_t) tcpRxData[cmdCode_index] << 8) +
+						 (uint16_t) tcpRxData[cmdCode_index + 1];
 
 			rxPayload = ((uint16_t) tcpRxData[payloadLen_index] << 8) +
 						 (uint16_t) tcpRxData[payloadLen_index + 1];
@@ -204,11 +204,11 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 		#if USE_ITM_CMD_CHECK
 			printf("   [BRAKES_CMD] \n");
 			printf("   BEFORE: \n");
-			printf("   system_state = [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+			printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
 			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
 			printf("\n");
-			printf("   BRAKES_CMD data: [%d]\n\n", tcpRxData[rx_payload_index]);
+			printf("   BRAKES_CMD data: [%d]\n", tcpRxData[rx_payload_index]);
 		#endif
 
 		if (tcpRxData[rx_payload_index] == 0x01) {
@@ -280,7 +280,7 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 			#endif
 
 			// Zero-calibrate force sensors:
-			#if TEST_FORCE_SENS_CALIB_FUNC
+			#if TEST_FUNC_CALIB_FORCE_SENSORS
 				force_sensors_zero_calibrate(&hadc3);
 			#else
 				// TODO: remove at a later date:

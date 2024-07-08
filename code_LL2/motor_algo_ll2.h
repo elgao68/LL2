@@ -18,6 +18,7 @@
 #include <dynamic_systems_nml.h>
 #include <lowerlimb_config.h>
 #include <traj_ctrl_params_nml.h>
+#include <qei_motor_drivers_LL2.h>
 #include "transition_mode.h"
 
 #ifdef __cplusplus
@@ -60,9 +61,11 @@ extern admitt_model_params_t admitt_model_params_local;
 ///////////////////////////////////////////////////////////////////////////////
 
 #define DT_DISP_MSEC_ALGO		 1000
+#define DT_DISP_MSEC_CALIB		 1000
 
 #define USE_ITM_OUT_TRAJ_REF		1
 #define USE_ITM_OUT_ADMITT_MODEL	1
+#define USE_ITM_OUT_CALIB_CHECK		1
 
 ///////////////////////////////////////////////////////////////////////////////
 // TYPE DEFINITIONS:
@@ -149,29 +152,38 @@ typedef struct {
 #define IDX_PAR_NML_B_CON 	1
 
 ///////////////////////////////////////////////////////////////////////////////
-// MOTION ALGORITHMS - ELLIPTICAL TRAJECTORY:
+// MOTION ALGORITHMS - ACTIVE:
 ///////////////////////////////////////////////////////////////////////////////
 
+// ELLIPTIC TRAJECTORY - ACTIVE:
 void traj_ref_step_active_elliptic(
 		double p_ref[],	double dt_p_ref[],
 		double* phi_ref, double* dt_phi_ref,
 		double u_t_ref[], double dt_k, double F_end_in[], double z_intern_o_dbl[],
 		traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int use_admitt_model_constr, int8_t switch_traj, int8_t use_traj_params_variable);
 
+///////////////////////////////////////////////////////////////////////////////
+// MOTION ALGORITHMS - PASSIVE:
+///////////////////////////////////////////////////////////////////////////////
+
+// ELLIPTIC TRAJECTORY - PASSIVE:
 void traj_ref_step_passive_elliptic(
 		double p_ref[],	double dt_p_ref[],
 		double* phi_ref, double* dt_phi_ref,
 		double u_t_ref[], double dt_k,
 		traj_ctrl_params_t traj_ctrl_params, int8_t switch_traj, int8_t use_traj_params_variable);
 
-///////////////////////////////////////////////////////////////////////////////
-// MOTION ALGORITHMS - ISOMETRIC "TRAJECTORY":
-///////////////////////////////////////////////////////////////////////////////
-
+// ISOMETRIC "TRAJECTORY":
 void traj_ref_step_isometric(
 		double p_ref[],	double dt_p_ref[],
 		double* phi_ref, double* dt_phi_ref,
 		double u_t_ref[]);
+
+// CALIBRATION TRAJECTORY:
+void traj_ref_calibration_ll2(
+	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale, double z_intern_o_dbl[],
+	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
+	lowerlimb_motors_settings_t* LL_motors_settings, traj_ctrl_params_t* traj_ctrl_params, uint8_t traj_exerc_type, double v_calib, double frac_ramp_calib);
 
 ///////////////////////////////////////////////////////////////////////////////
 // FUNCTION DECLARATIONS, DYNAMIC SYSTEMS
