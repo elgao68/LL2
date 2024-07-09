@@ -212,11 +212,16 @@ traj_ref_calibration_ll2(
 	static double T_f_calib = 0.0;
 
 	static double t_calib = 0.0;
+	t_calib = step_i*dt_k; // CRITICAL
 
 	// Dummy variables:
 	double u_t_ref_dum[N_COORD_2D] = {0.0, 0.0};
 	double pos_rel_calib_dum       = 0.0;
 	double dt_pos_rel_calib_dum    = 0.0;
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Check initial and switching conditions:
+	///////////////////////////////////////////////////////////////////////////////
 
 	if (*calib_traj == CalibTraj_Null) {
 
@@ -340,27 +345,34 @@ traj_ref_calibration_ll2(
 		init_calib_traj  = 1;
 	}
 
+	// Encoders calibration - exit condition:
 	else if (
 		*calib_traj == CalibTraj_4_Travel_to_P_Start_Exe &&
 		t_calib >= T_f_calib) {
 
-		// Encoders calibration exit condition:
-		*calib_enc_on = 0;
+		*calib_enc_on = 0; // CRITICAL
 	}
 
+	///////////////////////////////////////////////////////////////////////////////
 	// Calibration timer:
+	///////////////////////////////////////////////////////////////////////////////
+
 	if (init_calib_traj)
 		step_i = 0;
 
-	t_calib = (double)step_i*dt_k; // HACK: eliminate the minutest chance of a bad type cast, don't ask why
-
+	///////////////////////////////////////////////////////////////////////////////
 	// Generate trajectory points:
+	///////////////////////////////////////////////////////////////////////////////
+
 	if (*calib_enc_on)
 		traj_linear_points(	p_ref, dt_p_ref, u_t_ref_dum, dt_k,
 							p_calib_o, p_calib_f, v_calib, frac_ramp_calib, &init_calib_traj, &T_f_calib,
 							&pos_rel_calib_dum, &dt_pos_rel_calib_dum);
 
+	///////////////////////////////////////////////////////////////////////////////
 	// ITM console output:
+	///////////////////////////////////////////////////////////////////////////////
+
 	#if USE_ITM_OUT_CALIB_CHECK
 		if (calib_traj_prev != *calib_traj) { // || step_i % (DT_DISP_MSEC_CALIB/DT_STEP_MSEC) == 0)
 			printf("   ____________________________\n");
