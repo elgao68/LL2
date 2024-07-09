@@ -112,7 +112,7 @@ test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	///////////////////////////////////////////////////////////////////////////////
 
 	uint16_t cmd_code              = 0;
-	uint16_t cmd_code_prev_to_last = 0;
+	uint16_t cmd_code_prev = 0;
 	uint8_t  app_state             = 0;
 
 	uint8_t system_state_prev   = LL_sys_info.system_state;
@@ -211,9 +211,10 @@ test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// Obtain system state:
 			//////////////////////////////////////////////////////////////////////////////////
 
+			// TODO: redo lowerlimb_app_onepass_software() per lowerlimb_app_onepass_tcp_app_ref():
 			LL_sys_info = lowerlimb_app_onepass_software(Read_Haptic_Button(), motor_alert,
 					&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
-					&calib_enc_on, &homing_on);
+					&calib_enc_on);
 
 			// HACK: exercise state overrides:
 			if (homing_on == 1)
@@ -299,14 +300,14 @@ test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// CALIBRATION activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcp_app()
+				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcp_app_ref()
 
 					// calib_enc_on = 0; // HACK: executed directly in lowerlimb_app_onepass_software(()
 
 					#if USE_ITM_OUT_RT_CHECK
-						if (cmd_code != cmd_code_prev_to_last) {
+						if (cmd_code != cmd_code_prev) {
 							printf("   <<test_real_time_msg_tcp()>>: cmd_code_prev = [%s], cmd_code = [%s], calib_enc_on = [%d] MANUAL\n\n",
-										MSG_TCP_STR[cmd_code_prev_to_last], MSG_TCP_STR[cmd_code], calib_enc_on);
+										MSG_TCP_STR[cmd_code_prev], MSG_TCP_STR[cmd_code], calib_enc_on);
 						}
 					#endif
 
@@ -411,7 +412,7 @@ test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			activity_state_prev = LL_sys_info.activity_state;
 			exercise_state_prev = LL_sys_info.exercise_state;
 
-			cmd_code_prev_to_last = cmd_code;
+			cmd_code_prev = cmd_code;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// ITM console output:
@@ -429,8 +430,8 @@ test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							t_ref,
 							(int)up_time_end - (int)up_time);
 
-						printf("   cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
-									MSG_TCP_STR[cmd_code_prev_to_last], MSG_TCP_STR[cmd_code]);
+						printf("   cmd_code_prev = [%s], cmd_code = [%s] \n",
+									MSG_TCP_STR[cmd_code_prev], MSG_TCP_STR[cmd_code]);
 						printf("   LL_sys_info.activity_state = [%s] \n\n",   ACTIV_STATE_STR[LL_sys_info.activity_state]);
 					}
 				// }

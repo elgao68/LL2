@@ -18,7 +18,7 @@
 lowerlimb_sys_info_t
 lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
-		uint8_t* calib_enc_on, uint8_t* homing_on) {
+		uint8_t* calib_enc_on) {
 
 	static uint16_t cmd_code = 0; // CRITICAL to make it static
 
@@ -104,7 +104,7 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 	// Validate TCP messages:
 	////////////////////////////////////////////////////////////////////////////////
 
-	// if (lowerlimb_sys_info.activity_state != CALIB) { // see persistent_activ_state
+	// if (lowerlimb_sys_info.activity_state != CALIB) { // see self_stop_activ_state
 
 		////////////////////////////////////////////////////////////////////////////////
 		// Check if there is a valid message:

@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-//  lowerlimb_app_onepass_tcp_app.c
+//  lowerlimb_app_onepass_tcp_app_ref.c
 //
 // Created on: 2024.03.20
 // Author: Gabriel Aguirre Ollinger
@@ -9,16 +9,18 @@
 
 #include "lowerlimb_app.h"
 
+lowerlimb_sys_info_t lowerlimb_sys_info;
+
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 // TCP/IP APP STATE:
 //////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////
 
-lowerlimb_sys_info_t
-lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
-		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
-		uint8_t* calib_enc_on, uint8_t* homing_on) {
+void
+lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_ref,
+		uint8_t* calib_enc_on) {
 
 	static uint16_t cmd_code = 0; // CRITICAL to make it static
 
@@ -52,7 +54,6 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 	static int step_i = 0;
 
 	// Auxiliary variables:
-	uint8_t persistent_activ_state = 0;
 	uint8_t is_valid_msg = 0;
 	static uint8_t stop_exe_cmd_count = 0; // stop command counter - this is used to accommodate the SLOWING case
 
@@ -60,13 +61,13 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 	// Reset lower-limb system info:
 	////////////////////////////////////
 
-	lowerlimb_sys_info.app_status    = 0;
+	lowerlimb_sys->app_status    = 0;
 
 	////////////////////////////////////
 	// Update system operation status:
 	////////////////////////////////////
 
-	update_operation_state(&lowerlimb_sys_info.operation_state, ui8EBtnState, ui8Alert);
+	update_operation_state(&lowerlimb_sys->operation_state, ui8EBtnState, ui8Alert);
 
 	////////////////////////////////////
 	// Update local Unix time:
@@ -88,21 +89,23 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 		// set system state to OFF
 		set_system_off();
 
-		return lowerlimb_sys_info;
+		return;
 	}
 
 	////////////////////////////////////////////////////////////////////////////////
-	// Validate persistent activity states:
+	// Validate self-stopping activity states (generates "virtual" cmd_code):
 	////////////////////////////////////////////////////////////////////////////////
 
-	if (lowerlimb_sys_info.activity_state == CALIB)
-		persistent_activ_state = 1;
+	if (lowerlimb_sys->activity_state == CALIB) {
+		cmd_code = AUTO_CALIB_MODE_CMD;
+		*cmd_code_ref = cmd_code;
+	}
 
 	////////////////////////////////////////////////////////////////////////////////
 	// Validate TCP messages:
 	////////////////////////////////////////////////////////////////////////////////
 
-	if (!persistent_activ_state) {
+	else {
 
 		////////////////////////////////////////////////////////////////////////////////
 		// Check if there is a valid message:
@@ -113,7 +116,7 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 			is_valid_msg = is_valid_w5500_msg(tcpRxData);
 		}
 		else
-			return lowerlimb_sys_info;
+			return;
 
 		////////////////////////////////////////////////////////////////////////////////
 		// Parse command code & payload:
@@ -128,9 +131,10 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 		}
 		else {
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcp_app(): is_valid_msg = [0] \n\n");
+				printf("   lowerlimb_app_onepass_tcp_app_ref(): is_valid_msg = [0] \n\n");
 			#endif
-			return lowerlimb_sys_info;
+
+			return;
 		}
 
 		////////////////////////////////////////////////////////////////////////////////
@@ -138,26 +142,26 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 		////////////////////////////////////////////////////////////////////////////////
 
 		if (cmd_code == NO_CMD)
-			return lowerlimb_sys_info;
+			return;
 		else if (!is_valid_cmd_code(cmd_code, rxPayload,
-				lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status)) {
+				lowerlimb_sys->system_state, lowerlimb_sys->activity_state, &lowerlimb_sys->app_status)) {
 
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcp_app(): invalid cmd_code [%d] \n\n", cmd_code);
+				printf("   lowerlimb_app_onepass_tcp_app_ref(): invalid cmd_code [%d] \n\n", cmd_code);
 			#endif
 
-			return lowerlimb_sys_info;
+			return;
 		}
 		else
-			*cmd_code_last = cmd_code;
-	} // !persistent_activ_state
+			*cmd_code_ref = cmd_code;
+	}
 
 	// Console output:
 	#if USE_ITM_CMD_CHECK
-		uint8_t idx_exerc_mode  = lowerlimb_sys_info.exercise_mode;
-		uint8_t idx_sys_state   = lowerlimb_sys_info.system_state;
-		uint8_t idx_activ_state = lowerlimb_sys_info.activity_state;
-		uint8_t idx_exerc_state = lowerlimb_sys_info.exercise_state;
+		uint8_t idx_exerc_mode  = lowerlimb_sys->exercise_mode;
+		uint8_t idx_sys_state   = lowerlimb_sys->system_state;
+		uint8_t idx_activ_state = lowerlimb_sys->activity_state;
+		uint8_t idx_exerc_state = lowerlimb_sys->exercise_state;
 	#endif
 
 	///////////////////////////////////////////////////////////////////////////
@@ -176,6 +180,23 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 	CMD 06: STOP_SYS_CMD
 	*/
 
+	#if USE_ITM_CMD_CHECK
+		if (cmd_code == START_SYS_CMD 			||
+			cmd_code == BRAKES_CMD 				||
+			// cmd_code == AUTO_CALIB_MODE_CMD 	||
+			cmd_code == START_RESUME_EXE_CMD 	||
+			cmd_code == STOP_EXE_CMD 			||
+			cmd_code == STOP_SYS_CMD) {
+				printf("   ____________________________\n");
+				printf("   cmd_code(%d) [%s] \n", cmd_code, CMD_STR[cmd_code]);
+				printf("   BEFORE: \n");
+				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf(" \n");
+		}
+	#endif
+
 	///////////////////////////////////////////////////////////////////////////
 	// CMD 01: START_SYS_CMD
 	///////////////////////////////////////////////////////////////////////////
@@ -184,15 +205,11 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 
 		reset_lowerlimb_sys_info();
 
-		lowerlimb_sys_info.system_state   = SYS_ON;
-		lowerlimb_sys_info.activity_state = IDLE;
-		lowerlimb_sys_info.exercise_state = STOPPED;
+		lowerlimb_sys->system_state   = SYS_ON;
+		lowerlimb_sys->activity_state = IDLE;
+		lowerlimb_sys->exercise_state = STOPPED;
 
 		send_OK_resp(cmd_code);
-
-		#if USE_ITM_CMD_CHECK
-			printf("   [START_SYS_CMD]: lowerlimb_sys_info.system_state = [%s]\n\n", SYS_STATE_STR[lowerlimb_sys_info.system_state]);
-		#endif
 	}
 
 	///////////////////////////////////////////////////////////////////////////
@@ -200,16 +217,6 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 	///////////////////////////////////////////////////////////////////////////
 
 	else if (cmd_code == BRAKES_CMD) {
-
-		#if USE_ITM_CMD_CHECK
-			printf("   [BRAKES_CMD] \n");
-			printf("   BEFORE: \n");
-			printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-			printf("\n");
-			printf("   BRAKES_CMD data: [%d]\n", tcpRxData[rx_payload_index]);
-		#endif
 
 		if (tcpRxData[rx_payload_index] == 0x01) {
 			lowerlimb_brakes_command.l_brake_disengage = true;
@@ -229,6 +236,7 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 		send_OK_resp(cmd_code);
 
 		#if USE_ITM_CMD_CHECK
+			printf("   BRAKES_CMD data: [%d]\n", tcpRxData[rx_payload_index]);
 			printf("   brakes disengaged: [");
 			if (lowerlimb_brakes_command.l_brake_disengage)
 				printf("TRUE] \n\n");
@@ -243,34 +251,19 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 
 	else if (cmd_code == AUTO_CALIB_MODE_CMD) { //enter calibration
 
-		#if USE_ITM_CMD_CHECK
-			static uint8_t init_calib_itm = 1;
-
-			if (init_calib_itm) {
-				printf("   [AUTO_CALIB_MODE_CMD] \n");
-				printf("   BEFORE: \n");
-				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-				printf("\n");
-
-				init_calib_itm = 0;
-			}
-		#endif
-
 		///////////////////////////////////////////////////////////////////////////
 		// Update activity state to CALIB, otherwise check for errors:
 		///////////////////////////////////////////////////////////////////////////
 
-		if (lowerlimb_sys_info.activity_state == IDLE) {
+		if (lowerlimb_sys->activity_state == IDLE) {
 
 			// Update activity state:
-			lowerlimb_sys_info.activity_state = CALIB;
+			lowerlimb_sys->activity_state = CALIB;
 
 			#if USE_ITM_CMD_CHECK
-				idx_sys_state   = lowerlimb_sys_info.system_state;
-				idx_activ_state = lowerlimb_sys_info.activity_state;
-				idx_exerc_state = lowerlimb_sys_info.exercise_state;
+				idx_sys_state   = lowerlimb_sys->system_state;
+				idx_activ_state = lowerlimb_sys->activity_state;
+				idx_exerc_state = lowerlimb_sys->exercise_state;
 
 				printf("   INTERMEDIATE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
@@ -299,7 +292,7 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 			#endif
 
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcp_app(): [Force sensors calibrated] \n\n");
+				printf("   <<lowerlimb_app_onepass_tcp_app_ref()>> [Force sensors calibrated] \n\n");
 			#endif
 
 			// Reset encoders - CRITICAL:
@@ -310,37 +303,25 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 			*calib_enc_on = 1;
 		}
 
-		// Check for errors:
+		// TODO: remove at a later date - Check for errors:
 		else {
 			// _VALIDATE_CMD_CALIB
 		}
 
 		///////////////////////////////////////////////////////////////////////////
-		// Perform calibration per requisites in lowerlimb_sys_info.:
+		// Perform calibration per requisites in lowerlimb_sys->:
 		///////////////////////////////////////////////////////////////////////////
 
-		if (lowerlimb_sys_info.activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_control()
+		if (lowerlimb_sys->activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_control()
 
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcp_app(): [Encoders calibrated] \n\n");
+				printf("   <<lowerlimb_app_onepass_tcp_app_ref()>> [Encoders calibrated] \n\n");
 			#endif
 
 			// Reset activity to IDLE:
-			lowerlimb_sys_info.activity_state = IDLE;
+			lowerlimb_sys->activity_state = IDLE;
 
 			send_OK_resp(cmd_code);
-
-			#if USE_ITM_CMD_CHECK
-				idx_sys_state   = lowerlimb_sys_info.system_state;
-				idx_activ_state = lowerlimb_sys_info.activity_state;
-				idx_exerc_state = lowerlimb_sys_info.exercise_state;
-
-				printf("   AFTER: \n");
-				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-				printf("\n");
-			#endif
 		}
 	}
 
@@ -350,28 +331,19 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 
 	else if (cmd_code == START_RESUME_EXE_CMD) {
 
-		#if USE_ITM_CMD_CHECK
-			printf("   [START_RESUME_EXE_CMD]: \n");
-			printf("   BEFORE: \n");
-			printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-			printf("\n");
-		#endif
-
 		// Reset emergency alerts if any:
 		reset_emergency_alerts();
 
 		// If activity is in IDLE state, start exercise to SETUP state:
-		if (lowerlimb_sys_info.activity_state == IDLE) {
+		if (lowerlimb_sys->activity_state == IDLE) {
 			// Validate command code:
 			_VALIDATE_IDLE_START_EXE
 
 			// Set activity to exercise:
-			lowerlimb_sys_info.activity_state = EXERCISE;
+			lowerlimb_sys->activity_state = EXERCISE;
 
 			// Exercise state goes to SETUP:
-			lowerlimb_sys_info.exercise_state = SETUP; // can we switch to RUNNING directly?
+			lowerlimb_sys->exercise_state = SETUP; // is there a way we can switch to RUNNING directly?
 		}
 		else {
 			// _VALIDATE_CMD_START_EXE
@@ -380,18 +352,8 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 		send_OK_resp(cmd_code);
 
 		#if USE_ITM_CMD_CHECK
-			idx_exerc_mode  = lowerlimb_sys_info.exercise_mode;
-			idx_sys_state   = lowerlimb_sys_info.system_state;
-			idx_activ_state = lowerlimb_sys_info.activity_state;
-			idx_exerc_state = lowerlimb_sys_info.exercise_state;
-
+			idx_exerc_mode  = lowerlimb_sys->exercise_mode;
 			printf("   exercise mode = [%s] \n\n", EXERC_MODE_STR[idx_exerc_mode]);
-
-			printf("   AFTER: \n");
-			printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-			printf("\n");
 		#endif
 	}
 
@@ -401,22 +363,9 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 
 	else if (cmd_code == STOP_EXE_CMD) {
 
-		lowerlimb_sys_info.exercise_state = SLOWING;
+		lowerlimb_sys->exercise_state = SLOWING;
 
 		send_OK_resp(cmd_code);
-
-		#if USE_ITM_CMD_CHECK
-			idx_sys_state   = lowerlimb_sys_info.system_state;
-			idx_activ_state = lowerlimb_sys_info.activity_state;
-			idx_exerc_state = lowerlimb_sys_info.exercise_state;
-
-			printf("   [STOP_EXE_CMD] \n");
-			printf("   AFTER: \n");
-			printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-			printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-			printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-			printf("\n");
-		#endif
 	}
 
 	///////////////////////////////////////////////////////////////////////////
@@ -424,9 +373,9 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 	///////////////////////////////////////////////////////////////////////////
 
 	else if (cmd_code == STOP_SYS_CMD) { // stop system
-		lowerlimb_sys_info.system_state   = SYS_OFF;
-		lowerlimb_sys_info.activity_state = IDLE;
-		lowerlimb_sys_info.exercise_state = STOPPED;
+		lowerlimb_sys->system_state   = SYS_OFF;
+		lowerlimb_sys->activity_state = IDLE;
+		lowerlimb_sys->exercise_state = STOPPED;
 
 		//Reset brake command
 		lowerlimb_brakes_command.l_brake_disengage = false;
@@ -442,9 +391,32 @@ lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_
 	else {
 		// tx unknown command error:
 		send_error_msg(cmd_code, ERR_UNKNOWN);
-		lowerlimb_sys_info.app_status = ERR_UNKNOWN + 3;
-		return lowerlimb_sys_info;
+		lowerlimb_sys->app_status = ERR_UNKNOWN + 3;
+
+		#if USE_ITM_CMD_CHECK
+			printf("   <<lowerlimb_app_onepass_tcp_app_ref()>> cmd_code(%d) UNKNOWN \n", cmd_code);
+			printf("\n");
+		#endif
+		return;
 	}
 
-	return lowerlimb_sys_info;
+	#if USE_ITM_CMD_CHECK
+		if (cmd_code == START_SYS_CMD 			||
+			cmd_code == BRAKES_CMD 				||
+			// cmd_code == AUTO_CALIB_MODE_CMD 	||
+			cmd_code == START_RESUME_EXE_CMD 	||
+			cmd_code == STOP_EXE_CMD 			||
+			cmd_code == STOP_SYS_CMD) {
+
+				idx_sys_state   = lowerlimb_sys->system_state;
+				idx_activ_state = lowerlimb_sys->activity_state;
+				idx_exerc_state = lowerlimb_sys->exercise_state;
+
+				printf("   AFTER: \n");
+				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf(" \n");
+		}
+	#endif
 }

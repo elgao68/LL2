@@ -31,8 +31,9 @@
 #include "transition_mode.h"
 
 // Macros files:
-#include <_VALIDATE_CMD_CALIB.h>
-#include <_VALIDATE_CMD_START_EXE.h>
+// TODO: remove at a later date:
+// #include <_VALIDATE_CMD_CALIB.h>
+// #include <_VALIDATE_CMD_START_EXE.h>
 #include <_VALIDATE_IDLE_START_EXE.h>
 
 ///////////////////////////////////////////////////////
@@ -114,15 +115,16 @@ static char SYS_STATE_STR[LEN_SYS_STATE][LEN_STR_MAX] = {
 
 // activity_state:
 enum {
-	IDLE = 0, CALIB = 1, EXERCISE = 2, JOG = 3
+	IDLE = 0, CALIB = 1, EXERCISE = 2, JOG = 3, HOMING = 4
 };
 
-#define LEN_ACTIV_STATE 4
+#define LEN_ACTIV_STATE 5
 static char ACTIV_STATE_STR[LEN_ACTIV_STATE][LEN_STR_MAX] = {
 	"IDLE",
 	"CALIB",
 	"EXERCISE",
-	"JOG"
+	"JOG",
+	"HOMING"
 };
 
 // general yes or no:
@@ -137,17 +139,16 @@ enum {
 
 // exercise_state:
 enum {
-	STOPPED = 0, RUNNING = 1, PAUSED = 2, SETUP = 3, SLOWING = 4, HOMING = 5
+	STOPPED = 0, RUNNING = 1, PAUSED = 2, SETUP = 3, SLOWING = 4
 };
 
-#define LEN_EXERC_STATE 6
+#define LEN_EXERC_STATE 5
 static char EXERC_STATE_STR[LEN_EXERC_STATE][LEN_STR_MAX] = {
 	"STOPPED",
 	"RUNNING",
 	"PAUSED",
 	"SETUP",
-	"SLOWING",
-	"HOMING"
+	"SLOWING"
 };
 
 // emergency_state:
@@ -445,6 +446,12 @@ typedef struct {
 } lowerlimb_sys_info_t;	//System Info
 
 ///////////////////////////////////////////////////////
+// Lower-limb robot system info:
+///////////////////////////////////////////////////////
+
+extern lowerlimb_sys_info_t lowerlimb_sys_info; // moved here to keep scope GLOBAL
+
+///////////////////////////////////////////////////////
 // Commanded Message Structure (state machine, 05.07.2024):
 ///////////////////////////////////////////////////////
 
@@ -516,8 +523,6 @@ is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert
 // Message validation functions, low-level:
 ///////////////////////////////////////////////////////
 
-static lowerlimb_sys_info_t lowerlimb_sys_info; // moved here to keep scope local
-
 static lowerlimb_brakes_command_t lowerlimb_brakes_command;
 
 //TCP messages:
@@ -526,7 +531,7 @@ static uint16_t tcpRxLen = 0;
 extern ADC_HandleTypeDef hadc3;
 
 //message preample and postample
-static uint8_t PREAMP_TCP[2] = { 0x48, 0x4D };
+static uint8_t PREAMP_TCP[2]  = { 0x48, 0x4D };
 static uint8_t POSTAMP_TCP[2] = { 0x68, 0x6D };
 
 ///////////////////////////////////////////////////////
@@ -586,25 +591,25 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings);
 
 // Script for TCP/IP app:
-lowerlimb_sys_info_t lowerlimb_app_onepass_tcp_app(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
-		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
-		uint8_t* calib_enc_on, uint8_t* homing_on);
+void lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_ref,
+		uint8_t* calib_enc_on);
 
-// Script for software app (STATE MACHINE):
+// Script for software app - TODO: harmonize with lowerlimb_sys_info_t lowerlimb_app_onepass_tcp_app_ref()
+/*
 lowerlimb_sys_info_t lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
-		uint8_t* calib_enc_on, uint8_t* homing_on);
+		uint8_t* calib_enc_on);
+*/
 
 ///////////////////////////////////////////////////////////////////////
 // Helper functions:
 ///////////////////////////////////////////////////////////////////////
 
-uint8_t
-send_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
+uint8_t send_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
 		lowerlimb_ref_kinematics_t* ref_kinematics);
-void
-send_lowerlimb_sys_info(lowerlimb_sys_info_t* lowerlimb_sys_info, uint8_t tmp_resp_msg[], uint16_t cmd_code);
 
+void send_lowerlimb_sys_info(uint8_t tmp_resp_msg[], uint16_t cmd_code);
 void reset_lowerlimb_sys_info(void);
 uint8_t valid_app_status(uint8_t property, uint8_t value, uint16_t* app_status, uint16_t cmd_code, uint16_t ERR_CODE, uint16_t err_offset);
 uint8_t update_unix_time(void);

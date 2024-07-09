@@ -65,7 +65,7 @@
 
 static uint64_t algo_nextTime = 0;
 static uint64_t brakes_nextTime = 0;
-static lowerlimb_sys_info_t LL_sys_info;
+// static lowerlimb_sys_info_t LL_sys_info;
 static uint64_t expire_nextTime = 0;
 static uint8_t prev_fifo_size = 0;
 

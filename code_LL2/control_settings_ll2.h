@@ -128,7 +128,7 @@ typedef enum {
 
 // Exercise mode strings (must match enumeration):
 static char EXERC_MODE_STR[LEN_EXERC_MODE_LIST][LEN_STR_MAX] = {
-	" ",
+	"NoCtrl",
 	"ImpedanceCtrl",
 	"PassiveTrajectoryCtrl",
 	"AdmittanceCtrl",

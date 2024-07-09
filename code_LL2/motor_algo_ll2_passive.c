@@ -375,7 +375,7 @@ traj_ref_calibration_ll2(
 
 	#if USE_ITM_OUT_CALIB_CHECK
 		if (calib_traj_prev != *calib_traj) { // || step_i % (DT_DISP_MSEC_CALIB/DT_STEP_MSEC) == 0)
-			printf("   ____________________________\n");
+			printf("   ----------------------------\n");
 			printf("   traj_ref_calibration_ll2(): \n");
 			printf("   calib_traj (%d)\t= [%s] \n", *calib_traj, CALIB_TRAJ_STR[*calib_traj]);
 			printf("   calib_enc_on\t\t= [%d] \n", *calib_enc_on);
@@ -390,7 +390,7 @@ traj_ref_calibration_ll2(
 			else if (*calib_traj == CalibTraj_2_X_Travel)
 				printf("   vel_x = [%3.3f], THR_DT_P_CONTACT = [%3.3f] \n", fabs(dt_p_m[IDX_X]), THR_DT_P_CONTACT);
 
-			printf("   voltages = [%3.3f, %3.3f], THR_VOLTAGE_CONTACT = [%3.3f] \n\n",
+			printf("   voltages = [%3.3f, %3.3f], THR_VOLTAGE_CONTACT = [%3.3f] \n",
 					fabs(LL_motors_settings->left.volt), fabs(LL_motors_settings->right.volt), THR_VOLTAGE_CONTACT);
 
 			if (*calib_traj == CalibTraj_1_Y_Travel || *calib_traj == CalibTraj_2_X_Travel)
@@ -404,6 +404,8 @@ traj_ref_calibration_ll2(
 				p_ref[IDX_Y],
 				dt_p_ref[IDX_X],
 				dt_p_ref[IDX_Y]);
+
+			printf("\n");
 			/*
 			printf("   p_calib_o = [%3.3f, %3.3f]\n", p_calib_o[IDX_X], p_calib_o[IDX_Y]);
 			printf("   p_calib_f = [%3.3f, %3.3f]\n", p_calib_f[IDX_X], p_calib_f[IDX_Y]);
@@ -424,9 +426,11 @@ traj_ref_calibration_ll2(
 ///////////////////////////////////////////////////////////////////////////////
 
 void
-traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* home_traj_on, uint8_t* init_home_traj, uint8_t* idx_scale,
+traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* init_home_traj, uint8_t* idx_scale,
 	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
 	traj_ctrl_params_t* traj_ctrl_params, double v_calib, double frac_ramp_calib) {
+
+	const double FACT_T_REF = 1.05; // HAC: extend trajectory reference time to avoid a speed jump during state transition
 
 	// Homing end points:
 	static double p_home_o[N_COORD_2D] = {0.0, 0.0};
@@ -469,8 +473,27 @@ traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* home_traj_on, ui
 	step_i++;
 
 	// Exit condition:
-	if (t_home >= T_f_home)
-		*home_traj_on = 0; // this will cause homing trajectory to stop
-	else
-		*home_traj_on = 1;
+	if (t_home >= FACT_T_REF*T_f_home)
+		*homing_on = 0; // this will cause homing trajectory to stop
+
+	#if USE_ITM_OUT_CALIB_CHECK
+		if (step_i % (DT_DISP_MSEC_CALIB/DT_STEP_MSEC) == 0) {
+			printf("   ----------------------------\n");
+			printf("   traj_ref_homing_ll2(): \n");
+			printf("   t_home (%d)\t= [%3.2f], T_f_home = [%3.2f] \n", step_i, t_home, T_f_home);
+
+			printf("\n");
+			printf("   pos_rel = [%3.3f], dt_pos_rel = [%3.3f]\n", pos_rel_home_dum, dt_pos_rel_home_dum);
+			printf("   p_ref   = [%3.3f, %3.3f], dt_p_ref = [%3.3f, %3.3f]\n",
+					p_ref[IDX_X],
+					p_ref[IDX_Y],
+					dt_p_ref[IDX_X],
+					dt_p_ref[IDX_Y]);
+
+			printf("\n");
+		}
+
+		if (*homing_on == 0)
+			printf("   <<traj_ref_homing_ll2()>> homing_on == 0 \n\n");
+	#endif
 }

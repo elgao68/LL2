@@ -114,12 +114,12 @@ test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 	///////////////////////////////////////////////////////////////////////////////
 
 	uint16_t cmd_code              = 0;
-	uint16_t cmd_code_prev_to_last = 0;
+	uint16_t cmd_code_prev = 0;
 
 	// uint8_t  app_state          = 0;
-	// uint8_t system_state_prev   = LL_sys_info.system_state;
-	// uint8_t activity_state_prev = LL_sys_info.activity_state;
-	// uint8_t exercise_state_prev = LL_sys_info.exercise_state;
+	// uint8_t system_state_prev   = lowerlimb_sys_info.system_state;
+	// uint8_t activity_state_prev = lowerlimb_sys_info.activity_state;
+	// uint8_t exercise_state_prev = lowerlimb_sys_info.exercise_state;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Real-time counters, timers and switches:
@@ -139,9 +139,9 @@ test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 
 	/*
 	#if USE_ITM_OUT_RT_CHECK
-		uint8_t idx_sys_state   = LL_sys_info.system_state;
-		uint8_t idx_activ_state = LL_sys_info.activity_state;
-		uint8_t idx_exerc_state = LL_sys_info.exercise_state;
+		uint8_t idx_sys_state   = lowerlimb_sys_info.system_state;
+		uint8_t idx_activ_state = lowerlimb_sys_info.activity_state;
+		uint8_t idx_exerc_state = lowerlimb_sys_info.exercise_state;
 	#endif
 	*/
 
@@ -248,7 +248,7 @@ test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 			// Update safety:
 			///////////////////////////////////////////////////////////////////////////////
 
-			set_safetyOff(LL_sys_info.safetyOFF); // TODO: what does this do?
+			set_safetyOff(lowerlimb_sys_info.safetyOFF); // TODO: what does this do?
 
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
@@ -328,12 +328,12 @@ test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 			///////////////////////////////////////////////////////////////////////////////
 
 			/*
-			system_state_prev   = LL_sys_info.system_state;
-			activity_state_prev = LL_sys_info.activity_state;
-			exercise_state_prev = LL_sys_info.exercise_state;
+			system_state_prev   = lowerlimb_sys_info.system_state;
+			activity_state_prev = lowerlimb_sys_info.activity_state;
+			exercise_state_prev = lowerlimb_sys_info.exercise_state;
 			*/
 
-			cmd_code_prev_to_last = cmd_code;
+			cmd_code_prev = cmd_code;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// ITM console output:
@@ -352,9 +352,9 @@ test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 							t_ref,
 							(int)up_time_end - (int)up_time);
 
-						printf("   cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
-									MSG_TCP_STR[cmd_code_prev_to_last], MSG_TCP_STR[cmd_code]);
-						printf("   LL_sys_info.activity_state = [%s] \n\n",   ACTIV_STATE_STR[LL_sys_info.activity_state]);
+						printf("   cmd_code_prev = [%s], cmd_code = [%s] \n",
+									MSG_TCP_STR[cmd_code_prev], MSG_TCP_STR[cmd_code]);
+						printf("   lowerlimb_sys_info.activity_state = [%s] \n\n",   ACTIV_STATE_STR[lowerlimb_sys_info.activity_state]);
 					}
 				}
 			#endif

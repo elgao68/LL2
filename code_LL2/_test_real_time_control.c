@@ -9,6 +9,8 @@
 
 #include <_test_real_time.h>
 
+extern lowerlimb_sys_info_t lowerlimb_sys_info;
+
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
 // TEST SCRIPT - REAL-TIME
@@ -22,7 +24,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// MOTOR STATE VARS:
 	///////////////////////////////////////////////////////////////////////////////
 
-	uint8_t motor_result        = 0;
+	// uint8_t motor_result        = 0; // TODO: eliminate at a later date
 	uint8_t motor_alert         = 0;
 
 	uint8_t motor_torque_active = 0;
@@ -127,20 +129,23 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double dt_phi_ref = 0.0;
 
 	// Trajectory path tangent vector:
-	double u_t_ref[N_COORD_2D]  = {0.0, 0.0};
+	double u_t_ref[N_COORD_2D] = {0.0, 0.0};
 
 	// Internal state: initial values:
 	double z_intern_o_dbl[2*N_COORD_EXT];
 
-	double phi_o    = PHI_INIT_EXERC;
+	double    phi_o = PHI_INIT_EXERC;
+	double dt_phi_o = 0.0;
 
+	// TODO: eliminate at a later date
+	/*
 	double dt_p_x_o = 0.0;
 	double dt_p_y_o = 0.0;
-	double dt_phi_o = 0.0;
 
 	// Linear trajectory end points ( for calibration, homing, etc):
 	double p_calib_o[N_COORD_2D] = {0.0, 0.0};
 	double p_calib_f[N_COORD_2D] = {0.0, 0.0};
+	*/
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - MEASURED:
@@ -207,46 +212,47 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double err_int_pos[N_COORD_2D]      = {0.0, 0.0};
 	double err_int_pos_prev[N_COORD_2D] = {0.0, 0.0};
 
-	// FF control:
-	double scale_ff_dyn      = 0.0; // FF control: dynamic scaling
-	double F_end_cmd_ff_norm = 0.0;
-
 	// Exercise substate - SLOWING:
-	double t_slow   = 0.0;
+	double t_slow   = 0.0; // TODO: consider using an implementation that doesn't require an explicit time reference (local step counts?)
 	double t_slow_ref = 0.0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Calibration / homing variables (shared): TODO: revise this ASAP
 	///////////////////////////////////////////////////////////////////////////////
 
+	// TODO: eliminate at a later date
+	/*
 	double T_f_calib   = 0.0;
-
 	double t_calib     = 0.0;
-	double t_ref_calib = 0.0;
 
 	double pos_rel_calib    = 0.0;
 	double dt_pos_rel_calib = 0.0;
+	double t_ref_calib      = 0.0;
 
-	calib_traj_t calib_traj      = CalibTraj_Null;
 	calib_traj_t calib_traj_prev = CalibTraj_Null;
-	uint8_t init_calib_traj      = 1;
+	uint8_t init_calib_traj = 1;
+	*/
+
+	calib_traj_t calib_traj = CalibTraj_Null;
 
 	// Calibration states:
-	uint8_t calib_fsens_on  = 0;
+	// uint8_t calib_fsens_on  = 0; // TODO: eliminate at a later date
 	uint8_t calib_enc_on    = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Homing variables (shared): TODO: revise this ASAP
 	///////////////////////////////////////////////////////////////////////////////
 
-	uint8_t init_home_traj  = 1;
+	double OMEGA_THR_HOMING_START = 0.03;
 
-	// Homing states:
-	double OMEGA_THR_HOMING = 0.03;
+	uint8_t homing_on      = 0; // CRITICAL initialization
+	uint8_t init_home_traj = 1;
 
-	// TODO: harmonize these flags ASAP
-	uint8_t homing_on       = 0;
-	uint8_t home_traj_on    = 0;
+	///////////////////////////////////////////////////////////////////////////////
+	// Idle activity state variables:
+	///////////////////////////////////////////////////////////////////////////////
+
+	uint8_t init_idle_activity_state = 1;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TCP/IP variables:
@@ -262,35 +268,37 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// State variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	uint16_t cmd_code              = 0;
-	uint16_t cmd_code_prev_to_last = 0;
-	uint8_t  app_state = 0;
-	bool brake_cmd;
+	uint16_t cmd_code      = NO_CMD;
+	uint16_t cmd_code_prev = NO_CMD;
+	uint8_t  app_state;
 
-	uint8_t system_state_prev   = LL_sys_info.system_state;
-	uint8_t activity_state_prev = LL_sys_info.activity_state;
-	uint8_t exercise_state_prev = LL_sys_info.exercise_state;
+	// bool brake_cmd; // TODO: remove at a later date
+
+	// TODO: remove at a later date:
+	// uint8_t system_state_prev   = lowerlimb_sys_info.system_state;
+	// uint8_t activity_state_prev;
+	uint8_t exercise_state_prev = lowerlimb_sys_info.exercise_state;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Real-time counters, timers and switches:
 	///////////////////////////////////////////////////////////////////////////////
 
-	double T_RUN_MAX    = 5000;
-	double t_ref        = 0.0;
+	double T_RUN_MAX   = 5000;
+	double t_ref       = 0.0;
 
-	int rt_step_i       = 0; // real-time step counter
-	int r_i, c_i, v_i; // general-purpose counters
+	int rt_step_i      = 0; // real-time step counter
+	int r_i, c_i; // general-purpose counters
 
-	int8_t switch_traj  = SWITCH_TRAJ_NULL;
+	int8_t switch_traj = SWITCH_TRAJ_NULL;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Display variables:
 	///////////////////////////////////////////////////////////////////////////////
 
 	#if USE_ITM_OUT_RT_CHECK
-		uint8_t idx_sys_state   = LL_sys_info.system_state;
-		uint8_t idx_activ_state = LL_sys_info.activity_state;
-		uint8_t idx_exerc_state = LL_sys_info.exercise_state;
+		uint8_t idx_sys_state;
+		uint8_t idx_activ_state;
+		uint8_t idx_exerc_state;
 	#endif
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -392,15 +400,15 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// GET TCP/IP APP STATE
 			//////////////////////////////////////////////////////////////////////////////////
 
-			LL_sys_info = lowerlimb_app_onepass_tcp_app(Read_Haptic_Button(), motor_alert,
-				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
-				&calib_enc_on, &homing_on);
+			// if (lowerlimb_sys_info.activity_state != HOMING) // TODO: still needed?
+				// HACK: passes reference to global-declared lowerlimb_sys_info for the sake of traceability:
+				lowerlimb_app_onepass_tcp_app_ref(&lowerlimb_sys_info, Read_Haptic_Button(), motor_alert,
+					&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
+					&calib_enc_on);
 
 			// HACK: exercise state overrides:
-			if (homing_on == 1)
-				LL_sys_info.exercise_state = HOMING;
-			else if (LL_sys_info.exercise_state == SETUP)
-				LL_sys_info.exercise_state = RUNNING;
+			if (lowerlimb_sys_info.exercise_state == SETUP)
+				lowerlimb_sys_info.exercise_state = RUNNING;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// Clear motor_alert after sending it to TCP/IP APP state:
@@ -441,7 +449,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
 
-			if (LL_sys_info.system_state == SYS_ON) {
+			if (lowerlimb_sys_info.system_state == SYS_ON) {
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Update LEDs state:
@@ -453,7 +461,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Update safety:
 				///////////////////////////////////////////////////////////////////////////////
 
-				set_safetyOff(LL_sys_info.safetyOFF);
+				set_safetyOff(lowerlimb_sys_info.safetyOFF);
 
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
@@ -509,9 +517,9 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
 
-				if (exercise_state_prev != RUNNING && LL_sys_info.exercise_state == RUNNING)
+				if (exercise_state_prev != RUNNING && lowerlimb_sys_info.exercise_state == RUNNING)
 					switch_traj = SWITCH_TRAJ_START;
-				else if (exercise_state_prev != SLOWING && LL_sys_info.exercise_state == SLOWING)
+				else if (exercise_state_prev != SLOWING && lowerlimb_sys_info.exercise_state == SLOWING)
 					switch_traj = SWITCH_TRAJ_END;
 				else
 					switch_traj = SWITCH_TRAJ_NULL;
@@ -526,22 +534,37 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// Scale array selector (CRITICAL):
 				///////////////////////////////////////////////////////////////////////////////
 
-				if (LL_sys_info.activity_state != CALIB)
+				if (lowerlimb_sys_info.activity_state != CALIB)
 					idx_scale = IDX_SCALE_EXERCISE;
 
 				///////////////////////////////////////////////////////////////////////////////
 				// IDLE activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				if (LL_sys_info.activity_state == IDLE) {
+				if (lowerlimb_sys_info.activity_state == IDLE) {
 
 					// Default kinematic reference:
-					if (LL_sys_info.activity_state != activity_state_prev) {
+					// if (lowerlimb_sys_info.activity_state != activity_state_prev) { // TODO: remove at a later date
+					if (init_idle_activity_state) {
 						p_ref[IDX_X]    = p_m[IDX_X];
 						p_ref[IDX_Y]    = p_m[IDX_Y];
 
 						dt_p_ref[IDX_X] = 0.0;
 						dt_p_ref[IDX_Y] = 0.0;
+
+						init_idle_activity_state = 0;
+
+						#if USE_ITM_OUT_RT_CHECK
+							idx_sys_state   = lowerlimb_sys_info.system_state;
+							idx_activ_state = lowerlimb_sys_info.activity_state;
+							idx_exerc_state = lowerlimb_sys_info.exercise_state;
+
+							printf("   <<test_real_time_control()>> [IDLE]:\n");
+							printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
+							printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+							printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+							printf("\n");
+						#endif
 					}
 				}
 
@@ -549,16 +572,16 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// CALIBRATION activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcp_app()
+				else if (lowerlimb_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcp_app_ref()
 
 					#if USE_ITM_OUT_RT_CHECK
-						if (cmd_code != cmd_code_prev_to_last) {
-							printf("   test_real_time_control(): cmd_code_prev = [%s], cmd_code = [%s]\n\n", CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
+						if (cmd_code != cmd_code_prev) {
+							printf("   <<test_real_time_control()>> cmd_code_prev = [%s], cmd_code = [%s]\n\n", CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
 						}
 					#endif
 
 					#if TEST_FUNC_CALIB_ENCODERS
-						// NOTE: calib_enc_on will produce state transition in lowerlimb_app_onepass_tcp_app():
+						// NOTE: calib_enc_on will produce activity state transition from CALIB in lowerlimb_app_onepass_tcp_app_ref():
 						traj_ref_calibration_ll2(
 							p_ref, dt_p_ref, &calib_enc_on, &calib_traj, &idx_scale, z_intern_o_dbl,
 							dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
@@ -644,7 +667,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							p_calib_o[IDX_Y] = 0;
 
 							if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
-								// CALIBRATION: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
+								// CALIBRATION: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (lowerlimb_sys_info.exercise_state == RUNNING):
 								traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
 									traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
 
@@ -703,41 +726,41 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						calib_traj_prev = calib_traj;
 					#endif // TEST_FUNC_CALIB_ENCODERS
 
-				} // end if (LL_sys_info.activity_state == CALIB)
+				} // end if (lowerlimb_sys_info.activity_state == CALIB)
 
 				///////////////////////////////////////////////////////////////////////////////
 				// JOG activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == JOG) {
+				else if (lowerlimb_sys_info.activity_state == JOG) {
 
-				} // end if (LL_sys_info.activity_state == JOG)
+				} // end if (lowerlimb_sys_info.activity_state == JOG)
 
 				///////////////////////////////////////////////////////////////////////////////
 				// EXERCISE activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == EXERCISE) {
+				else if (lowerlimb_sys_info.activity_state == EXERCISE) {
 
 					///////////////////////////////////////////////////////////////////////////////
 					// Exercise substate switch:
 					///////////////////////////////////////////////////////////////////////////////
 
-					if (LL_sys_info.exercise_state == RUNNING || LL_sys_info.exercise_state == SLOWING) {
+					if (lowerlimb_sys_info.exercise_state == RUNNING || lowerlimb_sys_info.exercise_state == SLOWING) {
 
 						///////////////////////////////////////////////////////////////////////////////
 						// SLOWING substate: reference time
 						///////////////////////////////////////////////////////////////////////////////
 
-						if (LL_sys_info.exercise_state == SLOWING && exercise_state_prev != SLOWING) {
+						if (lowerlimb_sys_info.exercise_state == SLOWING && exercise_state_prev != SLOWING) {
 							t_slow_ref = t_ref;
 
 							#if USE_ITM_OUT_RT_CHECK
-								idx_sys_state   = LL_sys_info.system_state;
-								idx_activ_state = LL_sys_info.activity_state;
-								idx_exerc_state = LL_sys_info.exercise_state;
+								idx_sys_state   = lowerlimb_sys_info.system_state;
+								idx_activ_state = lowerlimb_sys_info.activity_state;
+								idx_exerc_state = lowerlimb_sys_info.exercise_state;
 
-								printf("   SLOWING (no cmd code):\n");
+								printf("   <<test_real_time_control()>> [SLOWING] (no cmd code):\n");
 								printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 								printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
 								printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
@@ -752,7 +775,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						///////////////////////////////////////////////////////////////////////////////
 
 						// Passive trajectory control:
-						if (LL_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
+						if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
 							if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
 								traj_ref_step_passive_elliptic(
 									p_ref, dt_p_ref,
@@ -769,7 +792,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						}
 
 						// Active trajectory control:
-						else if (LL_sys_info.exercise_mode == ActiveTrajectoryCtrl) {
+						else if (lowerlimb_sys_info.exercise_mode == ActiveTrajectoryCtrl) {
 							if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj)
 								traj_ref_step_active_elliptic(
 									p_ref, dt_p_ref,
@@ -785,95 +808,102 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						}
 
 						///////////////////////////////////////////////////////////////////////////////
-						// SLOWING substate: detect "ready for HOMING" condition
+						// SLOWING exercise substate: detect "ready for HOMING" activity state
 						///////////////////////////////////////////////////////////////////////////////
 
-						if (LL_sys_info.exercise_state == SLOWING) {
+						if (lowerlimb_sys_info.exercise_state == SLOWING) {
 							t_slow = t_ref - t_slow_ref;
 
-							if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING) {
-								homing_on      = 1; // HACK: specifically to bypass [LL_sys_info.exercise_state] returned by [lowerlimb_app_onepass_tcp_app()]
-								init_home_traj = 1;  // CRITICAL: enables homing starting from the correct start point
+							if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING_START) {
+								homing_on      = 1; // HACK: specifically to bypass [lowerlimb_sys_info.exercise_state] returned by [lowerlimb_app_onepass_tcp_app_ref()]
+								init_home_traj = 1; // CRITICAL: enables homing starting from the correct start point
+
+								lowerlimb_sys_info.activity_state = HOMING;
+								lowerlimb_sys_info.exercise_state = STOPPED;
 
 								#if USE_ITM_OUT_RT_CHECK
-									printf("   [HOMING condition detected] \n");
-									printf("   t_slow = [%3.2f], t_slow_ref = [%3.2f]\n", t_slow, t_slow_ref);
-									printf("\n");
+									printf("   <<test_real_time_control()>> HOMING condition detected \n\n");
+									// printf("   t_slow = [%3.2f], t_slow_ref = [%3.2f]\n\n", t_slow, t_slow_ref);
 								#endif
 							}
 						}
-					} // end if (LL_sys_info.exercise_state == RUNNING)
+					} // end if (lowerlimb_sys_info.exercise_state == RUNNING || lowerlimb_sys_info.exercise_state == SLOWING)
 
-					else if (LL_sys_info.exercise_state == HOMING) {
-
-						#if USE_ITM_OUT_RT_CHECK
-							if (init_calib_traj) {
-								idx_sys_state   = LL_sys_info.system_state;
-								idx_activ_state = LL_sys_info.activity_state;
-								idx_exerc_state = LL_sys_info.exercise_state;
-
-								printf("   HOMING (no cmd code): \n");
-								printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
-								printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-								printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
-								printf("\n");
-								printf("   t_ref_calib = [%3.2f]\n", t_ref_calib);
-								printf("\n");
-							}
-						#endif
-
-						#if TEST_FUNC_CALIB_HOMING
-							traj_ref_homing_ll2(p_ref, dt_p_ref, &home_traj_on, &init_home_traj, &idx_scale,
-								dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
-								&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
-
-							// Exit condition:
-							if (!home_traj_on)
-								LL_sys_info.exercise_state = IDLE;
-						#else
-							if (init_home_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
-								// Set up next HOMING trajectory:
-								p_calib_o[IDX_X] = p_m[IDX_X];
-								p_calib_o[IDX_Y] = p_m[IDX_Y];
-
-								// HOMING: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
-								traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
-										traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
-
-								p_calib_f[IDX_X] = p_ref[IDX_X];
-								p_calib_f[IDX_Y] = p_ref[IDX_Y];
-
-								// Control gains scale array:
-								idx_scale = IDX_SCALE_CALIB;
-
-								// Homing time reference:
-								t_ref_calib = t_ref;
-							}
-
-							// Homing timer:
-							t_calib = t_ref - t_ref_calib;
-
-							// Generate trajectory points:
-							traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
-												p_calib_o, p_calib_f, V_CALIB, FRAC_RAMP_CALIB, &init_home_traj, &T_f_calib,
-												&pos_rel_calib, &dt_pos_rel_calib);
-
-							// Exit condition:
-							if (t_calib >= T_f_calib)
-								LL_sys_info.exercise_state = IDLE;
-						#endif
-					}
-
+					///////////////////////////////////////////////////////////////////////////////
 					// Invalid exercise substate:
+					///////////////////////////////////////////////////////////////////////////////
+
 					else {
 						#if USE_ITM_OUT_RT_CHECK
-							printf("\n\n");
-							printf("   [test_real_time_control(): Invalid exercise substate [%s] for activity_state == EXERCISE] \n\n", EXERC_STATE_STR[LL_sys_info.exercise_state]);
+							printf("   <<test_real_time_control()>> Invalid exercise substate [%s] for activity_state == EXERCISE] \n\n", EXERC_STATE_STR[lowerlimb_sys_info.exercise_state]);
 						#endif
 					}
-					// end Exercise substate switch
+				} // end if (lowerlimb_sys_info.activity_state == EXERCISE)
 
-				} // end if (LL_sys_info.activity_state == EXERCISE)
+				///////////////////////////////////////////////////////////////////////////////
+				// HOMING activity state:
+				///////////////////////////////////////////////////////////////////////////////
+
+				else if (lowerlimb_sys_info.activity_state == HOMING) {
+
+					#if USE_ITM_OUT_RT_CHECK
+						if (init_home_traj) {
+							idx_sys_state   = lowerlimb_sys_info.system_state;
+							idx_activ_state = lowerlimb_sys_info.activity_state;
+							idx_exerc_state = lowerlimb_sys_info.exercise_state;
+
+							printf("   <<test_real_time_control()>> [HOMING] (no cmd code): \n");
+							printf("   system_state:   [%s]\n", SYS_STATE_STR[idx_sys_state]  );
+							printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
+							printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+							printf("\n");
+						}
+					#endif
+
+					#if TEST_FUNC_CALIB_HOMING
+						traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &init_home_traj, &idx_scale,
+							dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
+							&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
+
+						// Exit condition:
+						if (!homing_on) {
+							lowerlimb_sys_info.activity_state = IDLE;
+							init_idle_activity_state = 1;
+						}
+
+					#else
+						if (init_home_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
+							// Set up next HOMING trajectory:
+							p_calib_o[IDX_X] = p_m[IDX_X];
+							p_calib_o[IDX_Y] = p_m[IDX_Y];
+
+							// HOMING: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (lowerlimb_sys_info.exercise_state == RUNNING):
+							traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
+									traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
+
+							p_calib_f[IDX_X] = p_ref[IDX_X];
+							p_calib_f[IDX_Y] = p_ref[IDX_Y];
+
+							// Control gains scale array:
+							idx_scale = IDX_SCALE_CALIB;
+
+							// Homing time reference:
+							t_ref_calib = t_ref;
+						}
+
+						// Homing timer:
+						t_calib = t_ref - t_ref_calib;
+
+						// Generate trajectory points:
+						traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
+											p_calib_o, p_calib_f, V_CALIB, FRAC_RAMP_CALIB, &init_home_traj, &T_f_calib,
+											&pos_rel_calib, &dt_pos_rel_calib);
+
+						// Exit condition:
+						if (t_calib >= T_f_calib)
+							lowerlimb_sys_info.activity_state = IDLE;
+					#endif
+				} // end if (lowerlimb_sys_info.activity_state == EXERCISE)
 
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
@@ -983,10 +1013,10 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				///////////////////////////////////////////////////////////////////////////////
 
 				// Check motor activation status:
-				if (      LL_sys_info.activity_state == CALIB    && MOTOR_TORQUE_ACTIVE_CALIB)
+				if (      lowerlimb_sys_info.activity_state == CALIB    && MOTOR_TORQUE_ACTIVE_CALIB)
 								motor_torque_active = 1; // NOTE: this "clamps" motor activation even in future IDLE states
-				else if ((LL_sys_info.activity_state == JOG      && MOTOR_TORQUE_ACTIVE_JOG == 0     ) ||
-						 (LL_sys_info.activity_state == EXERCISE && MOTOR_TORQUE_ACTIVE_EXERCISE == 0) )
+				else if ((lowerlimb_sys_info.activity_state == JOG      && MOTOR_TORQUE_ACTIVE_JOG == 0     ) ||
+						 (lowerlimb_sys_info.activity_state == EXERCISE && MOTOR_TORQUE_ACTIVE_EXERCISE == 0) )
 								motor_torque_active = 0;
 
 				// Issue motion commands to motors - CRITICAL:
@@ -1006,7 +1036,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					// Display section:
 					#if USE_ITM_OUT_RT_CHECK
 						printf("\n");
-						printf("   MOTOR ALERT = [%d] \n\n", motor_alert);
+						printf("   <<test_real_time_control()>> MOTOR ALERT = [%d] \n\n", motor_alert);
 					#endif
 				}
 
@@ -1037,9 +1067,9 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				#endif
 				*/
 
-			} // end if (LL_sys_info.system_state == ON)
+			} // end if (lowerlimb_sys_info.system_state == ON)
 
-			else { // LL_sys_info.system_state != ON
+			else { // lowerlimb_sys_info.system_state != ON
 				// Change LEDs to system state OFF:
 				LED_sys_state_off();
 
@@ -1060,11 +1090,11 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// Track changes of state:
 			///////////////////////////////////////////////////////////////////////////////
 
-			system_state_prev   = LL_sys_info.system_state;
-			activity_state_prev = LL_sys_info.activity_state;
-			exercise_state_prev = LL_sys_info.exercise_state;
+			// system_state_prev   = lowerlimb_sys_info.system_state;
+			// activity_state_prev = lowerlimb_sys_info.activity_state;
+			exercise_state_prev = lowerlimb_sys_info.exercise_state;
 
-			cmd_code_prev_to_last = cmd_code;
+			cmd_code_prev = cmd_code;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// ITM console output:
@@ -1111,9 +1141,9 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					*/
 
 					/*
-					printf("   calib_enc_on = [%d], cmd_code_prev_to_last = [%s], cmd_code = [%s] \n",
-							calib_enc_on, CMD_STR[cmd_code_prev_to_last], CMD_STR[cmd_code]);
-					printf("   LL_sys_info.activity_state = [%s] \n",   ACTIV_STATE_STR[LL_sys_info.activity_state]);
+					printf("   calib_enc_on = [%d], cmd_code_prev = [%s], cmd_code = [%s] \n",
+							calib_enc_on, CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
+					printf("   lowerlimb_sys_info.activity_state = [%s] \n",   ACTIV_STATE_STR[lowerlimb_sys_info.activity_state]);
 					printf("\n");
 					*/
 				}

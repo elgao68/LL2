@@ -257,7 +257,7 @@ uint8_t
 is_valid_cmd_code(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status) {
 
 	#if USE_ITM_CMD_CHECK
-		printf("   is_valid_cmd_code():\n");
+		printf("   <<is_valid_cmd_code()>>:\n");
 		printf("   cmd_code     = [%s]\n",   CMD_STR[cmd_code]);
 		printf("   system_state = [%s]\n",   SYS_STATE_STR[system_state]);
 		printf("   app_status   = [%d]\n\n", *app_status);
@@ -753,55 +753,55 @@ send_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* me
 }
 
 void
-send_lowerlimb_sys_info(lowerlimb_sys_info_t* lowerlimb_sys_info, uint8_t tmp_resp_msg[], uint16_t cmd_code) {
+send_lowerlimb_sys_info(uint8_t tmp_resp_msg[], uint16_t cmd_code) { //was send_lowerlimb_sys_info(lowerlimb_sys_info_t* lowerlimb_sys_info,
 
 	uint16_t resp_payload_index = 0;
 	uint16_t LEN_BYTES_RESERVE = 40;
 
-	memcpy_msb(tmp_resp_msg, &(lowerlimb_sys_info->unix), sizeof(lowerlimb_sys_info->unix));
-	resp_payload_index += sizeof(lowerlimb_sys_info->unix);
+	memcpy_msb(tmp_resp_msg, &(lowerlimb_sys_info.unix), sizeof(lowerlimb_sys_info.unix));
+	resp_payload_index += sizeof(lowerlimb_sys_info.unix);
 
-	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->system_state;
-	resp_payload_index += sizeof(lowerlimb_sys_info->system_state);
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.system_state;
+	resp_payload_index += sizeof(lowerlimb_sys_info.system_state);
 
-	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->exercise_state;
-	resp_payload_index += sizeof(lowerlimb_sys_info->exercise_state);
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.exercise_state;
+	resp_payload_index += sizeof(lowerlimb_sys_info.exercise_state);
 
-	if (lowerlimb_sys_info->calibrate_state == 1)
-		tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->calibrate_state;
-	else if (lowerlimb_sys_info->isCalibrated == YES)
+	if (lowerlimb_sys_info.calibrate_state == 1)
+		tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.calibrate_state;
+	else if (lowerlimb_sys_info.isCalibrated == YES)
 		tmp_resp_msg[resp_payload_index] = 0;
 	else
 		tmp_resp_msg[resp_payload_index] = 0xFF; //indicate need calibration
 
-	resp_payload_index += sizeof(lowerlimb_sys_info->calibrate_state);
+	resp_payload_index += sizeof(lowerlimb_sys_info.calibrate_state);
 
-	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->operation_state;
-	resp_payload_index += sizeof(lowerlimb_sys_info->operation_state);
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.operation_state;
+	resp_payload_index += sizeof(lowerlimb_sys_info.operation_state);
 
-	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->fw_maj_ver;
-	resp_payload_index += sizeof(lowerlimb_sys_info->fw_maj_ver);
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.fw_maj_ver;
+	resp_payload_index += sizeof(lowerlimb_sys_info.fw_maj_ver);
 
-	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->fw_min_ver;
-	resp_payload_index += sizeof(lowerlimb_sys_info->fw_min_ver);
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.fw_min_ver;
+	resp_payload_index += sizeof(lowerlimb_sys_info.fw_min_ver);
 
-	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->fw_patch_ver;
-	resp_payload_index += sizeof(lowerlimb_sys_info->fw_patch_ver);
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.fw_patch_ver;
+	resp_payload_index += sizeof(lowerlimb_sys_info.fw_patch_ver);
 
-	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->safetyOFF;
-	resp_payload_index += sizeof(lowerlimb_sys_info->safetyOFF);
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.safetyOFF;
+	resp_payload_index += sizeof(lowerlimb_sys_info.safetyOFF);
 
-	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->l_brake_status;
-	resp_payload_index += sizeof(lowerlimb_sys_info->l_brake_status);
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.l_brake_status;
+	resp_payload_index += sizeof(lowerlimb_sys_info.l_brake_status);
 
-	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info->r_brake_status;
-	resp_payload_index += sizeof(lowerlimb_sys_info->r_brake_status);
+	tmp_resp_msg[resp_payload_index] = lowerlimb_sys_info.r_brake_status;
+	resp_payload_index += sizeof(lowerlimb_sys_info.r_brake_status);
 
-	memcpy_msb(&tmp_resp_msg[resp_payload_index], &lowerlimb_sys_info->f_x, sizeof(lowerlimb_sys_info->f_x));
-	resp_payload_index += sizeof(lowerlimb_sys_info->f_x);
+	memcpy_msb(&tmp_resp_msg[resp_payload_index], &lowerlimb_sys_info.f_x, sizeof(lowerlimb_sys_info.f_x));
+	resp_payload_index += sizeof(lowerlimb_sys_info.f_x);
 
-	memcpy_msb(&tmp_resp_msg[resp_payload_index], &lowerlimb_sys_info->f_y, sizeof(lowerlimb_sys_info->f_y));
-	resp_payload_index += sizeof(lowerlimb_sys_info->f_y);
+	memcpy_msb(&tmp_resp_msg[resp_payload_index], &lowerlimb_sys_info.f_y, sizeof(lowerlimb_sys_info.f_y));
+	resp_payload_index += sizeof(lowerlimb_sys_info.f_y);
 
 	resp_payload_index +=  LEN_BYTES_RESERVE; //Reserved bytes
 
