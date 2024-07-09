@@ -216,7 +216,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double t_slow_ref = 0.0;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Calibration variables:
+	// Calibration / homing variables (shared): TODO: revise this ASAP
 	///////////////////////////////////////////////////////////////////////////////
 
 	double T_f_calib   = 0.0;
@@ -232,12 +232,21 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	uint8_t init_calib_traj      = 1;
 
 	// Calibration states:
-	uint8_t calib_fsens_on    = 0;
-	uint8_t calib_enc_on      = 0;
+	uint8_t calib_fsens_on  = 0;
+	uint8_t calib_enc_on    = 0;
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Homing variables (shared): TODO: revise this ASAP
+	///////////////////////////////////////////////////////////////////////////////
+
+	uint8_t init_home_traj  = 1;
 
 	// Homing states:
 	double OMEGA_THR_HOMING = 0.03;
+
+	// TODO: harmonize these flags ASAP
 	uint8_t homing_on       = 0;
+	uint8_t home_traj_on    = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TCP/IP variables:
@@ -549,6 +558,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					#endif
 
 					#if TEST_FUNC_CALIB_ENCODERS
+						// NOTE: calib_enc_on will produce state transition in lowerlimb_app_onepass_tcp_app():
 						traj_ref_calibration_ll2(
 							p_ref, dt_p_ref, &calib_enc_on, &calib_traj, &idx_scale, z_intern_o_dbl,
 							dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
@@ -782,8 +792,8 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							t_slow = t_ref - t_slow_ref;
 
 							if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING) {
-								homing_on       = 1; // HACK: specifically to bypass [LL_sys_info.exercise_state] returned by [lowerlimb_app_onepass_tcp_app()]
-								init_calib_traj = 1; // CRITICAL: enables homing starting from the correct start point
+								homing_on      = 1; // HACK: specifically to bypass [LL_sys_info.exercise_state] returned by [lowerlimb_app_onepass_tcp_app()]
+								init_home_traj = 1;  // CRITICAL: enables homing starting from the correct start point
 
 								#if USE_ITM_OUT_RT_CHECK
 									printf("   [HOMING condition detected] \n");
@@ -795,28 +805,6 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 					} // end if (LL_sys_info.exercise_state == RUNNING)
 
 					else if (LL_sys_info.exercise_state == HOMING) {
-
-						if (init_calib_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
-							// Set up next HOMING trajectory:
-							p_calib_o[IDX_X] = p_m[IDX_X];
-							p_calib_o[IDX_Y] = p_m[IDX_Y];
-
-							// HOMING: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
-							traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
-									traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
-
-							p_calib_f[IDX_X] = p_ref[IDX_X];
-							p_calib_f[IDX_Y] = p_ref[IDX_Y];
-
-							// Control gains scale array:
-							idx_scale = IDX_SCALE_CALIB;
-
-							// Homing time reference:
-							t_ref_calib = t_ref;
-						}
-
-						// Homing timer:
-						t_calib = t_ref - t_ref_calib;
 
 						#if USE_ITM_OUT_RT_CHECK
 							if (init_calib_traj) {
@@ -834,14 +822,46 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							}
 						#endif
 
-						// Generate trajectory points:
-						traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
-											p_calib_o, p_calib_f, V_CALIB, FRAC_RAMP_CALIB, &init_calib_traj, &T_f_calib,
-											&pos_rel_calib, &dt_pos_rel_calib);
+						#if TEST_FUNC_CALIB_HOMING
+							traj_ref_homing_ll2(p_ref, dt_p_ref, &home_traj_on, &init_home_traj, &idx_scale,
+								dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
+								&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
 
-						// Exit condition:
-						if (t_calib >= T_f_calib)
-							LL_sys_info.exercise_state = IDLE;
+							// Exit condition:
+							if (!home_traj_on)
+								LL_sys_info.exercise_state = IDLE;
+						#else
+							if (init_home_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
+								// Set up next HOMING trajectory:
+								p_calib_o[IDX_X] = p_m[IDX_X];
+								p_calib_o[IDX_Y] = p_m[IDX_Y];
+
+								// HOMING: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
+								traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
+										traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
+
+								p_calib_f[IDX_X] = p_ref[IDX_X];
+								p_calib_f[IDX_Y] = p_ref[IDX_Y];
+
+								// Control gains scale array:
+								idx_scale = IDX_SCALE_CALIB;
+
+								// Homing time reference:
+								t_ref_calib = t_ref;
+							}
+
+							// Homing timer:
+							t_calib = t_ref - t_ref_calib;
+
+							// Generate trajectory points:
+							traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
+												p_calib_o, p_calib_f, V_CALIB, FRAC_RAMP_CALIB, &init_home_traj, &T_f_calib,
+												&pos_rel_calib, &dt_pos_rel_calib);
+
+							// Exit condition:
+							if (t_calib >= T_f_calib)
+								LL_sys_info.exercise_state = IDLE;
+						#endif
 					}
 
 					// Invalid exercise substate:

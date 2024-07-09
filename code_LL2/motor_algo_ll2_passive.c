@@ -208,11 +208,11 @@ traj_ref_calibration_ll2(
 	static double p_calib_f[N_COORD_2D] = {0.0, 0.0};
 
 	// Timers:
-	static uint16_t step_i = 0;
+	static uint16_t step_i  = 0;
 	static double T_f_calib = 0.0;
 
-	static double t_calib = 0.0;
-	t_calib = step_i*dt_k; // CRITICAL
+	static double t_calib   = 0.0;
+	t_calib = step_i*dt_k;
 
 	// Dummy variables:
 	double u_t_ref_dum[N_COORD_2D] = {0.0, 0.0};
@@ -220,7 +220,7 @@ traj_ref_calibration_ll2(
 	double dt_pos_rel_calib_dum    = 0.0;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Check initial and switching conditions:
+	// Test for initial and switching conditions:
 	///////////////////////////////////////////////////////////////////////////////
 
 	if (*calib_traj == CalibTraj_Null) {
@@ -350,9 +350,9 @@ traj_ref_calibration_ll2(
 		*calib_traj == CalibTraj_4_Travel_to_P_Start_Exe &&
 		t_calib >= T_f_calib) {
 
-		*calib_enc_on = 0; // CRITICAL
-	}
 
+		*calib_enc_on = 0;
+	}
 	///////////////////////////////////////////////////////////////////////////////
 	// Calibration timer:
 	///////////////////////////////////////////////////////////////////////////////
@@ -419,3 +419,58 @@ traj_ref_calibration_ll2(
 	step_i++;
 }
 
+///////////////////////////////////////////////////////////////////////////////
+// HOMING TRAJECTORY:
+///////////////////////////////////////////////////////////////////////////////
+
+void
+traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* home_traj_on, uint8_t* init_home_traj, uint8_t* idx_scale,
+	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
+	traj_ctrl_params_t* traj_ctrl_params, double v_calib, double frac_ramp_calib) {
+
+	// Homing end points:
+	static double p_home_o[N_COORD_2D] = {0.0, 0.0};
+	static double p_home_f[N_COORD_2D] = {0.0, 0.0};
+
+	// Timers:
+	static uint16_t step_i = 0;
+	static double T_f_home = 0.0;
+
+	static double t_home   = 0.0;
+	t_home = step_i*dt_k;
+
+	// Dummy variables:
+	double u_t_ref_dum[N_COORD_2D] = {0.0, 0.0};
+	double pos_rel_home_dum        = 0.0;
+	double dt_pos_rel_home_dum     = 0.0;
+
+	if (*init_home_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
+		// Set up next HOMING trajectory:
+		p_home_o[IDX_X] = p_m[IDX_X];
+		p_home_o[IDX_Y] = p_m[IDX_Y];
+
+		// HOMING: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
+		traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref_dum,
+				traj_ctrl_params->semiaxis_x, traj_ctrl_params->semiaxis_y, traj_ctrl_params->rot_angle);
+
+		p_home_f[IDX_X] = p_ref[IDX_X];
+		p_home_f[IDX_Y] = p_ref[IDX_Y];
+
+		// Control gains scale array:
+		idx_scale = IDX_SCALE_CALIB;
+	}
+
+	// Generate trajectory points:
+	traj_linear_points(	p_ref, dt_p_ref, u_t_ref_dum, dt_k,
+						p_home_o, p_home_f, v_calib, frac_ramp_calib, init_home_traj, &T_f_home,
+						&pos_rel_home_dum, &dt_pos_rel_home_dum);
+
+	// Increase step counter:
+	step_i++;
+
+	// Exit condition:
+	if (t_home >= T_f_home)
+		*home_traj_on = 0; // this will cause homing trajectory to stop
+	else
+		*home_traj_on = 1;
+}

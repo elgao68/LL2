@@ -185,6 +185,12 @@ void traj_ref_calibration_ll2(
 	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
 	lowerlimb_motors_settings_t* LL_motors_settings, traj_ctrl_params_t* traj_ctrl_params, uint8_t traj_exerc_type, double v_calib, double frac_ramp_calib);
 
+// HOMING TRAJECTORY:
+void
+traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* home_traj_on, uint8_t* init_home_traj, uint8_t* idx_scale,
+	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
+	traj_ctrl_params_t* traj_ctrl_params, double v_calib, double frac_ramp_calib);
+
 ///////////////////////////////////////////////////////////////////////////////
 // FUNCTION DECLARATIONS, DYNAMIC SYSTEMS
 ///////////////////////////////////////////////////////////////////////////////
