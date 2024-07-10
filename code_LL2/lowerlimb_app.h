@@ -575,6 +575,22 @@ uint8_t send_resp_msg(uint16_t tmp_cmd_code, uint8_t tmp_payload[],	uint16_t tmp
  @retval: 0 = success, 1 = failed
  */
 
+///////////////////////////////////////////////////////////////////////
+// TCP/IP scripts (incoming messages):
+///////////////////////////////////////////////////////////////////////
+
+uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
+		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings);
+
+// Script for reading TCP/IP messages (unified for TCP app & software (MSG_TCP):
+void lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_ref,
+		uint8_t* calib_enc_on, uint8_t use_software_msg_list);
+
+///////////////////////////////////////////////////////////////////////
+// Outgoing messages:
+///////////////////////////////////////////////////////////////////////
+
 uint8_t send_lowerlimb_exercise_feedback_help(uint64_t up_time,
 								float f_x, float f_y,
 								int32_t fQei_L, int32_t fQei_R,
@@ -586,25 +602,6 @@ uint8_t send_lowerlimb_exercise_feedback_help(uint64_t up_time,
 								float fRefPos_x, float fRefPos_y,
 								float fRefVel_x, float fRefVel_y,
 								float fRefPhase, float fRefFreq);
-
-///////////////////////////////////////////////////////////////////////
-// TCP/IP scripts:
-///////////////////////////////////////////////////////////////////////
-
-uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
-		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings);
-
-// Script for TCP/IP app:
-void lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
-		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_ref,
-		uint8_t* calib_enc_on, uint8_t use_software_msg_list);
-
-// Script for software app - TODO: harmonize with lowerlimb_sys_info_t lowerlimb_app_onepass_ref()
-/*
-lowerlimb_sys_info_t lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
-		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,
-		uint8_t* calib_enc_on);
-*/
 
 ///////////////////////////////////////////////////////////////////////
 // Helper functions:
