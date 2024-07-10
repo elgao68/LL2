@@ -21,6 +21,12 @@ void
 test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	///////////////////////////////////////////////////////////////////////////////
+	// General settings:
+	///////////////////////////////////////////////////////////////////////////////
+
+	const uint8_t USE_SOFTWARE_MSG_LIST = 0; // CRITICAL option
+
+	///////////////////////////////////////////////////////////////////////////////
 	// MOTOR STATE VARS:
 	///////////////////////////////////////////////////////////////////////////////
 
@@ -368,9 +374,9 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			//////////////////////////////////////////////////////////////////////////////////
 
 			// CRITICAL: passes reference to global-declared lowerlimb_sys_info for the sake of traceability:
-			lowerlimb_app_onepass_tcp_app_ref(&lowerlimb_sys_info, Read_Haptic_Button(), motor_alert,
+			lowerlimb_app_onepass_ref(&lowerlimb_sys_info, Read_Haptic_Button(), motor_alert,
 				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
-				&calib_enc_on);
+				&calib_enc_on, USE_SOFTWARE_MSG_LIST);
 
 			// HACK: exercise state overrides:
 			if (lowerlimb_sys_info.exercise_state == SETUP)
@@ -537,7 +543,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// CALIBRATION activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (lowerlimb_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcp_app_ref()
+				else if (lowerlimb_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_ref()
 
 					#if USE_ITM_OUT_RT_CHECK
 						if (cmd_code != cmd_code_prev) {
@@ -545,7 +551,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						}
 					#endif
 
-					// NOTE: calib_enc_on will produce activity state transition from CALIB in lowerlimb_app_onepass_tcp_app_ref():
+					// NOTE: calib_enc_on will produce activity state transition from CALIB in lowerlimb_app_onepass_ref():
 					traj_ref_calibration_ll2(
 						p_ref, dt_p_ref, &calib_enc_on, &calib_traj, &idx_scale, z_intern_o_dbl,
 						dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
@@ -640,7 +646,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 							t_slow = t_ref - t_slow_ref;
 
 							if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING_START) {
-								homing_on      = 1; // HACK: specifically to bypass [lowerlimb_sys_info.exercise_state] returned by [lowerlimb_app_onepass_tcp_app_ref()]
+								homing_on      = 1; // HACK: specifically to bypass [lowerlimb_sys_info.exercise_state] returned by [lowerlimb_app_onepass_ref()]
 								init_home_traj = 1; // CRITICAL: enables homing starting from the correct start point
 
 								lowerlimb_sys_info.activity_state = HOMING;

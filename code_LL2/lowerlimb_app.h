@@ -30,11 +30,16 @@
 #include "w5500_app.h"
 #include "transition_mode.h"
 
+///////////////////////////////////////////////////////
 // Macros files:
+///////////////////////////////////////////////////////
+
 // TODO: remove at a later date:
 // #include <__VALIDATE_CMD_CALIB.h>
 // #include <__VALIDATE_CMD_START_EXE.h>
 #include <__VALIDATE_IDLE_START_EXE.h>
+
+#include <__SELECT_CMD_CODE_LIST.h>
 
 ///////////////////////////////////////////////////////
 // CONTROL / SIMULATION SETTINGS
@@ -277,7 +282,7 @@ static char STR_MSG_TCP[LEN_MSG_TCP][LEN_STR_MAX] = {
 #define LEN_MSG_TCP		14
 
 enum MSG_TCP {
-	_0_MSG_TCP 					= 0,
+	NO_MSG_TCP 					= 0,
 	_1_MSG_TCP 					= 1,
 	_2_MSG_TCP					= 2,
 	Connect_To_Robot_MSG_TCP	= 3,
@@ -293,7 +298,7 @@ enum MSG_TCP {
 	Stdby_Start_Point_MSG_TCP	= 13 };
 
 static char MSG_TCP_STR[LEN_MSG_TCP][LEN_STR_MAX] = {
-	"_0_MSG_TCP",
+	"NO_MSG_TCP",
 	"_1_MSG_TCP",
 	"_2_MSG_TCP",
 	"Connect_To_Robot_MSG_TCP",
@@ -590,11 +595,11 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 		uint8_t min_ver, uint8_t patch_ver, lowerlimb_motors_settings_t* LL_motors_settings);
 
 // Script for TCP/IP app:
-void lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+void lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_ref,
-		uint8_t* calib_enc_on);
+		uint8_t* calib_enc_on, uint8_t use_software_msg_list);
 
-// Script for software app - TODO: harmonize with lowerlimb_sys_info_t lowerlimb_app_onepass_tcp_app_ref()
+// Script for software app - TODO: harmonize with lowerlimb_sys_info_t lowerlimb_app_onepass_ref()
 /*
 lowerlimb_sys_info_t lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_last,

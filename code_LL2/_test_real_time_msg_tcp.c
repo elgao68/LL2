@@ -211,7 +211,7 @@ test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// Obtain system state:
 			//////////////////////////////////////////////////////////////////////////////////
 
-			// TODO: redo lowerlimb_app_onepass_software() per lowerlimb_app_onepass_tcp_app_ref():
+			// TODO: redo lowerlimb_app_onepass_software() per lowerlimb_app_onepass_ref():
 			LL_sys_info = lowerlimb_app_onepass_software(Read_Haptic_Button(), motor_alert,
 					&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
 					&calib_enc_on);
@@ -300,7 +300,7 @@ test_real_time_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				// CALIBRATION activity state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_tcp_app_ref()
+				else if (LL_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_ref()
 
 					// calib_enc_on = 0; // HACK: executed directly in lowerlimb_app_onepass_software(()
 

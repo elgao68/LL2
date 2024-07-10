@@ -22,7 +22,7 @@ rx_payload_index += 1; \
 if (lowerlimb_sys_info.exercise_mode != PassiveTrajectoryCtrl && \
 	lowerlimb_sys_info.exercise_mode != ActiveTrajectoryCtrl)  { \
 		printf("   lowerlimb_sys_info.exercise_mode = [%s]\n", EXERC_MODE_STR[lowerlimb_sys_info.exercise_mode]); \
-		printf("   lowerlimb_app_onepass_tcp_app_ref() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_INVALID_EXERCISE_MODE]); \
+		printf("   lowerlimb_app_onepass_ref() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_INVALID_EXERCISE_MODE]); \
 		send_error_msg(cmd_code, ERR_INVALID_EXERCISE_MODE); \
 		lowerlimb_sys_info.app_status = ERR_INVALID_EXERCISE_MODE + 3; \
 		return lowerlimb_sys_info; \

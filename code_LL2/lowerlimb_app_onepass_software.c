@@ -169,7 +169,7 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 
 	// State-machine command codes in use:
 	/*
-	_0_MSG_TCP 					= 0,
+	NO_MSG_TCP 					= 0,
 	_1_MSG_TCP 					= 1,
 	_2_MSG_TCP					= 2,
 	Connect_To_Robot_MSG_TCP	= 3,
@@ -187,7 +187,7 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 
 	#if USE_ITM_CMD_CHECK
 		printf("____________________________________\n");
-		if (cmd_code >= _0_MSG_TCP && cmd_code <= Stdby_Start_Point_MSG_TCP)
+		if (cmd_code >= NO_MSG_TCP && cmd_code <= Stdby_Start_Point_MSG_TCP)
 			printf("MSG_TCP (%d) [%s] \n", cmd_code, MSG_TCP_STR[cmd_code]);
 		else
 			printf("MSG_TCP (%d): INVALID cmd_code \n", cmd_code);

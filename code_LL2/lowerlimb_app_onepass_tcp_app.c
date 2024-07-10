@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-//  lowerlimb_app_onepass_tcp_app_ref.c
+//  lowerlimb_app_onepass_ref.c
 //
 // Created on: 2024.03.20
 // Author: Gabriel Aguirre Ollinger
@@ -18,9 +18,16 @@ lowerlimb_sys_info_t lowerlimb_sys_info;
 //////////////////////////////////////////////////////////////////////////////////
 
 void
-lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
+lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl_params_t* traj_ctrl_params,
 		admitt_model_params_t* admitt_model_params, lowerlimb_motors_settings_t* LL_motors_settings, uint16_t* cmd_code_ref,
-		uint8_t* calib_enc_on) {
+		uint8_t* calib_enc_on, uint8_t use_software_msg_list) {
+
+	////////////////////////////////////
+	// Messaging variables:
+	////////////////////////////////////
+
+	// Select TCP messages list to use (CRITICAL):
+	__SELECT_CMD_CODE_LIST(use_software_msg_list)
 
 	static uint16_t cmd_code = 0; // CRITICAL to make it static
 
@@ -31,17 +38,23 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	uint8_t rxPayload  = 0;
 	uint8_t tmp_resp_msg[465];
 
-	// Constants & Variables for parsing index:
+	// Constants & variables for parsing index:
 	const uint8_t cmdCode_index = 3;
 	const uint8_t payloadLen_index = 5;
 	const uint8_t payloadStart_index = 7;
 
 	uint8_t rx_payload_index = payloadStart_index;
 
+	////////////////////////////////////
 	// Counters:
+	////////////////////////////////////
+
 	static int step_i = 0;
 
+	////////////////////////////////////
 	// Auxiliary variables:
+	////////////////////////////////////
+
 	uint8_t is_valid_msg = 0;
 	static uint8_t stop_exe_cmd_count = 0; // stop command counter - this is used to accommodate the SLOWING case
 
@@ -85,7 +98,7 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	////////////////////////////////////////////////////////////////////////////////
 
 	if (lowerlimb_sys->activity_state == CALIB) {
-		cmd_code = AUTO_CALIB_MODE_CMD;
+		cmd_code = _CALIBRATE;
 		*cmd_code_ref = cmd_code;
 	}
 
@@ -119,7 +132,7 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 		}
 		else {
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcp_app_ref(): is_valid_msg = [0] \n\n");
+				printf("   <<lowerlimb_app_onepass_ref()>> is_valid_msg = [0] \n\n");
 			#endif
 
 			return;
@@ -131,17 +144,23 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 
 		if (cmd_code == NO_CMD)
 			return;
-		else if (!is_valid_cmd_code(cmd_code, rxPayload,
-				lowerlimb_sys->system_state, lowerlimb_sys->activity_state, &lowerlimb_sys->app_status)) {
 
+		else if (!use_software_msg_list &&
+				is_valid_cmd_code(cmd_code, rxPayload,
+						lowerlimb_sys->system_state, lowerlimb_sys->activity_state, &lowerlimb_sys->app_status))
+							*cmd_code_ref = cmd_code;
+
+		else if (use_software_msg_list &&
+				is_valid_msg_tcp_payload_size(cmd_code, rxPayload, &lowerlimb_sys_info.app_status)) // Software-generated messages: check only payload, not states
+							*cmd_code_ref = cmd_code;
+
+		else {
 			#if USE_ITM_CMD_CHECK
-				printf("   lowerlimb_app_onepass_tcp_app_ref(): invalid cmd_code [%d] \n\n", cmd_code);
+				printf("   <<lowerlimb_app_onepass_ref()>> use_software_msg_list = [%d], invalid cmd_code [%d] \n\n", use_software_msg_list, cmd_code);
 			#endif
 
 			return;
 		}
-		else
-			*cmd_code_ref = cmd_code;
 	}
 
 	// Console output:
@@ -158,25 +177,33 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	///////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////
 
-	// Command codes in use:
+	// Generic command codes:
 	/*
-	CMD 01: START_SYS_CMD
-	CMD 02: BRAKES_CMD
-	CMD 03: AUTO_CALIB_MODE_CMD
-	CMD 04: START_RESUME_EXE_CMD
-	CMD 05: STOP_EXE_CMD
-	CMD 06: STOP_SYS_CMD
+	_START_SYSTEM
+	_BRAKES_ON_OFF
+	_CALIBRATE
+	_START_EXERCISE
+	_STOP_EXERCISE
+	_STOP_SYSTEM
+	_MOVE_TO_START
+	_GO_TO_EXERCISE
+	_PEDAL_TRAVEL
+	_FORCE_THERAPY_CHANGE
+	_STDBY_START_POINT
 	*/
 
 	#if USE_ITM_CMD_CHECK
-		// NOTE: AUTO_CALIB_MODE_CMD behaves differently
-		if (cmd_code == START_SYS_CMD 			||
-			cmd_code == BRAKES_CMD 				||
-			cmd_code == START_RESUME_EXE_CMD 	||
-			cmd_code == STOP_EXE_CMD 			||
-			cmd_code == STOP_SYS_CMD) {
+		// NOTE: _CALIBRATE behaves differently
+		if (cmd_code == _START_SYSTEM 		||
+			cmd_code == _BRAKES_ON_OFF 		||
+			cmd_code == _START_EXERCISE 	||
+			cmd_code == _STOP_EXERCISE 		||
+			cmd_code == _STOP_SYSTEM) {
 				printf("   ____________________________\n");
-				printf("   cmd_code(%d) [%s] \n", cmd_code, CMD_STR[cmd_code]);
+				if (use_software_msg_list)
+					printf("   cmd_code(%d) [%s] \n", cmd_code, MSG_TCP_STR[cmd_code]);
+				else
+					printf("   cmd_code(%d) [%s] \n", cmd_code, CMD_STR[cmd_code]);
 				printf("   BEFORE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
@@ -186,10 +213,10 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	#endif
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 01: START_SYS_CMD
+	// CMD 01: _START_SYSTEM
 	///////////////////////////////////////////////////////////////////////////
 
-	if (cmd_code == START_SYS_CMD) { //start system
+	if (cmd_code == _START_SYSTEM) { //start system
 
 		reset_lowerlimb_sys_info();
 
@@ -201,10 +228,10 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 02: BRAKES_CMD
+	// CMD 02: _BRAKES_ON_OFF
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == BRAKES_CMD) {
+	else if (cmd_code == _BRAKES_ON_OFF) {
 
 		if (tcpRxData[rx_payload_index] == 0x01) {
 			lowerlimb_brakes_command.l_brake_disengage = true;
@@ -224,7 +251,7 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 		send_OK_resp(cmd_code);
 
 		#if USE_ITM_CMD_CHECK
-			printf("   BRAKES_CMD data: [%d]\n", tcpRxData[rx_payload_index]);
+			printf("   _BRAKES_ON_OFF data: [%d]\n", tcpRxData[rx_payload_index]);
 			printf("   brakes disengaged: [");
 			if (lowerlimb_brakes_command.l_brake_disengage)
 				printf("TRUE] \n\n");
@@ -234,10 +261,10 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 03: AUTO_CALIB_MODE_CMD
+	// CMD 03: _CALIBRATE
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == AUTO_CALIB_MODE_CMD) { //enter calibration
+	else if (cmd_code == _CALIBRATE) { //enter calibration
 
 		///////////////////////////////////////////////////////////////////////////
 		// Update activity state to CALIB, otherwise check for errors:
@@ -264,7 +291,7 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 			force_sensors_zero_calibrate(&hadc3);
 
 			#if USE_ITM_CMD_CHECK
-				printf("   <<lowerlimb_app_onepass_tcp_app_ref()>> [Force sensors calibrated] \n\n");
+				printf("   <<lowerlimb_app_onepass_ref()>> [Force sensors calibrated] \n\n");
 			#endif
 
 			// Reset encoders - CRITICAL:
@@ -289,7 +316,7 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 		if (lowerlimb_sys->activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_control()
 
 			#if USE_ITM_CMD_CHECK
-				printf("   <<lowerlimb_app_onepass_tcp_app_ref()>> [Encoders calibrated] \n\n");
+				printf("   <<lowerlimb_app_onepass_ref()>> [Encoders calibrated] \n\n");
 			#endif
 
 			// Reset activity to IDLE:
@@ -300,10 +327,10 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 04: START_RESUME_EXE_CMD
+	// CMD 04: _START_EXERCISE
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == START_RESUME_EXE_CMD) {
+	else if (cmd_code == _START_EXERCISE) {
 
 		// Reset emergency alerts if any:
 		reset_emergency_alerts();
@@ -335,10 +362,10 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 05: STOP_EXE_CMD
+	// CMD 05: _STOP_EXERCISE
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == STOP_EXE_CMD) {
+	else if (cmd_code == _STOP_EXERCISE) {
 
 		lowerlimb_sys->exercise_state = SLOWING;
 
@@ -346,10 +373,10 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 06: STOP_SYS_CMD
+	// CMD 06: _STOP_SYSTEM
 	///////////////////////////////////////////////////////////////////////////
 
-	else if (cmd_code == STOP_SYS_CMD) { // stop system
+	else if (cmd_code == _STOP_SYSTEM) { // stop system
 		lowerlimb_sys->system_state   = SYS_OFF;
 		lowerlimb_sys->activity_state = IDLE;
 		lowerlimb_sys->exercise_state = STOPPED;
@@ -362,6 +389,26 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	}
 
 	///////////////////////////////////////////////////////////////////////////
+	// Other commands:
+	///////////////////////////////////////////////////////////////////////////
+
+	else if (cmd_code == _MOVE_TO_START 		||
+			 cmd_code == _GO_TO_EXERCISE 		||
+			 cmd_code == _PEDAL_TRAVEL 			||
+			 cmd_code == _FORCE_THERAPY_CHANGE	||
+			 cmd_code == _STDBY_START_POINT) {
+				#if USE_ITM_CMD_CHECK
+					printf("   ----------------------------\n");
+					if (use_software_msg_list)
+						printf("   cmd_code(%d) [%s] \n", cmd_code, MSG_TCP_STR[cmd_code]);
+					else
+						printf("   cmd_code(%d) [%s] \n", cmd_code, CMD_STR[cmd_code]);
+				#endif
+
+				send_OK_resp(cmd_code);
+	}
+
+	///////////////////////////////////////////////////////////////////////////
 	// Unknown command:
 	///////////////////////////////////////////////////////////////////////////
 
@@ -371,19 +418,19 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 		lowerlimb_sys->app_status = ERR_UNKNOWN + 3;
 
 		#if USE_ITM_CMD_CHECK
-			printf("   <<lowerlimb_app_onepass_tcp_app_ref()>> cmd_code(%d) UNKNOWN \n", cmd_code);
+			printf("   <<lowerlimb_app_onepass_ref()>> cmd_code(%d) UNKNOWN \n", cmd_code);
 			printf("\n");
 		#endif
 		return;
 	}
 
 	#if USE_ITM_CMD_CHECK
-		// NOTE: AUTO_CALIB_MODE_CMD behaves differently (2)
-		if (cmd_code == START_SYS_CMD 			||
-			cmd_code == BRAKES_CMD 				||
-			cmd_code == START_RESUME_EXE_CMD 	||
-			cmd_code == STOP_EXE_CMD 			||
-			cmd_code == STOP_SYS_CMD) {
+		// NOTE: _CALIBRATE behaves differently (2)
+		if (cmd_code == _START_SYSTEM 		||
+			cmd_code == _BRAKES_ON_OFF 		||
+			cmd_code == _START_EXERCISE 	||
+			cmd_code == _STOP_EXERCISE 		||
+			cmd_code == _STOP_SYSTEM) {
 
 				idx_sys_state   = lowerlimb_sys->system_state;
 				idx_activ_state = lowerlimb_sys->activity_state;
