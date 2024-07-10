@@ -32,9 +32,9 @@
 
 // Macros files:
 // TODO: remove at a later date:
-// #include <_VALIDATE_CMD_CALIB.h>
-// #include <_VALIDATE_CMD_START_EXE.h>
-#include <_VALIDATE_IDLE_START_EXE.h>
+// #include <__VALIDATE_CMD_CALIB.h>
+// #include <__VALIDATE_CMD_START_EXE.h>
+#include <__VALIDATE_IDLE_START_EXE.h>
 
 ///////////////////////////////////////////////////////
 // CONTROL / SIMULATION SETTINGS
@@ -42,7 +42,6 @@
 
 #define USE_ITM_CMD_CHECK    1
 #define SET_CTRL_PARAMETERS  1
-// #define USE_STATE_MACHINE_CMD 1 // TODO: remove at a later date
 
 #define TRAJ_PARAMS_VARIABLE_OFF 	0
 #define TRAJ_PARAMS_VARIABLE_ON 	1

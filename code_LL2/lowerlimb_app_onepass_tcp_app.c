@@ -38,18 +38,6 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 
 	uint8_t rx_payload_index = payloadStart_index;
 
-	//Force sensors - TODO: remove at a later date
-	#if TEST_FUNC_CALIB_FORCE_SENSORS
-
-	#else
-		uint32_t force_end_in_x_sensor = 0;
-		uint32_t force_end_in_y_sensor = 0;
-		uint32_t dum_force_end_in_x = 0;
-		uint32_t dum_force_end_in_y = 0;
-		float force_end_in_x_sensor_f = 0;
-		float force_end_in_y_sensor_f = 0;
-	#endif
-
 	// Counters:
 	static int step_i = 0;
 
@@ -181,9 +169,9 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	*/
 
 	#if USE_ITM_CMD_CHECK
+		// NOTE: AUTO_CALIB_MODE_CMD behaves differently
 		if (cmd_code == START_SYS_CMD 			||
 			cmd_code == BRAKES_CMD 				||
-			// cmd_code == AUTO_CALIB_MODE_CMD 	||
 			cmd_code == START_RESUME_EXE_CMD 	||
 			cmd_code == STOP_EXE_CMD 			||
 			cmd_code == STOP_SYS_CMD) {
@@ -273,23 +261,7 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 			#endif
 
 			// Zero-calibrate force sensors:
-			#if TEST_FUNC_CALIB_FORCE_SENSORS
-				force_sensors_zero_calibrate(&hadc3);
-			#else
-				// TODO: remove at a later date:
-				for (int i = 1; i <= 50; i++) {
-					force_sensors_read(&hadc3, &force_end_in_x_sensor, &force_end_in_y_sensor,
-							&dum_force_end_in_x, &dum_force_end_in_y);
-
-					force_end_in_x_sensor_f += (float) force_end_in_x_sensor * 3.3f / 4095.0f;
-					force_end_in_y_sensor_f += (float) force_end_in_y_sensor * 3.3f / 4095.0f;
-				}
-
-				force_end_in_x_sensor_f = force_end_in_x_sensor_f / 50.0f;
-				force_end_in_y_sensor_f = force_end_in_y_sensor_f / 50.0f;
-
-				set_force_sensor_zero_offset(force_end_in_x_sensor_f, force_end_in_y_sensor_f);
-			#endif
+			force_sensors_zero_calibrate(&hadc3);
 
 			#if USE_ITM_CMD_CHECK
 				printf("   <<lowerlimb_app_onepass_tcp_app_ref()>> [Force sensors calibrated] \n\n");
@@ -303,10 +275,12 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 			*calib_enc_on = 1;
 		}
 
-		// TODO: remove at a later date - Check for errors:
+		// TODO: remove at a later date
+		/*
 		else {
-			// _VALIDATE_CMD_CALIB
+			__VALIDATE_CMD_CALIB
 		}
+		*/
 
 		///////////////////////////////////////////////////////////////////////////
 		// Perform calibration per requisites in lowerlimb_sys->:
@@ -337,7 +311,7 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 		// If activity is in IDLE state, start exercise to SETUP state:
 		if (lowerlimb_sys->activity_state == IDLE) {
 			// Validate command code:
-			_VALIDATE_IDLE_START_EXE
+			__VALIDATE_IDLE_START_EXE
 
 			// Set activity to exercise:
 			lowerlimb_sys->activity_state = EXERCISE;
@@ -345,9 +319,12 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 			// Exercise state goes to SETUP:
 			lowerlimb_sys->exercise_state = SETUP; // is there a way we can switch to RUNNING directly?
 		}
+		// TODO: remove at a later date
+		/*
 		else {
-			// _VALIDATE_CMD_START_EXE
+			__VALIDATE_CMD_START_EXE
 		}
+		*/
 
 		send_OK_resp(cmd_code);
 
@@ -389,7 +366,7 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	///////////////////////////////////////////////////////////////////////////
 
 	else {
-		// tx unknown command error:
+		// Unknown command error:
 		send_error_msg(cmd_code, ERR_UNKNOWN);
 		lowerlimb_sys->app_status = ERR_UNKNOWN + 3;
 
@@ -401,9 +378,9 @@ lowerlimb_app_onepass_tcp_app_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t u
 	}
 
 	#if USE_ITM_CMD_CHECK
+		// NOTE: AUTO_CALIB_MODE_CMD behaves differently (2)
 		if (cmd_code == START_SYS_CMD 			||
 			cmd_code == BRAKES_CMD 				||
-			// cmd_code == AUTO_CALIB_MODE_CMD 	||
 			cmd_code == START_RESUME_EXE_CMD 	||
 			cmd_code == STOP_EXE_CMD 			||
 			cmd_code == STOP_SYS_CMD) {

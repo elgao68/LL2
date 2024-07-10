@@ -5,10 +5,6 @@
 // General program settings (CRITICAL):
 ///////////////////////////////////////////////////////////////////////////////
 
-#define TEST_FUNC_CALIB_FORCE_SENSORS 	1
-#define TEST_FUNC_CALIB_ENCODERS		1
-#define TEST_FUNC_CALIB_HOMING			1
-
 // Motor torque activation:
 #define MOTOR_TORQUE_ACTIVE_CALIB		1
 #define MOTOR_TORQUE_ACTIVE_JOG			0

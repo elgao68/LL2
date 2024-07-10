@@ -1,18 +1,18 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-// _VALIDATE_IDLE_START_EXE.h
+// __VALIDATE_IDLE_START_EXE.h
 //
 // Created on: 2024.07.01
 // Author: Gabriel Aguirre Ollinger
 //
 /////////////////////////////////////////////////////////////////////////////
 
-#ifndef CODE_LL2__VALIDATE_IDLE_START_EXE_H_
-#define CODE_LL2__VALIDATE_IDLE_START_EXE_H_
+#ifndef CODE_LL2___VALIDATE_IDLE_START_EXE_H_
+#define CODE_LL2___VALIDATE_IDLE_START_EXE_H_
 
 // NOTE: removed lowerlimb_sys_info.exercise_mode != AdmittanceCtrl
 
-#define _VALIDATE_IDLE_START_EXE \
+#define __VALIDATE_IDLE_START_EXE \
 \
 if (!valid_app_status(lowerlimb_sys_info.isCalibrated, NO, &lowerlimb_sys_info.app_status, cmd_code, ERR_CALIBRATION_NEEDED, ERR_OFFSET)) return lowerlimb_sys_info; \
 \
@@ -32,4 +32,4 @@ clear_lowerlimb_motors_settings(LL_motors_settings); \
 clear_transition_mode_params(); \
 rx_payload_index += 1;
 
-#endif /* CODE_LL2__VALIDATE_IDLE_START_EXE_H_ */
+#endif /* CODE_LL2___VALIDATE_IDLE_START_EXE_H_ */

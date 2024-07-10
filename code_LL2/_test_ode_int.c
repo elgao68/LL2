@@ -140,7 +140,7 @@ void test_ode_int() {
 		///////////////////////////////////////////////////////////////////////////////
 
 		if (ADMITT_MODEL_CONSTR_ON) {
-			F_end_m[IDX_X] = 0; // TODO: add force function
+			F_end_m[IDX_X] = 0; // NOTE: force function can be added
 			F_end_m[IDX_Y] = 0;
 		}
 		else {

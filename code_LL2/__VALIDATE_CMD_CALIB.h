@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-// _VALIDATE_CMD_CALIB.h
+// __VALIDATE_CMD_CALIB.h
 //
 // Created on: 2024.07.01
 // Author: Gabriel Aguirre Ollinger
@@ -10,7 +10,7 @@
 #ifndef CODE_LL2__VALIDATE_CMD_CALIB_H_
 #define CODE_LL2__VALIDATE_CMD_CALIB_H_
 
-#define _VALIDATE_CMD_CALIB \
+#define __VALIDATE_CMD_CALIB \
 if (lowerlimb_sys_info.activity_state == EXERCISE) { \
 	printf("   lowerlimb_app_onepass_tcp_app_ref() ERROR: cmd [%s] generated error [%s]\n\n", CMD_STR[cmd_code], ERR_STR[ERR_EXERCISE_ACTIVE]); \
 	send_error_msg(cmd_code, ERR_EXERCISE_ACTIVE); \

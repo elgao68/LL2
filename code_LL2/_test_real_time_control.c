@@ -24,9 +24,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	// MOTOR STATE VARS:
 	///////////////////////////////////////////////////////////////////////////////
 
-	// uint8_t motor_result        = 0; // TODO: eliminate at a later date
 	uint8_t motor_alert         = 0;
-
 	uint8_t motor_torque_active = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -137,16 +135,6 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double    phi_o = PHI_INIT_EXERC;
 	double dt_phi_o = 0.0;
 
-	// TODO: eliminate at a later date
-	/*
-	double dt_p_x_o = 0.0;
-	double dt_p_y_o = 0.0;
-
-	// Linear trajectory end points ( for calibration, homing, etc):
-	double p_calib_o[N_COORD_2D] = {0.0, 0.0};
-	double p_calib_f[N_COORD_2D] = {0.0, 0.0};
-	*/
-
 	///////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - MEASURED:
 	///////////////////////////////////////////////////////////////////////////////
@@ -217,30 +205,14 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	double t_slow_ref = 0.0;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Calibration / homing variables (shared): TODO: revise this ASAP
+	// CALIBRATION variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	// TODO: eliminate at a later date
-	/*
-	double T_f_calib   = 0.0;
-	double t_calib     = 0.0;
-
-	double pos_rel_calib    = 0.0;
-	double dt_pos_rel_calib = 0.0;
-	double t_ref_calib      = 0.0;
-
-	calib_traj_t calib_traj_prev = CalibTraj_Null;
-	uint8_t init_calib_traj = 1;
-	*/
-
 	calib_traj_t calib_traj = CalibTraj_Null;
-
-	// Calibration states:
-	// uint8_t calib_fsens_on  = 0; // TODO: eliminate at a later date
 	uint8_t calib_enc_on    = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Homing variables (shared): TODO: revise this ASAP
+	// HOMING variables:
 	///////////////////////////////////////////////////////////////////////////////
 
 	double OMEGA_THR_HOMING_START = 0.03;
@@ -249,7 +221,7 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	uint8_t init_home_traj = 1;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Idle activity state variables:
+	// IDLE activity state variables:
 	///////////////////////////////////////////////////////////////////////////////
 
 	uint8_t init_idle_activity_state = 1;
@@ -272,11 +244,6 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 	uint16_t cmd_code_prev = NO_CMD;
 	uint8_t  app_state;
 
-	// bool brake_cmd; // TODO: remove at a later date
-
-	// TODO: remove at a later date:
-	// uint8_t system_state_prev   = lowerlimb_sys_info.system_state;
-	// uint8_t activity_state_prev;
 	uint8_t exercise_state_prev = lowerlimb_sys_info.exercise_state;
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -400,11 +367,10 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// GET TCP/IP APP STATE
 			//////////////////////////////////////////////////////////////////////////////////
 
-			// if (lowerlimb_sys_info.activity_state != HOMING) // TODO: still needed?
-				// HACK: passes reference to global-declared lowerlimb_sys_info for the sake of traceability:
-				lowerlimb_app_onepass_tcp_app_ref(&lowerlimb_sys_info, Read_Haptic_Button(), motor_alert,
-					&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
-					&calib_enc_on);
+			// CRITICAL: passes reference to global-declared lowerlimb_sys_info for the sake of traceability:
+			lowerlimb_app_onepass_tcp_app_ref(&lowerlimb_sys_info, Read_Haptic_Button(), motor_alert,
+				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
+				&calib_enc_on);
 
 			// HACK: exercise state overrides:
 			if (lowerlimb_sys_info.exercise_state == SETUP)
@@ -544,7 +510,6 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 				if (lowerlimb_sys_info.activity_state == IDLE) {
 
 					// Default kinematic reference:
-					// if (lowerlimb_sys_info.activity_state != activity_state_prev) { // TODO: remove at a later date
 					if (init_idle_activity_state) {
 						p_ref[IDX_X]    = p_m[IDX_X];
 						p_ref[IDX_Y]    = p_m[IDX_Y];
@@ -580,151 +545,11 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						}
 					#endif
 
-					#if TEST_FUNC_CALIB_ENCODERS
-						// NOTE: calib_enc_on will produce activity state transition from CALIB in lowerlimb_app_onepass_tcp_app_ref():
-						traj_ref_calibration_ll2(
-							p_ref, dt_p_ref, &calib_enc_on, &calib_traj, &idx_scale, z_intern_o_dbl,
-							dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
-							&LL_motors_settings, &traj_ctrl_params, traj_exerc_type, V_CALIB, FRAC_RAMP_CALIB);
-
-					// TODO: eliminate at a later date:
-					#else
-						if (calib_traj == CalibTraj_Null) {
-
-							// Set up next calibration trajectory:
-							calib_traj = CalibTraj_1_Y_Travel;
-
-							p_calib_o[IDX_X] = p_m[IDX_X];
-							p_calib_o[IDX_Y] = p_m[IDX_Y];
-
-							p_calib_f[IDX_X] = p_calib_o[IDX_X];
-							p_calib_f[IDX_Y] = p_calib_o[IDX_Y] - DIST_CALIB_MAX;
-
-							// Control gains scale array:
-							idx_scale = IDX_SCALE_CALIB;
-
-							// Trajectory initiation command:
-							init_calib_traj  = 1;
-						}
-						else if (
-							calib_traj == CalibTraj_1_Y_Travel &&
-							fabs(dt_p_m[IDX_Y]) < THR_DT_P_CONTACT &&
-							fabs(LL_motors_settings.left.volt)  > THR_VOLTAGE_CONTACT &&
-							fabs(LL_motors_settings.right.volt) > THR_VOLTAGE_CONTACT) {
-
-							// Set up next calibration trajectory:
-							calib_traj = CalibTraj_2_X_Travel;
-
-							p_calib_o[IDX_X] = p_m[IDX_X];
-							p_calib_o[IDX_Y] = p_m[IDX_Y];
-
-							p_calib_f[IDX_X] = p_calib_o[IDX_X] - DIST_CALIB_MAX;
-							p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
-
-							// Control gains scale array:
-							idx_scale = IDX_SCALE_CALIB;
-
-							// Trajectory initiation command:
-							init_calib_traj  = 1;
-						}
-						else if (
-							calib_traj == CalibTraj_2_X_Travel &&
-							fabs(dt_p_m[IDX_Y]) < THR_DT_P_CONTACT &&
-							fabs(LL_motors_settings.left.volt)  > THR_VOLTAGE_CONTACT &&
-							fabs(LL_motors_settings.right.volt) > THR_VOLTAGE_CONTACT) {
-
-							// Reset encoders - CRITICAL:
-							qei_count_L_reset();
-							qei_count_R_reset();
-
-							// Set up next calibration trajectory:
-							calib_traj = CalibTraj_3_Travel_to_ORG;
-
-							p_calib_o[IDX_X] = 0;
-							p_calib_o[IDX_Y] = 0;
-
-							p_calib_f[IDX_X] = 0.5*D_WKSPC_LL2_X;
-							p_calib_f[IDX_Y] = 0.5*D_WKSPC_LL2_Y;
-
-							// Control gains scale array:
-							idx_scale = IDX_SCALE_EXERCISE;
-
-							// Trajectory initiation command:
-							init_calib_traj  = 1;
-						}
-						else if (
-							calib_traj == CalibTraj_3_Travel_to_ORG &&
-							t_calib >= T_f_calib) {
-
-							// Reset encoders - CRITICAL:
-							qei_count_L_reset();
-							qei_count_R_reset();
-
-							// Set up next calibration trajectory:
-							calib_traj = CalibTraj_4_Travel_to_P_Start_Exe;
-
-							p_calib_o[IDX_X] = 0;
-							p_calib_o[IDX_Y] = 0;
-
-							if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
-								// CALIBRATION: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (lowerlimb_sys_info.exercise_state == RUNNING):
-								traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
-									traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
-
-								p_calib_f[IDX_X] = p_ref[IDX_X];
-								p_calib_f[IDX_Y] = p_ref[IDX_Y];
-							}
-							else {
-								// Safety catch:
-								p_calib_f[IDX_X] = 0;
-								p_calib_f[IDX_Y] = 0;
-							}
-
-							// Active trajectory control: create initial condition for internal state (CRITICAL)
-							z_intern_o_dbl[IDX_X  ]    = p_ref[IDX_X];
-							z_intern_o_dbl[IDX_Y  ]    = p_ref[IDX_Y];
-							z_intern_o_dbl[IDX_PHI]    = phi_o;
-
-							z_intern_o_dbl[IDX_DT_X  ] = dt_p_x_o;
-							z_intern_o_dbl[IDX_DT_Y  ] = dt_p_y_o;
-							z_intern_o_dbl[IDX_DT_PHI] = dt_phi_o;
-
-							// Control gains scale array:
-							idx_scale = IDX_SCALE_EXERCISE;
-
-							// Trajectory initiation command:
-							init_calib_traj  = 1;
-						}
-						else if (calib_traj == CalibTraj_4_Travel_to_P_Start_Exe) {
-
-							// Encoders calibration exit condition:
-							if (t_calib >= T_f_calib)
-								calib_enc_on = 0;
-						}
-
-						// Calibration timer:
-						if (calib_traj_prev != calib_traj)
-							t_ref_calib = t_ref;
-
-						t_calib = t_ref - t_ref_calib;
-
-						#if USE_ITM_OUT_RT_CHECK
-							if (calib_traj_prev == CalibTraj_Null && calib_traj != CalibTraj_Null) {
-								printf("   test_real_time_control(): calib_traj   = [%s] \n", CALIB_TRAJ_STR[calib_traj]);
-								printf("                     calib_enc_on = [%d] \n", calib_enc_on);
-								printf("                     t_ref_calib  = [%3.2f] \n\n", t_ref_calib);
-							}
-						#endif
-
-						// Generate trajectory points:
-						if (calib_enc_on)
-							traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
-												p_calib_o, p_calib_f, V_CALIB, FRAC_RAMP_CALIB, &init_calib_traj, &T_f_calib,
-												&pos_rel_calib, &dt_pos_rel_calib);
-
-						// Record active calibration trajectory for next iteration:
-						calib_traj_prev = calib_traj;
-					#endif // TEST_FUNC_CALIB_ENCODERS
+					// NOTE: calib_enc_on will produce activity state transition from CALIB in lowerlimb_app_onepass_tcp_app_ref():
+					traj_ref_calibration_ll2(
+						p_ref, dt_p_ref, &calib_enc_on, &calib_traj, &idx_scale, z_intern_o_dbl,
+						dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
+						&LL_motors_settings, &traj_ctrl_params, traj_exerc_type, V_CALIB, FRAC_RAMP_CALIB);
 
 				} // end if (lowerlimb_sys_info.activity_state == CALIB)
 
@@ -860,49 +685,15 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 						}
 					#endif
 
-					#if TEST_FUNC_CALIB_HOMING
-						traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &init_home_traj, &idx_scale,
-							dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
-							&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
+					traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &init_home_traj, &idx_scale,
+						dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
+						&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
 
-						// Exit condition:
-						if (!homing_on) {
-							lowerlimb_sys_info.activity_state = IDLE;
-							init_idle_activity_state = 1;
-						}
-
-					#else
-						if (init_home_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
-							// Set up next HOMING trajectory:
-							p_calib_o[IDX_X] = p_m[IDX_X];
-							p_calib_o[IDX_Y] = p_m[IDX_Y];
-
-							// HOMING: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (lowerlimb_sys_info.exercise_state == RUNNING):
-							traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref,
-									traj_ctrl_params.semiaxis_x, traj_ctrl_params.semiaxis_y, traj_ctrl_params.rot_angle);
-
-							p_calib_f[IDX_X] = p_ref[IDX_X];
-							p_calib_f[IDX_Y] = p_ref[IDX_Y];
-
-							// Control gains scale array:
-							idx_scale = IDX_SCALE_CALIB;
-
-							// Homing time reference:
-							t_ref_calib = t_ref;
-						}
-
-						// Homing timer:
-						t_calib = t_ref - t_ref_calib;
-
-						// Generate trajectory points:
-						traj_linear_points(	p_ref, dt_p_ref, u_t_ref, dt_k,
-											p_calib_o, p_calib_f, V_CALIB, FRAC_RAMP_CALIB, &init_home_traj, &T_f_calib,
-											&pos_rel_calib, &dt_pos_rel_calib);
-
-						// Exit condition:
-						if (t_calib >= T_f_calib)
-							lowerlimb_sys_info.activity_state = IDLE;
-					#endif
+					// Exit condition:
+					if (!homing_on) {
+						lowerlimb_sys_info.activity_state = IDLE;
+						init_idle_activity_state = 1;
+					}
 				} // end if (lowerlimb_sys_info.activity_state == EXERCISE)
 
 				///////////////////////////////////////////////////////////////////////////////
@@ -1090,8 +881,6 @@ test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 			// Track changes of state:
 			///////////////////////////////////////////////////////////////////////////////
 
-			// system_state_prev   = lowerlimb_sys_info.system_state;
-			// activity_state_prev = lowerlimb_sys_info.activity_state;
 			exercise_state_prev = lowerlimb_sys_info.exercise_state;
 
 			cmd_code_prev = cmd_code;

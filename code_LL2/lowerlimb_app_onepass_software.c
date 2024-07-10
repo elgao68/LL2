@@ -300,7 +300,7 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 
 		// Check for errors:
 		else {
-			// _VALIDATE_CMD_CALIB
+			// __VALIDATE_CMD_CALIB
 		}
 		*/
 
@@ -453,7 +453,7 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 		if (lowerlimb_sys_info.activity_state == IDLE) {
 
 			// Validate command code:
-			_VALIDATE_IDLE_START_EXE
+			__VALIDATE_IDLE_START_EXE
 
 			// Set activity to exercise:
 			lowerlimb_sys_info.activity_state = EXERCISE;
@@ -462,7 +462,7 @@ lowerlimb_app_onepass_software(uint8_t ui8EBtnState, uint8_t ui8Alert, traj_ctrl
 			lowerlimb_sys_info.exercise_state = SETUP; // can we switch to RUNNING directly?
 		}
 		else {
-			// _VALIDATE_CMD_START_EXE
+			// __VALIDATE_CMD_START_EXE
 		}
 
 		send_OK_resp(cmd_code);
