@@ -146,12 +146,12 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 			return;
 
 		else if (!use_software_msg_list &&
-				is_valid_cmd_code(cmd_code, rxPayload,
+				is_valid_cmd_code_tcp_app(cmd_code, rxPayload,
 						lowerlimb_sys->system_state, lowerlimb_sys->activity_state, &lowerlimb_sys->app_status))
 							*cmd_code_ref = cmd_code;
 
 		else if (use_software_msg_list &&
-				is_valid_msg_tcp_payload_size(cmd_code, rxPayload, &lowerlimb_sys_info.app_status)) // Software-generated messages: check only payload, not states
+				is_valid_payload_size_software(cmd_code, rxPayload, &lowerlimb_sys_info.app_status)) // Software-generated messages: check only payload, not states
 							*cmd_code_ref = cmd_code;
 
 		else {
@@ -213,7 +213,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	#endif
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 01: _START_SYSTEM
+	// CMD A: _START_SYSTEM
 	///////////////////////////////////////////////////////////////////////////
 
 	if (cmd_code == _START_SYSTEM) { //start system
@@ -228,7 +228,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 02: _BRAKES_ON_OFF
+	// CMD B: _BRAKES_ON_OFF
 	///////////////////////////////////////////////////////////////////////////
 
 	else if (cmd_code == _BRAKES_ON_OFF) {
@@ -261,7 +261,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 03: _CALIBRATE
+	// CMD C: _CALIBRATE
 	///////////////////////////////////////////////////////////////////////////
 
 	else if (cmd_code == _CALIBRATE) { //enter calibration
@@ -313,7 +313,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 		// Perform calibration per requisites in lowerlimb_sys->:
 		///////////////////////////////////////////////////////////////////////////
 
-		if (lowerlimb_sys->activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_control()
+		if (lowerlimb_sys->activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_onepass_control()
 
 			#if USE_ITM_CMD_CHECK
 				printf("   <<lowerlimb_app_onepass_ref()>> [Encoders calibrated] \n\n");
@@ -327,7 +327,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 04: _START_EXERCISE
+	// CMD D: _START_EXERCISE
 	///////////////////////////////////////////////////////////////////////////
 
 	else if (cmd_code == _START_EXERCISE) {
@@ -362,7 +362,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 05: _STOP_EXERCISE
+	// CMD E: _STOP_EXERCISE
 	///////////////////////////////////////////////////////////////////////////
 
 	else if (cmd_code == _STOP_EXERCISE) {
@@ -373,7 +373,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	}
 
 	///////////////////////////////////////////////////////////////////////////
-	// CMD 06: _STOP_SYSTEM
+	// CMD F: _STOP_SYSTEM
 	///////////////////////////////////////////////////////////////////////////
 
 	else if (cmd_code == _STOP_SYSTEM) { // stop system

@@ -50,7 +50,7 @@
 
 // ITM Data Console switches:
 #define USE_ITM_OUT_RT_CHECK		1
-#define USE_ITM_OUT_RT_CHECK_LONG	0
+#define USE_ITM_OUT_RT_CHECK_LONG	1
 #define USE_ITM_OUT_GUI_PARAMS		0
 #define USE_ITM_TCP_CHECK		    0
 
@@ -65,7 +65,6 @@
 
 static uint64_t algo_nextTime = 0;
 static uint64_t brakes_nextTime = 0;
-// static lowerlimb_sys_info_t LL_sys_info;
 static uint64_t expire_nextTime = 0;
 static uint8_t prev_fifo_size = 0;
 
@@ -91,7 +90,7 @@ void LED_sys_state_off();
 // Declare tester function:
 ////////////////////////////////////////////////////////////////////////////////
 
-void test_real_time_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
-void test_real_time_software_msg_tcp(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
+void test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
+void test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
 
 #endif /* CODE_LL2__TEST_REAL_TIME_H_ */

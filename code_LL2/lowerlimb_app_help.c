@@ -22,7 +22,10 @@
 	#include <qei_motor_drivers_LL2.h>
 #endif
 
-//Serial Number
+///////////////////////////////////////////////////////////////////////
+// Serial number:
+///////////////////////////////////////////////////////////////////////
+
 // Format PP-VVVRYYXXX-A | 11 bytes reserved for future
 // PP – Product Initials i.e. HM
 // VVV – Product Version i.e. v10 for v1.0
@@ -34,6 +37,13 @@
 
 const uint8_t DEVICE_SERIAL_ID[25] = { 'D', 'C', '-', 'V', '1', '0', 'M', '2',
 		'2', '0', '0', '1', '-', 'A' };
+
+///////////////////////////////////////////////////////////////////////
+// Lower-limb robot system info:
+///////////////////////////////////////////////////////////////////////
+
+// TODO: check whether this declaration is needed (2024.07.10):
+// extern lowerlimb_sys_info_t lowerlimb_sys_info;
 
 ///////////////////////////////////////////////////////////////////////
 // State initialization function:
@@ -66,9 +76,9 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 ///////////////////////////////////////////////////////////////////////
 
 uint8_t
-is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t USE_VARS_TCP_MSG) {
+is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t use_software_msg_list, uint8_t overr_cmd_code_tests) {
 
-	static uint16_t cmd_code_recv = 0; // CRITICAL to make it static
+	static uint16_t cmd_code = 0; // CRITICAL to make it static
 	uint8_t rxPayload  = 0;
 
 	/*
@@ -92,7 +102,7 @@ is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert
 	*/
 
 	////////////////////////////////////
-	// Auxiliary variables:
+	// Test variable:
 	////////////////////////////////////
 
 	uint8_t is_valid_msg_test = 0; // NOTE: this variable gets reused for several tests
@@ -116,14 +126,55 @@ is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert
 
 	update_unix_time();
 
-	////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+	// Special case: return cmd_code_ref untested (TODO: remove at a later date)
+	////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+
+	if (overr_cmd_code_tests) {
+		// Check if TCP connected:
+		// isTCPConnected()
+
+		// Check if there is a valid message:
+		ethernet_w5500_new_rcv_data();
+		memset(tcpRxData, 0, sizeof(tcpRxData)); // CRITICAL: tcpRxData is a global variable
+		is_valid_msg_test = is_valid_w5500_msg(tcpRxData);
+
+		// Parse command code & payload:
+		cmd_code =  ((uint16_t) tcpRxData[cmdCode_index] << 8) +
+						  (uint16_t) tcpRxData[cmdCode_index + 1];
+
+		rxPayload = ((uint16_t) tcpRxData[payloadLen_index] << 8) +
+					 (uint16_t) tcpRxData[payloadLen_index + 1];
+
+		// Validate command code:
+		if (use_software_msg_list)
+			is_valid_msg_test = is_valid_payload_size_software(cmd_code, rxPayload,
+					&lowerlimb_sys_info.app_status); // for software-generated messages (MSG_TCP), check only the payload size
+		else
+			is_valid_msg_test = is_valid_cmd_code_tcp_app(cmd_code, rxPayload,
+				lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status);
+
+		if (is_valid_msg_test)
+			*cmd_code_ref = cmd_code;
+
+		return is_valid_msg_test;
+	}
+
+	////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
 	// Check if TCP connected:
-	////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
 
 	if (isTCPConnected() == 0) {
+		// TODO: remove at a later date (gives unnecessary messages):
+		/*
 		#if USE_ITM_CMD_CHECK
-			printf("   <is_valid_cmd_code_tcp()>: iisTCPConnected() FAILED \n\n");
+			printf("   <<is_valid_rcv_data_cmd_code()>> isTCPConnected() FAILED \n\n");
 		#endif
+		*/
 
 		return 0;
 	}
@@ -150,7 +201,7 @@ is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert
 	////////////////////////////////////////////////////////////////////////////////
 
 	if (is_valid_msg_test) {
-		cmd_code_recv =  ((uint16_t) tcpRxData[cmdCode_index] << 8) +
+		cmd_code =  ((uint16_t) tcpRxData[cmdCode_index] << 8) +
 					      (uint16_t) tcpRxData[cmdCode_index + 1];
 
 		rxPayload = ((uint16_t) tcpRxData[payloadLen_index] << 8) +
@@ -158,7 +209,7 @@ is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert
 	}
 	else {
 		#if USE_ITM_CMD_CHECK
-			printf("   <is_valid_cmd_code_tcp()>: s_valid_w5500_msg() FAILED \n\n");
+			printf("   <<is_valid_rcv_data_cmd_code()>> s_valid_w5500_msg() FAILED \n\n");
 		#endif
 
 		return 0;
@@ -168,25 +219,22 @@ is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert
 	// Validate command code:
 	////////////////////////////////////////////////////////////////////////////////
 
-	if (USE_VARS_TCP_MSG)
-		is_valid_msg_test = is_valid_msg_tcp_payload_size(cmd_code_recv, rxPayload,
-				&lowerlimb_sys_info.app_status);
+	if (use_software_msg_list)
+		is_valid_msg_test = is_valid_payload_size_software(cmd_code, rxPayload,
+				&lowerlimb_sys_info.app_status); // for software-generated messages (MSG_TCP), check only the payload size
 	else
-		is_valid_msg_test = is_valid_cmd_code(cmd_code, rxPayload,
+		is_valid_msg_test = is_valid_cmd_code_tcp_app(cmd_code, rxPayload,
 			lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status);
 
-	if (is_valid_msg_test) {
-		*cmd_code = cmd_code_recv;
-
-		return 1;
-	}
+	if (is_valid_msg_test)
+		*cmd_code_ref = cmd_code;
 	else {
 		#if USE_ITM_CMD_CHECK
-			printf("   <is_valid_cmd_code_tcp()>: invalid cmd_code_recv [%d] (possible payload problem) \n\n", cmd_code_recv);
+			printf("   <<is_valid_rcv_data_cmd_code()>> invalid command code received [%d] (possible payload problem) \n\n", cmd_code);
 		#endif
-
-		return 0;
 	}
+
+	return is_valid_msg_test;
 }
 
 ///////////////////////////////////////////////////////////////////////
@@ -254,13 +302,15 @@ is_valid_w5500_msg(uint8_t tcp_rx_data[]) {
 }
 
 uint8_t
-is_valid_cmd_code(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status) {
+is_valid_cmd_code_tcp_app(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status) {
 
 	#if USE_ITM_CMD_CHECK
-		printf("   <<is_valid_cmd_code()>>:\n");
-		printf("   cmd_code     = [%s]\n",   CMD_STR[cmd_code]);
-		printf("   system_state = [%s]\n",   SYS_STATE_STR[system_state]);
-		printf("   app_status   = [%d]\n\n", *app_status);
+		if (cmd_code != 0) {
+			printf("   <<is_valid_cmd_code_tcp_app()>>:\n");
+			printf("   cmd_code     = [%s]\n",   CMD_STR[cmd_code]);
+			printf("   system_state = [%s]\n",   SYS_STATE_STR[system_state]);
+			printf("   app_status   = [%d]\n\n", *app_status);
+		}
 	#endif
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -378,14 +428,16 @@ is_valid_cmd_code(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, ui
 }
 
 uint8_t
-is_valid_msg_tcp_payload_size(uint16_t cmd_code, uint8_t rxPayload, uint16_t* app_status) {
+is_valid_payload_size_software(uint16_t cmd_code, uint8_t rxPayload, uint16_t* app_status) {
 
 	uint8_t n_payload;
 
 	#if USE_ITM_CMD_CHECK
-		printf("   <<is_valid_msg_tcp_payload_size()>>:\n");
-		printf("   cmd_code   = [%s] (%d)\n", MSG_TCP_STR[cmd_code], cmd_code);
-		printf("   app_status = [%d]\n\n",    *app_status);
+		if (cmd_code != 0) {
+			printf("   <<is_valid_payload_size_software()>>:\n");
+			printf("   cmd_code   = [%s] (%d)\n", MSG_TCP_STR[cmd_code], cmd_code);
+			printf("   app_status = [%d]\n\n",    *app_status);
+		}
 	#endif
 
 	// Validate command code:
@@ -408,10 +460,12 @@ is_valid_msg_tcp_payload_size(uint16_t cmd_code, uint8_t rxPayload, uint16_t* ap
 			n_payload = N_PAYL_F_Therapy_Change_MSG_TCP;
 
 	else {
+		// TODO: remove at a later date (continuous repeat):
+		/*
 		#if USE_ITM_CMD_CHECK
 			printf("   invalid cmd_code (%d)\n", cmd_code);
 		#endif
-
+		 */
 		return 0;
 	}
 

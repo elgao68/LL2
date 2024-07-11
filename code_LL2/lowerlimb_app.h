@@ -520,8 +520,7 @@ typedef struct {
 // Message validation functions, high-level:
 ///////////////////////////////////////////////////////////////////////
 
-uint8_t
-is_valid_cmd_code_tcp(uint16_t* cmd_code, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t USE_VARS_TCP_MSG);
+uint8_t is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t use_software_msg_list, uint8_t overr_cmd_code_tests);
 
 ///////////////////////////////////////////////////////
 // Message validation functions, low-level:
@@ -543,8 +542,8 @@ static uint8_t POSTAMP_TCP[2] = { 0x68, 0x6D };
 ///////////////////////////////////////////////////////
 
 uint8_t is_valid_w5500_msg(uint8_t tcp_rx_data[]);
-uint8_t is_valid_cmd_code(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status);
-uint8_t is_valid_msg_tcp_payload_size(uint16_t cmd_code, uint8_t rxPayload, uint16_t* app_status);
+uint8_t is_valid_cmd_code_tcp_app(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status);
+uint8_t is_valid_payload_size_software(uint16_t cmd_code, uint8_t rxPayload, uint16_t* app_status);
 
 /**
  @brief: Send calibration response message

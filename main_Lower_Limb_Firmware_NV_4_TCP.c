@@ -51,7 +51,7 @@ TIM_HandleTypeDef htim9;
 UART_HandleTypeDef huart3;
 
 ////////////////////////////////////////////////////////////////////////////////
-// REAL-TIME PROCESS TIME STEP:
+// REAL-TIME PROCESS TIME STEP - CRITICAL:
 ////////////////////////////////////////////////////////////////////////////////
 
 #define DT_STEP_MSEC 5
@@ -66,18 +66,20 @@ UART_HandleTypeDef huart3;
 // CONTROL / SIMULATION SETTINGS:
 ////////////////////////////////////////////////////////////////////////////////
 
-#define _TEST_DEBUG_         0
+#define _TEST_DEBUG_         	0
 
-#define _TEST_REAL_TIME      1
-#define _TEST_SIMULATION	 2
-#define _TEST_SCRATCH        3
-#define _TEST_ODE_INT        4
-#define _TEST_MATR_INV       5
+#define _TEST_REAL_TIME_CTRL    1
+#define _TEST_SIMULATION	 	2
+#define _TEST_SCRATCH        	3
+#define _TEST_ODE_INT        	4
+#define _TEST_MATR_INV       	5
+#define _TEST_REAL_TIME_SOFTWARE	6
+#define _TEST_REAL_TIME_ST_MACH	7
 
-#define TEST_OPTION			 _TEST_REAL_TIME
+#define TEST_OPTION				_TEST_REAL_TIME_ST_MACH // _TEST_REAL_TIME_SOFTWARE // _TEST_REAL_TIME_CTRL
 
 /////////////////////////////////////////////////////////////////////////////
-// HELPER FUNCTIONS - DECLARATIONS - GAO
+// HELPER FUNCTIONS - DECLARATIONS
 /////////////////////////////////////////////////////////////////////////////
 
 int _write(int32_t file, uint8_t *ptr, int32_t len); // use this to send output to SWV ITM Data Console
@@ -127,19 +129,6 @@ int main(void)
 		test_scratch();
 		return 0;
 	#endif
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Start UART sys:
-	///////////////////////////////////////////////////////////////////////////////
-
-	// TODO: remove at a later date
-	/*
-	uint8_t startup_status = 0;
-	startup_status = uart_sys_init();
-
-	printf("\n");
-	printf("System starting up!\r\n");
-	*/
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Start 1ms timer
@@ -199,19 +188,23 @@ int main(void)
 	// Launch test script:
 	///////////////////////////////////////////////////////////////////////////////
 
-	#if TEST_OPTION == _TEST_REAL_TIME
-		test_real_time(&hadc1, &hadc3);
+	#if TEST_OPTION == _TEST_REAL_TIME_CTRL
+		test_real_time_onepass_control(&hadc1, &hadc3);
 	#elif TEST_OPTION == _TEST_SIMULATION
 		test_sim_traject();
 	#elif TEST_OPTION == _TEST_ODE_INT
 		test_ode_int();
 	#elif TEST_OPTION == _TEST_MATR_INV
 		test_matr_inv();
+	#elif TEST_OPTION == _TEST_REAL_TIME_SOFTWARE
+		test_real_time_onepass_software(&hadc1, &hadc3);
+	#elif TEST_OPTION == _TEST_REAL_TIME_ST_MACH
+		test_real_time_stmachine(&hadc1, &hadc3);
 	#endif
 }
 
 /////////////////////////////////////////////////////////////////////////////
-// HELPER FUNCTIONS - DEFINITIONS - GAO
+// HELPER FUNCTIONS - DEFINITIONS
 /////////////////////////////////////////////////////////////////////////////
 
 int
