@@ -68,15 +68,15 @@ UART_HandleTypeDef huart3;
 
 #define _TEST_DEBUG_         	0
 
-#define _TEST_REAL_TIME_CTRL    1
+#define _TEST_REAL_TIME_CONTROL    1
 #define _TEST_SIMULATION	 	2
 #define _TEST_SCRATCH        	3
 #define _TEST_ODE_INT        	4
 #define _TEST_MATR_INV       	5
 #define _TEST_REAL_TIME_SOFTWARE	6
-#define _TEST_REAL_TIME_ST_MACH	7
+#define _TEST_REAL_TIME_STMACHINE	7
 
-#define TEST_OPTION				_TEST_REAL_TIME_ST_MACH // _TEST_REAL_TIME_SOFTWARE // _TEST_REAL_TIME_CTRL
+#define TEST_OPTION				_TEST_REAL_TIME_STMACHINE // _TEST_REAL_TIME_SOFTWARE // _TEST_REAL_TIME_CONTROL
 
 /////////////////////////////////////////////////////////////////////////////
 // HELPER FUNCTIONS - DECLARATIONS
@@ -188,7 +188,7 @@ int main(void)
 	// Launch test script:
 	///////////////////////////////////////////////////////////////////////////////
 
-	#if TEST_OPTION == _TEST_REAL_TIME_CTRL
+	#if TEST_OPTION == _TEST_REAL_TIME_CONTROL
 		test_real_time_onepass_control(&hadc1, &hadc3);
 	#elif TEST_OPTION == _TEST_SIMULATION
 		test_sim_traject();
@@ -198,8 +198,8 @@ int main(void)
 		test_matr_inv();
 	#elif TEST_OPTION == _TEST_REAL_TIME_SOFTWARE
 		test_real_time_onepass_software(&hadc1, &hadc3);
-	#elif TEST_OPTION == _TEST_REAL_TIME_ST_MACH
-		test_real_time_stmachine(&hadc1, &hadc3);
+	#elif TEST_OPTION == _TEST_REAL_TIME_STMACHINE
+		test_real_time_stmachine_tcp_app(&hadc1, &hadc3);
 	#endif
 }
 

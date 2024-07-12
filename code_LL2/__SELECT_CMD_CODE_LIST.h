@@ -10,6 +10,8 @@
 #ifndef CODE_LL2___SELECT_CMD_CODE_LIST_H_
 #define CODE_LL2___SELECT_CMD_CODE_LIST_H_
 
+// TODO: complete pending command codes (TCP app):
+
 #define __SELECT_CMD_CODE_LIST(USE_SOFTWARE_MSG_LIST) \
 	uint8_t 	_START_SYSTEM;	\
 	uint8_t 	_BRAKES_ON_OFF;	\

@@ -23,6 +23,16 @@
 #endif
 
 ///////////////////////////////////////////////////////////////////////
+// Flags for is_valid_cmd_code_tcp_app() - CRITICAL:
+///////////////////////////////////////////////////////////////////////
+
+#define TEST_CMD_CODE_TCP_APP_PAYLOAD 			1
+#define TEST_CMD_CODE_TCP_APP_SYS_ON 			0
+#define TEST_CMD_CODE_TCP_APP_CTRL_MODE 		1
+#define TEST_CMD_CODE_TCP_APP_START_STOP_SYS	0
+#define TEST_CMD_CODE_TCP_APP_STOP_EXE			0
+
+///////////////////////////////////////////////////////////////////////
 // Serial number:
 ///////////////////////////////////////////////////////////////////////
 
@@ -168,16 +178,9 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 	////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////
 
-	if (isTCPConnected() == 0) {
-		// TODO: remove at a later date (gives unnecessary messages):
-		/*
-		#if USE_ITM_CMD_CHECK
-			printf("   <<is_valid_rcv_data_cmd_code()>> isTCPConnected() FAILED \n\n");
-		#endif
-		*/
-
+	// NOTE: an ITM console output here will give continuous messages:
+	if (isTCPConnected() == 0)
 		return 0;
-	}
 
 	////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////
@@ -208,7 +211,7 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 					 (uint16_t) tcpRxData[payloadLen_index + 1];
 	}
 	else {
-		#if USE_ITM_CMD_CHECK
+		#if USE_ITM_VALID_CMD_CHECK
 			printf("   <<is_valid_rcv_data_cmd_code()>> s_valid_w5500_msg() FAILED \n\n");
 		#endif
 
@@ -216,7 +219,7 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 	}
 
 	////////////////////////////////////////////////////////////////////////////////
-	// Validate command code:
+	// Validate command code (NOTE: 'is_valid' functions reject a zero cmd_code (NO_CMD / NO_MSG_TCP) as invalid):
 	////////////////////////////////////////////////////////////////////////////////
 
 	if (use_software_msg_list)
@@ -227,25 +230,33 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 			lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status);
 
 	////////////////////////////////////////////////////////////////////////////////
-	// Assign command code to reference variable (CRITICAL):
+	// ITM console output:
 	////////////////////////////////////////////////////////////////////////////////
 
-	#if USE_ITM_CMD_CHECK
-		if (cmd_code != *cmd_code_ref ) {
+	#if USE_ITM_VALID_CMD_CHECK
+		if (is_valid_msg_test) {
 			if (use_software_msg_list)
-				printf("   <<is_valid_rcv_data_cmd_code()>> UNCONDITIONAL cmd code (%d) [%s] (previous cmd code (%d) [%s]) \n\n",
+				printf("   <<is_valid_rcv_data_cmd_code()>> cmd code (%d) [%s] (previous cmd code (%d) [%s]) \n\n",
 						cmd_code, MSG_TCP_STR[cmd_code], *cmd_code_ref, MSG_TCP_STR[*cmd_code_ref]);
 			else
-				printf("   <<is_valid_rcv_data_cmd_code()>> UNCONDITIONAL cmd code (%d) [%s] (previous cmd code (%d) [%s]) \n\n",
+				printf("   <<is_valid_rcv_data_cmd_code()>> cmd code (%d) [%s] (previous cmd code (%d) [%s]) \n\n",
 						cmd_code, CMD_STR[cmd_code], *cmd_code_ref, CMD_STR[*cmd_code_ref]);
 		}
 	#endif
 
+	////////////////////////////////////////////////////////////////////////////////
+	// Assign command code to reference variable (CRITICAL):
+	////////////////////////////////////////////////////////////////////////////////
+
 	*cmd_code_ref = cmd_code;
 
-	#if USE_ITM_CMD_CHECK
+	////////////////////////////////////////////////////////////////////////////////
+	// ITM console output:
+	////////////////////////////////////////////////////////////////////////////////
+
+	#if USE_ITM_VALID_CMD_CHECK
 		if (!is_valid_msg_test)
-			printf("   <<is_valid_rcv_data_cmd_code()>> invalid command code received [%d] (possible payload problem) \n\n", cmd_code);
+			printf("   <<is_valid_rcv_data_cmd_code()>> invalid command code received [%d] (payload problem?) \n\n", cmd_code);
 	#endif
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -319,59 +330,70 @@ is_valid_w5500_msg(uint8_t tcp_rx_data[]) {
 	return 1;
 }
 
+#define TEST_CMD_CODE_TCP_APP_PAYLOAD 			1
+#define TEST_CMD_CODE_TCP_APP_SYS_ON 			0
+#define TEST_CMD_CODE_TCP_APP_CTRL_MODE 		1
+#define TEST_CMD_CODE_TCP_APP_START_STOP_SYS	0
+#define TEST_CMD_CODE_TCP_APP_STOP_EXE			0
+
 uint8_t
 is_valid_cmd_code_tcp_app(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status) {
 
-	#if USE_ITM_CMD_CHECK
-		if (cmd_code != 0) {
-			printf("   <<is_valid_cmd_code_tcp_app()>>:\n");
-			printf("   cmd_code     = [%s]\n",   CMD_STR[cmd_code]);
-			printf("   system_state = [%s]\n",   SYS_STATE_STR[system_state]);
-			printf("   app_status   = [%d]\n\n", *app_status);
-		}
+	if (cmd_code == NO_CMD)
+		return 0;
+
+	#if USE_ITM_VALID_CMD_CHECK
+		printf("   <<is_valid_cmd_code_tcp_app()>>:\n");
+		printf("   cmd_code     = [%s]\n",   CMD_STR[cmd_code]);
+		printf("   system_state = [%s]\n",   SYS_STATE_STR[system_state]);
+		printf("   app_status   = [%d]\n\n", *app_status);
 	#endif
 
 	////////////////////////////////////////////////////////////////////////////////
 	// CHECK PAYLOAD SIZES:
 	////////////////////////////////////////////////////////////////////////////////
 
-	// Payload size: 1
-	if (cmd_code == START_SYS_CMD		||
-		cmd_code == BRAKES_CMD			||
-		cmd_code == AUTO_CALIB_MODE_CMD ||
-		cmd_code == STOP_SYS_CMD		||
-		cmd_code == STOP_EXE_CMD		||
-		cmd_code == RESET_SYS_CMD		||
-		cmd_code == READ_DEV_ID_CMD		||
-		cmd_code == READ_SYS_INFO_CMD 	||
-		cmd_code == PAUSE_EXE_CMD		||
-		cmd_code == TOGGLE_SAFETY_CMD
-		)
-			if (!valid_app_status(rxPayload, 1,
-				app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
-					return 0;
+	#if TEST_CMD_CODE_TCP_APP_PAYLOAD
+		// Payload size: 1
+		if (cmd_code == START_SYS_CMD		||
+			cmd_code == BRAKES_CMD			||
+			cmd_code == AUTO_CALIB_MODE_CMD ||
+			cmd_code == STOP_SYS_CMD		||
+			cmd_code == STOP_EXE_CMD		||
+			cmd_code == RESET_SYS_CMD		||
+			cmd_code == READ_DEV_ID_CMD		||
+			cmd_code == READ_SYS_INFO_CMD 	||
+			cmd_code == PAUSE_EXE_CMD		||
+			cmd_code == TOGGLE_SAFETY_CMD
+			)
+				if (!valid_app_status(rxPayload, 1,
+					app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
+						return 0;
 
-	// Payload size:
-	// else if () { }
+		// Payload size:
+		// else if () { }
+	#endif
 
     ////////////////////////////////////////////////////////////////////////////////
 	// CHECK IF SYSTEM IS ACTIVE:
     ////////////////////////////////////////////////////////////////////////////////
 
-	if (cmd_code == BRAKES_CMD           ||
-		cmd_code == AUTO_CALIB_MODE_CMD  ||
-		cmd_code == START_RESUME_EXE_CMD ||
-		cmd_code == STOP_EXE_CMD		 ||
-		cmd_code == PAUSE_EXE_CMD        ||
-		cmd_code == TOGGLE_SAFETY_CMD    ||
-		cmd_code == SET_CTRLPARAMS       ||
-		cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
-		cmd_code == SET_TARG_PARAM_ADMCTRL_CMD   ||
-		cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD
-		)
-			if (!valid_app_status(system_state, SYS_ON,
-				app_status, cmd_code, ERR_SYSTEM_OFF, ERR_OFFSET))
-					return 0;
+	#if TEST_CMD_CODE_TCP_APP_SYS_ON
+		if (cmd_code == BRAKES_CMD           ||
+			cmd_code == AUTO_CALIB_MODE_CMD  ||
+			cmd_code == START_RESUME_EXE_CMD ||
+			cmd_code == STOP_EXE_CMD		 ||
+			cmd_code == PAUSE_EXE_CMD        ||
+			cmd_code == TOGGLE_SAFETY_CMD    ||
+			cmd_code == SET_CTRLPARAMS       ||
+			cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
+			cmd_code == SET_TARG_PARAM_ADMCTRL_CMD   ||
+			cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD
+			)
+				if (!valid_app_status(system_state, SYS_ON,
+					app_status, cmd_code, ERR_SYSTEM_OFF, ERR_OFFSET))
+						return 0;
+	#endif
 
     ////////////////////////////////////////////////////////////////////////////////
 	// VALIDATE CONTROL MODES:
@@ -379,64 +401,66 @@ is_valid_cmd_code_tcp_app(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_s
 
 	uint8_t exercise_mode = 0;
 
-	if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD)
-		exercise_mode = PassiveTrajectoryCtrl;
-	else if (cmd_code == SET_TARG_PARAM_ADMCTRL_CMD)
-		exercise_mode = AdmittanceCtrl;
-	else if (cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD)
-		exercise_mode = ActiveTrajectoryCtrl;
+	#if TEST_CMD_CODE_TCP_APP_CTRL_MODE
+		if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD)
+			exercise_mode = PassiveTrajectoryCtrl;
+		else if (cmd_code == SET_TARG_PARAM_ADMCTRL_CMD)
+			exercise_mode = AdmittanceCtrl;
+		else if (cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD)
+			exercise_mode = ActiveTrajectoryCtrl;
 
-	if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
-		cmd_code == SET_TARG_PARAM_ADMCTRL_CMD   ||
-		cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD) {
-			if (!valid_app_status(activity_state, IDLE,
-				app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
-					return 0;
+		if (cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
+			cmd_code == SET_TARG_PARAM_ADMCTRL_CMD   ||
+			cmd_code == SET_TARG_PARAM_ATRAJCTRL_CMD) {
+				if (!valid_app_status(activity_state, IDLE,
+					app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
+						return 0;
 
-			if (!valid_app_status(activity_state, CALIB,
-				app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
-					return 0;
+				if (!valid_app_status(activity_state, CALIB,
+					app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET))
+						return 0;
 
-			if (activity_state == EXERCISE) {
-				if (!valid_app_status(exercise_mode, exercise_mode,
-						app_status, cmd_code, ERR_INVALID_EXERCISE_MODE, ERR_OFFSET))
-							return 0;
+				if (activity_state == EXERCISE) {
+					if (!valid_app_status(exercise_mode, exercise_mode,
+							app_status, cmd_code, ERR_INVALID_EXERCISE_MODE, ERR_OFFSET))
+								return 0;
+			}
 		}
-	}
+	#endif
 
     ////////////////////////////////////////////////////////////////////////////////
 	// VALIDATE SYS COMMANDS (deactivated for LL2):
     ////////////////////////////////////////////////////////////////////////////////
 
-	/*
-	if (cmd_code == START_SYS_CMD) { //start system
-		// Succeeded to set system ON
-		if (!valid_app_status(system_state, OFF,
-			app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
-				return 0;
-	}
+	#if TEST_CMD_CODE_TCP_APP_START_STOP_SY
+		if (cmd_code == START_SYS_CMD) { //start system
+			// Succeeded to set system ON
+			if (!valid_app_status(system_state, OFF,
+				app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
+					return 0;
+		}
 
-	if (cmd_code == STOP_SYS_CMD) { //stop system
-		if (!valid_app_status(system_state, ON,
-			app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
-				return 0;
-	}
-	*/
+		if (cmd_code == STOP_SYS_CMD) { //stop system
+			if (!valid_app_status(system_state, ON,
+				app_status, cmd_code, ERR_GENERAL_NOK, ERR_OFFSET))
+					return 0;
+		}
+	#endif
 
     ////////////////////////////////////////////////////////////////////////////////
 	// VALIDATE STOP COMMANDS (deactivated for LL2):
     ////////////////////////////////////////////////////////////////////////////////
 
-	/*
-	if (cmd_code == STOP_EXE_CMD ||	cmd_code == SET_CTRLPARAMS)
-		if (!valid_app_status(activity_state, CALIB,
-				app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) ||
-			!valid_app_status(activity_state, IDLE,
-				app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) ||
-			!valid_app_status(exercise_state, STOPPED,
-				app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) )
-					return 0;
-	 */
+	#if TEST_CMD_CODE_TCP_APP_STOP_EXE
+		if (cmd_code == STOP_EXE_CMD ||	cmd_code == SET_CTRLPARAMS)
+			if (!valid_app_status(activity_state, CALIB,
+					app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) ||
+				!valid_app_status(activity_state, IDLE,
+					app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) ||
+				!valid_app_status(exercise_state, STOPPED,
+					app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) )
+						return 0;
+	#endif
 
     ////////////////////////////////////////////////////////////////////////////////
 	// COMMAND CODE IS VALID:
@@ -450,12 +474,13 @@ is_valid_payload_size_software(uint16_t cmd_code, uint8_t rxPayload, uint16_t* a
 
 	uint8_t n_payload;
 
-	#if USE_ITM_CMD_CHECK
-		if (cmd_code != 0) {
-			printf("   <<is_valid_payload_size_software()>>:\n");
-			printf("   cmd_code   = [%s] (%d)\n", MSG_TCP_STR[cmd_code], cmd_code);
-			printf("   app_status = [%d]\n\n",    *app_status);
-		}
+	if (cmd_code == NO_MSG_TCP)
+		return 0;
+
+	#if USE_ITM_VALID_CMD_CHECK
+		printf("   <<is_valid_payload_size_software()>>:\n");
+		printf("   cmd_code   = [%s] (%d)\n", MSG_TCP_STR[cmd_code], cmd_code);
+		printf("   app_status = [%d]\n\n",    *app_status);
 	#endif
 
 	// Validate command code:
@@ -476,16 +501,6 @@ is_valid_payload_size_software(uint16_t cmd_code, uint8_t rxPayload, uint16_t* a
 
 	else if (cmd_code == F_Therapy_Change_MSG_TCP)
 			n_payload = N_PAYL_F_Therapy_Change_MSG_TCP;
-
-	else {
-		// TODO: remove at a later date (continuous repeat):
-		/*
-		#if USE_ITM_CMD_CHECK
-			printf("   invalid cmd_code (%d)\n", cmd_code);
-		#endif
-		 */
-		return 0;
-	}
 
 	// Validate payload size:
 	if (!valid_app_status(rxPayload, n_payload,
@@ -907,7 +922,7 @@ uint8_t valid_app_status(uint8_t property, uint8_t value, uint16_t* app_status, 
 		send_error_msg(cmd_code, ERR_CODE);
 		*app_status = ERR_CODE + err_offset;
 
-		#if USE_ITM_CMD_CHECK
+		#if USE_ITM_VALID_CMD_CHECK
 			if (ERR_CODE > LEN_ERR_LIST - 1)
 				ERR_CODE = LEN_ERR_LIST - 1;
 

@@ -45,8 +45,8 @@
 // CONTROL / SIMULATION SETTINGS
 ///////////////////////////////////////////////////////
 
-#define USE_ITM_CMD_CHECK    1
-#define SET_CTRL_PARAMETERS  1
+#define USE_ITM_CMD_DISPLAY    		1
+#define USE_ITM_VALID_CMD_CHECK		0
 
 #define TRAJ_PARAMS_VARIABLE_OFF 	0
 #define TRAJ_PARAMS_VARIABLE_ON 	1
@@ -341,20 +341,23 @@ static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {
 ///////////////////////////////////////////////////////
 
 #define	OFFS_ST_FW		800		
-#define	LEN_ST_FW		5		
+#define	LEN_ST_FW		5
+
 enum ST_FW {	
 	ST_FW_ADJUST_EXERCISE	=	800	,
 	ST_FW_CALIBRATING		=	801	,
 	ST_FW_CONNECTING		=	802	,
 	ST_FW_EXERCISE_ON		=	803	,
-	ST_FW_STDBY_START_POINT	=	804	};
+	ST_FW_STDBY_START_POINT	=	804};
 
 static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {
 	"ST_FW_ADJUST_EXERCISE"	,
 	"ST_FW_CALIBRATING"	,
 	"ST_FW_CONNECTING"	,
 	"ST_FW_EXERCISE_ON"	,
-	"ST_FW_STDBY_START_POINT"	};
+	"ST_FW_STDBY_START_POINT",
+	"ST_FW_CONTROL_READY"
+};
 
 ///////////////////////////////////////////////////////
 // Error codes:

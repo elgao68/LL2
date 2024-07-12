@@ -9,7 +9,7 @@
 
 #include <_test_real_time.h>
 
-extern lowerlimb_sys_info_t lowerlimb_sys_info;
+extern lowerlimb_sys_info_t lowerlimb_sys_info; // TODO: remove at a later date
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -147,22 +147,28 @@ test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 	// State variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	uint16_t cmd_code      = NO_CMD;
-	uint16_t cmd_code_prev = NO_CMD;
-	// uint8_t  app_state;
-
+	// Command codes:
+	uint16_t cmd_code         = NO_CMD;
+	uint16_t cmd_code_prev    = NO_CMD;
 	uint8_t is_valid_cmd_code = 0;
 
+	// Firmware state - CRITICAL:
+	uint16_t state_fw         = ST_FW_CONNECTING;
+	uint16_t state_fw_prev    = ST_FW_CONNECTING;
+
+	// TODO: remove at a later time
+	// Old firmware states:
 	uint8_t exercise_state_prev = lowerlimb_sys_info.exercise_state;
+	// uint8_t  app_state;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Real-time counters, timers and switches:
 	///////////////////////////////////////////////////////////////////////////////
 
-	double T_RUN_MAX   = 5000;
-	double t_ref       = 0.0;
+	double T_RUN_MAX = 5000;
+	double t_ref     = 0.0;
 
-	int rt_step_i      = 0; // real-time step counter
+	int rt_step_i    = 0; // real-time step counter
 	int r_i, c_i; // general-purpose counters
 
 	int8_t switch_traj = SWITCH_TRAJ_NULL;
@@ -255,20 +261,21 @@ test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 
 			is_valid_cmd_code = is_valid_rcv_data_cmd_code(&cmd_code, Read_Haptic_Button(), motor_alert, USE_SOFTWARE_MSG_LIST, OVERRIDE_CMD_CODE_TESTS);
 
-			if (is_valid_cmd_code)
-				send_OK_resp(cmd_code);
+			if (is_valid_cmd_code) {
 
-			#if USE_ITM_CMD_CHECK
-				if (cmd_code != cmd_code_prev && cmd_code != 0) {
-					printf("   ======================================\n");
-					if (USE_SOFTWARE_MSG_LIST)
-						printf("   cmd_code(%d) [%s] \n", cmd_code, MSG_TCP_STR[cmd_code]);
+				#if USE_ITM_CMD_DISPLAY
+					printf("   --------------------------------------\n");
+					if (!USE_SOFTWARE_MSG_LIST)
+						printf("   cmd_code(%d) [%s] (state mach TCP app) \n", cmd_code, CMD_STR[cmd_code]);
 					else
-						printf("   cmd_code(%d) [%s] \n", cmd_code, CMD_STR[cmd_code]);
+						printf("   <test_real_time_stmachine_tcp_app()> SWITCH to TCP app command codes!!! \n");
 					printf(" \n");
-				}
-			#endif
+				#endif
 
+				cmd_code_prev = cmd_code;
+			}
+
+			// TODO: remove at a later date
 			// HACK: exercise state overrides:
 			if (lowerlimb_sys_info.exercise_state == SETUP)
 				lowerlimb_sys_info.exercise_state = RUNNING;
@@ -282,6 +289,61 @@ test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 			#if USE_ITM_OUT_GUI_PARAMS
 
 			#endif
+
+			///////////////////////////////////////////////////////////////////////////////
+			///////////////////////////////////////////////////////////////////////////////
+			// STATE MACHINE (2024.07.12):
+			///////////////////////////////////////////////////////////////////////////////
+			///////////////////////////////////////////////////////////////////////////////
+
+			if (state_fw == ST_FW_CONNECTING) {
+				if (cmd_code == AUTO_CALIB_MODE_CMD) {
+					// Response to cmd_code:
+					send_OK_resp(cmd_code);
+
+					// Change fw state:
+					state_fw = ST_FW_CALIBRATING;
+				}
+			}
+			else if (state_fw == ST_FW_CALIBRATING) {
+				// Calibration "bypass":
+				calib_enc_on = 0;
+				send_OK_resp(AUTO_CALIB_MODE_CMD);
+
+				// Change fw state:
+				state_fw = ST_FW_STDBY_START_POINT;
+			}
+			else if (state_fw == ST_FW_STDBY_START_POINT) {
+				if (cmd_code == START_RESUME_EXE_CMD) {
+					// Response to cmd_code:
+					send_OK_resp(cmd_code);
+
+					// Change fw state:
+					state_fw = ST_FW_EXERCISE_ON;
+				}
+			}
+			else if (state_fw == ST_FW_EXERCISE_ON) {
+				if (cmd_code == STOP_EXE_CMD) {
+					// Response to cmd_code:
+					send_OK_resp(cmd_code);
+
+					// Change fw state:
+					state_fw = ST_FW_STDBY_START_POINT;
+				}
+			}
+
+			#if USE_ITM_CMD_DISPLAY
+				if (state_fw != state_fw_prev || rt_step_i == 0) {
+					printf("______________________________________\n");
+					if (!USE_SOFTWARE_MSG_LIST)
+						printf("FIRMWARE STATE (%d) [%s] (state mach TCP app) \n", cmd_code, CMD_STR[cmd_code]);
+					else
+						printf("<test_real_time_stmachine_tcp_app()> SWITCH to TCP app command codes!!! \n");
+					printf(" \n");
+				}
+			#endif
+
+			state_fw_prev = state_fw;
 
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////

@@ -131,7 +131,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 						 (uint16_t) tcpRxData[payloadLen_index + 1];
 		}
 		else {
-			#if USE_ITM_CMD_CHECK
+			#if USE_ITM_CMD_DISPLAY
 				printf("   <<lowerlimb_app_onepass_ref()>> is_valid_msg = [0] \n\n");
 			#endif
 
@@ -139,13 +139,10 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 		}
 
 		////////////////////////////////////////////////////////////////////////////////
-		// Validate command code:
+		// Validate command code (NOTE: 'is_valid' functions reject a zero cmd_code (NO_CMD / NO_MSG_TCP) as invalid):
 		////////////////////////////////////////////////////////////////////////////////
 
-		if (cmd_code == NO_CMD)
-			return;
-
-		else if (!use_software_msg_list &&
+		if (!use_software_msg_list &&
 				is_valid_cmd_code_tcp_app(cmd_code, rxPayload,
 						lowerlimb_sys->system_state, lowerlimb_sys->activity_state, &lowerlimb_sys->app_status))
 							*cmd_code_ref = cmd_code;
@@ -155,7 +152,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 							*cmd_code_ref = cmd_code;
 
 		else {
-			#if USE_ITM_CMD_CHECK
+			#if USE_ITM_CMD_DISPLAY
 				printf("   <<lowerlimb_app_onepass_ref()>> use_software_msg_list = [%d], invalid cmd_code [%d] \n\n", use_software_msg_list, cmd_code);
 			#endif
 
@@ -164,7 +161,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	}
 
 	// Console output:
-	#if USE_ITM_CMD_CHECK
+	#if USE_ITM_CMD_DISPLAY
 		uint8_t idx_exerc_mode  = lowerlimb_sys->exercise_mode;
 		uint8_t idx_sys_state   = lowerlimb_sys->system_state;
 		uint8_t idx_activ_state = lowerlimb_sys->activity_state;
@@ -192,7 +189,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	_STDBY_START_POINT
 	*/
 
-	#if USE_ITM_CMD_CHECK
+	#if USE_ITM_CMD_DISPLAY
 		// NOTE: _CALIBRATE behaves differently
 		if (cmd_code == _START_SYSTEM 		||
 			cmd_code == _BRAKES_ON_OFF 		||
@@ -250,7 +247,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 
 		send_OK_resp(cmd_code);
 
-		#if USE_ITM_CMD_CHECK
+		#if USE_ITM_CMD_DISPLAY
 			printf("   _BRAKES_ON_OFF data: [%d]\n", tcpRxData[rx_payload_index]);
 			printf("   brakes disengaged: [");
 			if (lowerlimb_brakes_command.l_brake_disengage)
@@ -275,7 +272,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 			// Update activity state:
 			lowerlimb_sys->activity_state = CALIB;
 
-			#if USE_ITM_CMD_CHECK
+			#if USE_ITM_CMD_DISPLAY
 				idx_sys_state   = lowerlimb_sys->system_state;
 				idx_activ_state = lowerlimb_sys->activity_state;
 				idx_exerc_state = lowerlimb_sys->exercise_state;
@@ -290,7 +287,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 			// Zero-calibrate force sensors:
 			force_sensors_zero_calibrate(&hadc3);
 
-			#if USE_ITM_CMD_CHECK
+			#if USE_ITM_CMD_DISPLAY
 				printf("   <<lowerlimb_app_onepass_ref()>> [Force sensors calibrated] \n\n");
 			#endif
 
@@ -315,7 +312,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 
 		if (lowerlimb_sys->activity_state == CALIB && *calib_enc_on == 0) { // NOTE: *calib_enc_on is only zero'd by test_real_time_onepass_control()
 
-			#if USE_ITM_CMD_CHECK
+			#if USE_ITM_CMD_DISPLAY
 				printf("   <<lowerlimb_app_onepass_ref()>> [Encoders calibrated] \n\n");
 			#endif
 
@@ -355,7 +352,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 
 		send_OK_resp(cmd_code);
 
-		#if USE_ITM_CMD_CHECK
+		#if USE_ITM_CMD_DISPLAY
 			idx_exerc_mode  = lowerlimb_sys->exercise_mode;
 			printf("   exercise mode = [%s] \n\n", EXERC_MODE_STR[idx_exerc_mode]);
 		#endif
@@ -397,7 +394,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 			 cmd_code == _PEDAL_TRAVEL 			||
 			 cmd_code == _FORCE_THERAPY_CHANGE	||
 			 cmd_code == _STDBY_START_POINT) {
-				#if USE_ITM_CMD_CHECK
+				#if USE_ITM_CMD_DISPLAY
 					printf("   ----------------------------\n");
 					if (use_software_msg_list)
 						printf("   cmd_code(%d) [%s] \n", cmd_code, MSG_TCP_STR[cmd_code]);
@@ -417,14 +414,14 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 		send_error_msg(cmd_code, ERR_UNKNOWN);
 		lowerlimb_sys->app_status = ERR_UNKNOWN + 3;
 
-		#if USE_ITM_CMD_CHECK
+		#if USE_ITM_CMD_DISPLAY
 			printf("   <<lowerlimb_app_onepass_ref()>> cmd_code(%d) UNKNOWN \n", cmd_code);
 			printf("\n");
 		#endif
 		return;
 	}
 
-	#if USE_ITM_CMD_CHECK
+	#if USE_ITM_CMD_DISPLAY
 		// NOTE: _CALIBRATE behaves differently (2)
 		if (cmd_code == _START_SYSTEM 		||
 			cmd_code == _BRAKES_ON_OFF 		||
