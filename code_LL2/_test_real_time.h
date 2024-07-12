@@ -50,7 +50,8 @@
 
 // ITM Data Console switches:
 #define USE_ITM_OUT_RT_CHECK		1
-#define USE_ITM_OUT_RT_CHECK_LONG	1
+#define USE_ITM_OUT_UPTIME_CHECK	0
+#define USE_ITM_OUT_RT_CHECK_LONG	0
 #define USE_ITM_OUT_GUI_PARAMS		0
 #define USE_ITM_TCP_CHECK		    0
 
@@ -88,7 +89,7 @@ static uint64_t R_brakes_powersavetimer = 0;
 
 void test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
 void test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
-void test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
+void test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare helper functions (see main.c):

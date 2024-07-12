@@ -337,26 +337,29 @@ static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {
 	"ST_APP_STDBY_CONNECT"	};
 					
 ///////////////////////////////////////////////////////
-// Firmware states	ST_FW
+// Firmware states ST_FW (NEW VERSION 2024.07.12):
 ///////////////////////////////////////////////////////
 
 #define	OFFS_ST_FW		800		
-#define	LEN_ST_FW		5
+#define	LEN_ST_FW		7
 
 enum ST_FW {	
-	ST_FW_ADJUST_EXERCISE	=	800	,
-	ST_FW_CALIBRATING		=	801	,
-	ST_FW_CONNECTING		=	802	,
-	ST_FW_EXERCISE_ON		=	803	,
-	ST_FW_STDBY_START_POINT	=	804};
+	ST_FW_SYSTEM_OFF		=	800	,
+	ST_FW_CONNECTING		=	801	,
+	ST_FW_CALIBRATING		=	802	,
+	ST_FW_HOMING			=	803	,
+	ST_FW_ADJUST_EXERCISE	=	804	,
+	ST_FW_EXERCISE_ON		=	805	,
+	ST_FW_STDBY_AT_POSITION	=	806};
 
 static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {
-	"ST_FW_ADJUST_EXERCISE"	,
-	"ST_FW_CALIBRATING"	,
+	"ST_FW_SYSTEM_OFF"	,
 	"ST_FW_CONNECTING"	,
+	"ST_FW_CALIBRATING"	,
+	"ST_FW_HOMING" ,
+	"ST_FW_ADJUST_EXERCISE"	,
 	"ST_FW_EXERCISE_ON"	,
-	"ST_FW_STDBY_START_POINT",
-	"ST_FW_CONTROL_READY"
+	"ST_FW_STDBY_AT_POSITION",
 };
 
 ///////////////////////////////////////////////////////

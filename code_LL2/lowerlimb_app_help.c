@@ -91,25 +91,12 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 	static uint16_t cmd_code = 0; // CRITICAL to make it static
 	uint8_t rxPayload  = 0;
 
-	/*
-	uint8_t tmp_index  = 0;
-	uint8_t tmp_chk    = 0;
-	uint64_t ui64_tmp  = 0;
-	uint8_t tmp_resp_msg[465];
-	*/
-
 	////////////////////////////////////
 	// Constants & variables for parsing index:
 	////////////////////////////////////
 
 	const uint8_t cmdCode_index      = 3;
 	const uint8_t payloadLen_index   = 5;
-
-	/*
-	const uint8_t payloadStart_index = 7;
-	uint8_t rx_payload_index = payloadStart_index;
-	tcp_exercise_targ_params_t tmp_parsed_targ_params;
-	*/
 
 	////////////////////////////////////
 	// Test variable:
