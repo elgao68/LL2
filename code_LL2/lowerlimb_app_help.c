@@ -226,13 +226,31 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 		is_valid_msg_test = is_valid_cmd_code_tcp_app(cmd_code, rxPayload,
 			lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status);
 
-	if (is_valid_msg_test)
-		*cmd_code_ref = cmd_code;
-	else {
-		#if USE_ITM_CMD_CHECK
+	////////////////////////////////////////////////////////////////////////////////
+	// Assign command code to reference variable (CRITICAL):
+	////////////////////////////////////////////////////////////////////////////////
+
+	#if USE_ITM_CMD_CHECK
+		if (cmd_code != *cmd_code_ref ) {
+			if (use_software_msg_list)
+				printf("   <<is_valid_rcv_data_cmd_code()>> UNCONDITIONAL cmd code (%d) [%s] (previous cmd code (%d) [%s]) \n\n",
+						cmd_code, MSG_TCP_STR[cmd_code], *cmd_code_ref, MSG_TCP_STR[*cmd_code_ref]);
+			else
+				printf("   <<is_valid_rcv_data_cmd_code()>> UNCONDITIONAL cmd code (%d) [%s] (previous cmd code (%d) [%s]) \n\n",
+						cmd_code, CMD_STR[cmd_code], *cmd_code_ref, CMD_STR[*cmd_code_ref]);
+		}
+	#endif
+
+	*cmd_code_ref = cmd_code;
+
+	#if USE_ITM_CMD_CHECK
+		if (!is_valid_msg_test)
 			printf("   <<is_valid_rcv_data_cmd_code()>> invalid command code received [%d] (possible payload problem) \n\n", cmd_code);
-		#endif
-	}
+	#endif
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Return validity state:
+	////////////////////////////////////////////////////////////////////////////////
 
 	return is_valid_msg_test;
 }

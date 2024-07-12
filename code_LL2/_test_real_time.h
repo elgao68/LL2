@@ -68,16 +68,27 @@ static uint64_t brakes_nextTime = 0;
 static uint64_t expire_nextTime = 0;
 static uint8_t prev_fifo_size = 0;
 
-// ADC
+// ADC:
 static uint32_t dum_force_end_in_x = 0;
 static uint32_t dum_force_end_in_y = 0;
 static uint32_t current_sensor_L = 0;
 static uint32_t current_sensor_R = 0;
 
-// Motor driver feedback related:
-// static uint8_t tcpTxData[292];
-// static uint64_t L_brakes_powersavetimer = 0;
-// static uint64_t R_brakes_powersavetimer = 0;
+// TODO: remove at a later time
+/*
+// Motor driver - feedback-related:
+static uint8_t tcpTxData[292];
+static uint64_t L_brakes_powersavetimer = 0;
+static uint64_t R_brakes_powersavetimer = 0;
+*/
+
+////////////////////////////////////////////////////////////////////////////////
+// Declare tester functions (see main.c)::
+////////////////////////////////////////////////////////////////////////////////
+
+void test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
+void test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
+void test_real_time_stmachine_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare helper functions (see main.c):
@@ -85,12 +96,5 @@ static uint32_t current_sensor_R = 0;
 
 void cycle_haptic_buttons();
 void LED_sys_state_off();
-
-////////////////////////////////////////////////////////////////////////////////
-// Declare tester function:
-////////////////////////////////////////////////////////////////////////////////
-
-void test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
-void test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
 
 #endif /* CODE_LL2__TEST_REAL_TIME_H_ */
