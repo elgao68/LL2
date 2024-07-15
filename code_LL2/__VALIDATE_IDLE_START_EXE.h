@@ -29,7 +29,8 @@ if (lowerlimb_sys_info.exercise_mode != PassiveTrajectoryCtrl && \
 } \
 \
 clear_lowerlimb_motors_settings(LL_motors_settings); \
-clear_transition_mode_params(); \
 rx_payload_index += 1;
+
+/* clear_transition_mode_params(); // removed 15.07.2024 */
 
 #endif /* CODE_LL2___VALIDATE_IDLE_START_EXE_H_ */

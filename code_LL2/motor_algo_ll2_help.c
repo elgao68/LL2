@@ -549,9 +549,9 @@ get_motor_R_enable(lowerlimb_motors_settings_t* LL_motors_settings)
 void
 init_motor_algo(lowerlimb_mech_readings_t* LL_mech_readings, lowerlimb_motors_settings_t* LL_motors_settings)
 {
-    clear_lowerlimb_motors_settings(LL_motors_settings); // CRITICAL: might cause encoders to reset unexpectedly
+    clear_lowerlimb_motors_settings(LL_motors_settings); // CRITICAL: if unchecked it could cause encoders to reset unexpectedly
     clear_lowerlimb_mech_readings(LL_mech_readings);
-    clear_transition_mode_params();
+    // clear_transition_mode_params();
     
     ui8SafetyOff = 0;
 }

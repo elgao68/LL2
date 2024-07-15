@@ -249,14 +249,13 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	calib_traj_t calib_traj   = CalibTraj_Null;
 	uint8_t calib_encoders_on = 0;
 
-	// HOMING variables (HACK: we should do this without internal states):
+	// HOMING variables:
 	double OMEGA_THR_HOMING_START = 0.03;
 	uint8_t homing_on        = 0; // CRITICAL initialization
-	uint8_t init_homing_traj = 1;
 
 	// EXERCISE ON:
-	uint8_t exercise_state      = RUNNING;
-	uint8_t exercise_state_prev = exercise_state;
+	uint8_t exercise_substate      = RUNNING;
+	uint8_t exercise_substate_prev = exercise_substate;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Real-time counters, timers and switches:
@@ -300,7 +299,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	}
 
 	#if USE_ITM_OUT_RT_CHECK
-		printf("test_real_time_onepass_control():\n\n");
+		printf("test_real_time_stmach_control_tcp_app():\n\n");
 		printf("K_lq_xv_nml:\n");
 		for (r_i = 0; r_i < K_lq_xv_nml->num_rows; r_i++) {
 			for (c_i = 0; c_i < K_lq_xv_nml->num_cols; c_i++)
@@ -370,6 +369,9 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 			is_valid_cmd_code_tcp = is_valid_rcv_data_cmd_code(&cmd_code_tcp, Read_Haptic_Button(), motor_alert, USE_SOFTWARE_MSG_LIST, OVERRIDE_CMD_CODE_TESTS);
 
+			// Clear motor_alert (TODO: exactly what does this do)?
+			motor_alert = 0;
+
 			#if USE_ITM_CMD_DISPLAY
 				if (is_valid_cmd_code_tcp) {
 					printf("   --------------------------------------\n");
@@ -381,16 +383,9 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 				}
 			#endif
 
-			// TODO: remove at a later date
-			// HACK: exercise state overrides:
-			if (lowerlimb_sys_info.exercise_state == SETUP)
-				exercise_state = RUNNING;
-
 			///////////////////////////////////////////////////////////////////////////////
-			// Clear motor_alert after sending it to TCP/IP APP state:
+			// ITM Console output:
 			///////////////////////////////////////////////////////////////////////////////
-
-			motor_alert = 0;
 
 			#if USE_ITM_OUT_GUI_PARAMS
 				if (rt_step_i > 0 && rt_step_i % (DT_DISP_MSEC_GUI_PARAMS/DT_STEP_MSEC) == 0) {
@@ -446,37 +441,30 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			}
 
 			else if (state_fw == ST_FW_CALIBRATING) {
-
-				// Calibration completion detected:
+				// Calibration completion reported:
 				if (cmd_code_intern == START_HOMING_CMD) {
+
+					// Reset internal command code:
+					cmd_code_intern = NO_CMD;
 
 					// Response to cmd_code_tcp:
 					send_OK_resp(AUTO_CALIB_MODE_CMD);
 
 					// Change fw state:
 					state_fw = ST_FW_HOMING;
-
-					// Reset internal command code:
-					cmd_code_intern = NO_CMD;
 				}
-				else
-					calib_encoders_on = 0; // this initiates calibration
 			}
 
 			else if (state_fw == ST_FW_HOMING) {
-				// Command code "bypass":
-				/*
-				traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &init_homing_traj, &idx_scale,
-					dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
-					&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
-				 */
+				// Homing completion reported:
+				if (cmd_code_intern == STANDBY_CMD) {
 
-				// Exit condition:
-				if (!homing_on)
-					lowerlimb_sys_info.activity_state = IDLE;
+					// Reset internal command code:
+					cmd_code_intern = NO_CMD;
 
-				// Change fw state:
-				state_fw = ST_FW_STDBY_AT_POSITION;
+					// Change fw state:
+					state_fw = ST_FW_STDBY_AT_POSITION;
+				}
 			}
 
 			else if (state_fw == ST_FW_STDBY_AT_POSITION) {
@@ -622,18 +610,17 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 
 			///////////////////////////////////////////////////////////////////////////////
-			// Actions for multiple states:
+			// Actions for multiple fw states:
 			///////////////////////////////////////////////////////////////////////////////
 
-			if (lowerlimb_sys_info.activity_state != ST_FW_CALIBRATING)
-					idx_scale = IDX_SCALE_EXERCISE;
+			if (state_fw != ST_FW_CALIBRATING)
+				idx_scale = IDX_SCALE_EXERCISE;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// State: CONNECTING
 			///////////////////////////////////////////////////////////////////////////////
 
 			if (state_fw == ST_FW_CONNECTING) {
-
 				if (state_fw_changed) {
 					// Disengage brakes:
 					l_brakes(DISENGAGE_BRAKES);
@@ -646,7 +633,6 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 
 			else if (state_fw == ST_FW_STDBY_AT_POSITION) {
-
 				if (state_fw_changed) {
 					// Default kinematic reference:
 					p_ref[IDX_X]    = p_m[IDX_X];
@@ -664,12 +650,8 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			else if (state_fw == ST_FW_CALIBRATING) {
 
 				if (state_fw_changed) {
-				// Zero-calibrate force sensors:
+					// Zero-calibrate force sensors:
 					force_sensors_zero_calibrate(hadc3);
-
-					#if USE_ITM_CMD_DISPLAY
-						printf("   <<test_real_time_stmach_control_tcp_app()>> [Force sensors calibrated] \n\n");
-					#endif
 
 					// Reset encoders - CRITICAL:
 					qei_count_L_reset();
@@ -677,17 +659,21 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 					// Activate encoder calibration:
 					calib_encoders_on = 1;
+
+					#if USE_ITM_CMD_DISPLAY
+						printf("   <<test_real_time_stmach_control_tcp_app()>> [Force sensors calibrated] \n\n");
+					#endif
 				}
 
-				// Execute calibration trajectory (NOTE: calib_encoders_on is only zero'd by this call):
+				// Generate calibration trajectory (NOTE: calib_encoders_on can only be zero'd by this call):
 				traj_ref_calibration_ll2(
 					p_ref, dt_p_ref, &calib_encoders_on, &calib_traj, &idx_scale, z_intern_o_dbl,
 					dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
 					&LL_motors_settings, &traj_ctrl_params, traj_exerc_type, V_CALIB, FRAC_RAMP_CALIB);
 
 				// Signal end of calibration trajectory:
-				if (calib_encoders_on == 0) {
-					// Internal command switch: switch to HOMING state
+				if (!calib_encoders_on) {
+					// Internal command: switch to HOMING state
 					cmd_code_intern = START_HOMING_CMD;
 
 					#if USE_ITM_CMD_DISPLAY
@@ -701,7 +687,19 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 
 			else if (state_fw == ST_FW_HOMING) {
+				if (state_fw_changed)
+					// Activate homing:
+					homing_on = 1;
 
+				// Generate homing trajectory:
+				traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &idx_scale,
+					dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
+					&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
+
+				// Signal end of homing trajectory:
+				if (!homing_on)
+					// Internal command : switch to ST_FW_STDBY_AT_POSITION state
+					cmd_code_intern =  STANDBY_CMD;
 			}
 
 			///////////////////////////////////////////////////////////////////////////////
@@ -709,7 +707,88 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 
 			else if (state_fw == ST_FW_EXERCISE_ON) {
+				if (state_fw_changed) {
+					// Initial exercise substate:
+					exercise_substate = RUNNING;
 
+					clear_lowerlimb_motors_settings(&LL_motors_settings); // TODO: remove at a later date (inherited from __VALIDATE_IDLE_START_EXE)
+					// clear_transition_mode_params(); // TODO: remove at a later date
+
+					// Reset emergency alerts if any:
+					reset_emergency_alerts();
+				}
+
+				///////////////////////////////////////////////////////////////////////////////
+				// EXERCISE substate switches:
+				///////////////////////////////////////////////////////////////////////////////
+
+				if (exercise_substate_prev != RUNNING      && exercise_substate == RUNNING)
+					switch_traj = SWITCH_TRAJ_START;
+				else if (exercise_substate_prev != SLOWING && exercise_substate == SLOWING)
+					switch_traj = SWITCH_TRAJ_END;
+				else
+					switch_traj = SWITCH_TRAJ_NULL;
+
+				///////////////////////////////////////////////////////////////////////////////
+				// EXERCISE - SLOWING substate: reference time
+				///////////////////////////////////////////////////////////////////////////////
+
+				if (exercise_substate == SLOWING && exercise_substate_prev != SLOWING)
+					t_slow_ref = t_ref;
+
+				///////////////////////////////////////////////////////////////////////////////
+				// Generate reference trajectory:
+				///////////////////////////////////////////////////////////////////////////////
+
+				// Passive trajectory control:
+				if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
+					if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
+						traj_ref_step_passive_elliptic(
+							p_ref, dt_p_ref,
+							&phi_ref, &dt_phi_ref,
+							u_t_ref, dt_k,
+							traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
+					}
+					else
+						// Isometric trajectory OR safety catch:
+						traj_ref_step_isometric(
+							p_ref, dt_p_ref,
+							&phi_ref, &dt_phi_ref,
+							u_t_ref);
+				}
+
+				// Active trajectory control:
+				else if (lowerlimb_sys_info.exercise_mode == ActiveTrajectoryCtrl) {
+					if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj)
+						traj_ref_step_active_elliptic(
+							p_ref, dt_p_ref,
+							&phi_ref, &dt_phi_ref,
+							u_t_ref, dt_k, F_end_in, z_intern_o_dbl,
+							traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: elliptic was TRAJ_PARAMS_VARIABLE_ON
+					else
+						// Isometric trajectory OR safety catch:
+						traj_ref_step_isometric(
+							p_ref, dt_p_ref,
+							&phi_ref, &dt_phi_ref,
+							u_t_ref);
+				}
+
+				///////////////////////////////////////////////////////////////////////////////
+				// EXERCISE - SLOWING substate: detect when ready for HOMING state
+				///////////////////////////////////////////////////////////////////////////////
+
+				if (exercise_substate == SLOWING) {
+					t_slow = t_ref - t_slow_ref;
+
+					if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING_START) {
+						// Internal command: switch to HOMING state
+						cmd_code_intern = START_HOMING_CMD;
+
+						#if USE_ITM_OUT_RT_CHECK
+							printf("   <<test_real_time_stmach_control_tcp_app()>> HOMING condition detected \n\n");
+						#endif
+					}
+				}
 			}
 
 			///////////////////////////////////////////////////////////////////////////////
@@ -853,7 +932,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					// Display section:
 					#if USE_ITM_OUT_RT_CHECK
 						printf("\n");
-						printf("   <<test_real_time_onepass_control()>> MOTOR ALERT = [%d] \n\n", motor_alert);
+						printf("   <<test_real_time_stmach_control_tcp_app()>> MOTOR ALERT = [%d] \n\n", motor_alert);
 					#endif
 				}
 
@@ -873,9 +952,9 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			// Track changes of state / command code:
 			///////////////////////////////////////////////////////////////////////////////
 
-			state_fw_prev = state_fw;
-			cmd_code_tcp_prev = cmd_code_tcp;
-			exercise_state_prev = exercise_state;
+			state_fw_prev          = state_fw;
+			cmd_code_tcp_prev      = cmd_code_tcp;
+			exercise_substate_prev = exercise_substate;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// ITM console output:
@@ -924,7 +1003,6 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					/*
 					printf("   calib_encoders_on = [%d], cmd_code_tcp_prev = [%s], cmd_code_tcp = [%s] \n",
 							calib_encoders_on, CMD_STR[cmd_code_tcp_prev], CMD_STR[cmd_code_tcp]);
-					printf("   lowerlimb_sys_info.activity_state = [%s] \n",   ACTIV_STATE_STR[lowerlimb_sys_info.activity_state]);
 					printf("\n");
 					*/
 				}

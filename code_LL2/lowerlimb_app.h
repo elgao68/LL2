@@ -28,7 +28,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "w5500_app.h"
-#include "transition_mode.h"
+// #include "transition_mode.h"
 
 ///////////////////////////////////////////////////////
 // Macros files:
@@ -57,8 +57,8 @@
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 
-#define LEN_STR_MAX   35
-#define LEN_CMD_LIST 20
+#define LEN_STR_MAX   	35
+#define LEN_CMD_LIST	21
 
 // Commands enumeration:
 enum {
@@ -82,6 +82,7 @@ enum {
 	SET_TARG_PARAM_ADMCTRL_CMD = 17,
 	SET_TARG_PARAM_ATRAJCTRL_CMD = 18,
 	START_HOMING_CMD = 19,
+	STANDBY_CMD = 20,
 };
 
 // Command strings (must match commands enumeration):
@@ -105,7 +106,8 @@ static char CMD_STR[LEN_CMD_LIST][LEN_STR_MAX] = {
 	"SET_TARG_PARAM_PTRAJCTRL_CMD",
 	"SET_TARG_PARAM_ADMCTRL_CMD",
 	"SET_TARG_PARAM_ATRAJCTRL_CMD",
-	"START_HOMING_CMD"
+	"START_HOMING_CMD",
+	"STANDBY_CMD"
 };
 
 // system_state:

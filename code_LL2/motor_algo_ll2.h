@@ -19,7 +19,7 @@
 #include <lowerlimb_config.h>
 #include <traj_ctrl_params_nml.h>
 #include <qei_motor_drivers_LL2.h>
-#include "transition_mode.h"
+// #include "transition_mode.h"
 
 #ifdef __cplusplus
 	extern "C" {

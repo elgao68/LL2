@@ -478,7 +478,7 @@ traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8
 
 	// Exit condition:
 	if (t_home >= FACT_T_REF*T_f_home) {
-		*homing_on     = 0; // this will cause homing trajectory to stop
+		*homing_on       = 0; // this will cause homing trajectory to stop
 		init_homing_traj = 1;
 	}
 
