@@ -426,11 +426,11 @@ traj_ref_calibration_ll2(
 ///////////////////////////////////////////////////////////////////////////////
 
 void
-traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* init_home_traj, uint8_t* idx_scale,
+traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* idx_scale,
 	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
 	traj_ctrl_params_t* traj_ctrl_params, double v_calib, double frac_ramp_calib) {
 
-	const double FACT_T_REF = 1.05; // HAC: extend trajectory reference time to avoid a speed jump during state transition
+	const double FACT_T_REF = 1.05; // HACK: extend trajectory reference time to avoid a speed jump during state transition
 
 	// Homing end points:
 	static double p_home_o[N_COORD_2D] = {0.0, 0.0};
@@ -443,12 +443,16 @@ traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8
 	static double t_home   = 0.0;
 	t_home = step_i*dt_k;
 
+	// State variables:
+	static uint8_t init_homing_traj = 1;
+
 	// Dummy variables:
 	double u_t_ref_dum[N_COORD_2D] = {0.0, 0.0};
 	double pos_rel_home_dum        = 0.0;
 	double dt_pos_rel_home_dum     = 0.0;
 
-	if (*init_home_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
+	if (*homing_on && init_homing_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
+
 		// Set up next HOMING trajectory:
 		p_home_o[IDX_X] = p_m[IDX_X];
 		p_home_o[IDX_Y] = p_m[IDX_Y];
@@ -461,21 +465,24 @@ traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8
 		p_home_f[IDX_Y] = p_ref[IDX_Y];
 
 		// Control gains scale array:
-		idx_scale = IDX_SCALE_CALIB;
+		*idx_scale = IDX_SCALE_CALIB;
 	}
 
-	// Generate trajectory points:
+	// Generate trajectory points (NOTE: this zeroes init_homing_traj):
 	traj_linear_points(	p_ref, dt_p_ref, u_t_ref_dum, dt_k,
-						p_home_o, p_home_f, v_calib, frac_ramp_calib, init_home_traj, &T_f_home,
+						p_home_o, p_home_f, v_calib, frac_ramp_calib, &init_homing_traj, &T_f_home,
 						&pos_rel_home_dum, &dt_pos_rel_home_dum);
 
 	// Increase step counter:
 	step_i++;
 
 	// Exit condition:
-	if (t_home >= FACT_T_REF*T_f_home)
-		*homing_on = 0; // this will cause homing trajectory to stop
+	if (t_home >= FACT_T_REF*T_f_home) {
+		*homing_on     = 0; // this will cause homing trajectory to stop
+		init_homing_traj = 1;
+	}
 
+	// ITM Console output:
 	#if USE_ITM_OUT_CALIB_CHECK
 		if (step_i % (DT_DISP_MSEC_CALIB/DT_STEP_MSEC) == 0) {
 			printf("   ----------------------------\n");

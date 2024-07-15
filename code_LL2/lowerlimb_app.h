@@ -58,7 +58,7 @@
 ///////////////////////////////////////////////////////
 
 #define LEN_STR_MAX   35
-#define LEN_CMD_LIST 19
+#define LEN_CMD_LIST 20
 
 // Commands enumeration:
 enum {
@@ -81,6 +81,7 @@ enum {
 	SET_TARG_PARAM_PTRAJCTRL_CMD = 16,
 	SET_TARG_PARAM_ADMCTRL_CMD = 17,
 	SET_TARG_PARAM_ATRAJCTRL_CMD = 18,
+	START_HOMING_CMD = 19,
 };
 
 // Command strings (must match commands enumeration):
@@ -103,7 +104,8 @@ static char CMD_STR[LEN_CMD_LIST][LEN_STR_MAX] = {
 	"SET_CTRLPARAMS",
 	"SET_TARG_PARAM_PTRAJCTRL_CMD",
 	"SET_TARG_PARAM_ADMCTRL_CMD",
-	"SET_TARG_PARAM_ATRAJCTRL_CMD"
+	"SET_TARG_PARAM_ATRAJCTRL_CMD",
+	"START_HOMING_CMD"
 };
 
 // system_state:

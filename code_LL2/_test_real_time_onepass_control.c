@@ -227,7 +227,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 	double OMEGA_THR_HOMING_START = 0.03;
 
 	uint8_t homing_on      = 0; // CRITICAL initialization
-	uint8_t init_home_traj = 1;
+	// uint8_t init_homing_traj = 1; // TODO: remove at a later date
 
 	///////////////////////////////////////////////////////////////////////////////
 	// IDLE activity state variables:
@@ -650,8 +650,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 							if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING_START) {
 								homing_on      = 1; // HACK: specifically to bypass [lowerlimb_sys_info.exercise_state] returned by [lowerlimb_app_onepass_ref()]
-								init_home_traj = 1; // CRITICAL: enables homing starting from the correct start point
-
+								// init_homing_traj = 1; // TODO: remove at a later date
 								lowerlimb_sys_info.activity_state = HOMING;
 								lowerlimb_sys_info.exercise_state = STOPPED;
 
@@ -680,8 +679,9 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 				else if (lowerlimb_sys_info.activity_state == HOMING) {
 
+					/*
 					#if USE_ITM_OUT_RT_CHECK
-						if (init_home_traj) {
+						if (init_homing_traj) {
 							idx_sys_state   = lowerlimb_sys_info.system_state;
 							idx_activ_state = lowerlimb_sys_info.activity_state;
 							idx_exerc_state = lowerlimb_sys_info.exercise_state;
@@ -693,8 +693,9 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 							printf("\n");
 						}
 					#endif
+					*/
 
-					traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &init_home_traj, &idx_scale,
+					traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &idx_scale, // was &homing_on, &init_homing_traj, &idx_scale
 						dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
 						&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
 

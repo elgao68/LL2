@@ -215,28 +215,6 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	double t_slow_ref = 0.0;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// CALIBRATION variables:
-	///////////////////////////////////////////////////////////////////////////////
-
-	calib_traj_t calib_traj = CalibTraj_Null;
-	uint8_t calib_enc_on    = 0;
-
-	///////////////////////////////////////////////////////////////////////////////
-	// HOMING variables:
-	///////////////////////////////////////////////////////////////////////////////
-
-	double OMEGA_THR_HOMING_START = 0.03;
-
-	uint8_t homing_on      = 0; // CRITICAL initialization
-	uint8_t init_home_traj = 1;
-
-	///////////////////////////////////////////////////////////////////////////////
-	// IDLE activity state variables:
-	///////////////////////////////////////////////////////////////////////////////
-
-	uint8_t init_idle_activity_state = 1;
-
-	///////////////////////////////////////////////////////////////////////////////
 	// TCP/IP variables:
 	///////////////////////////////////////////////////////////////////////////////
 
@@ -247,22 +225,38 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	uint64_t dt_ret_tcp_msec = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// State variables:
+	// Firmware state & command code variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	// Command codes:
-	uint16_t cmd_code         = NO_CMD;
-	uint16_t cmd_code_prev    = NO_CMD;
-	uint8_t is_valid_cmd_code = 0;
+	// Command codes - TCP:
+	uint16_t cmd_code_tcp         = NO_CMD;
+	uint16_t cmd_code_tcp_prev    = cmd_code_tcp;
+	uint8_t is_valid_cmd_code_tcp = 0;
+
+	// Command codes - firmware (internal):
+	uint16_t cmd_code_intern     = NO_CMD;
 
 	// Firmware state - CRITICAL:
 	uint16_t state_fw         = ST_FW_SYSTEM_OFF;
-	uint16_t state_fw_prev    = ST_FW_SYSTEM_OFF;
+	uint16_t state_fw_prev    = state_fw;
+	uint8_t state_fw_changed  = 0;
 
-	// TODO: remove at a later time
-	// Old firmware states:
-	uint8_t exercise_state_prev = lowerlimb_sys_info.exercise_state;
-	// uint8_t  app_state;
+	///////////////////////////////////////////////////////////////////////////////
+	// Firmware substates:
+	///////////////////////////////////////////////////////////////////////////////
+
+	// CALIBRATION:
+	calib_traj_t calib_traj   = CalibTraj_Null;
+	uint8_t calib_encoders_on = 0;
+
+	// HOMING variables (HACK: we should do this without internal states):
+	double OMEGA_THR_HOMING_START = 0.03;
+	uint8_t homing_on        = 0; // CRITICAL initialization
+	uint8_t init_homing_traj = 1;
+
+	// EXERCISE ON:
+	uint8_t exercise_state      = RUNNING;
+	uint8_t exercise_state_prev = exercise_state;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Real-time counters, timers and switches:
@@ -366,7 +360,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					printf("ethernet_w5500_state(): SOCKET STATUS [0x%02x]\n", sock_status);
 
 					// Current TCP return message and time:
-					printf("rt_step_i [%d]: cmd_code = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code, ret_tcp_msg, (int)dt_ret_tcp_msec);
+					printf("rt_step_i [%d]: cmd_code_tcp = [%d], ret_tcp_msg = [%d], dt_ret_tcp_msec = [%d]\n\n", rt_step_i, cmd_code_tcp, ret_tcp_msg, (int)dt_ret_tcp_msec);
 				}
 			#endif
 
@@ -374,26 +368,23 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			// Get TCP/IP message:
 			//////////////////////////////////////////////////////////////////////////////////
 
-			is_valid_cmd_code = is_valid_rcv_data_cmd_code(&cmd_code, Read_Haptic_Button(), motor_alert, USE_SOFTWARE_MSG_LIST, OVERRIDE_CMD_CODE_TESTS);
+			is_valid_cmd_code_tcp = is_valid_rcv_data_cmd_code(&cmd_code_tcp, Read_Haptic_Button(), motor_alert, USE_SOFTWARE_MSG_LIST, OVERRIDE_CMD_CODE_TESTS);
 
-			if (is_valid_cmd_code) {
-
-				#if USE_ITM_CMD_DISPLAY
+			#if USE_ITM_CMD_DISPLAY
+				if (is_valid_cmd_code_tcp) {
 					printf("   --------------------------------------\n");
 					if (!USE_SOFTWARE_MSG_LIST)
-						printf("   cmd_code(%d) [%s] (state mach TCP app) \n", cmd_code, CMD_STR[cmd_code]);
+						printf("   cmd_code_tcp(%d) [%s] (state mach TCP app) \n", cmd_code_tcp, CMD_STR[cmd_code_tcp]);
 					else
 						printf("   <test_real_time_stmach_control_tcp_app()> SWITCH to TCP app command codes!!! \n");
 					printf(" \n");
-				#endif
-
-				cmd_code_prev = cmd_code;
-			}
+				}
+			#endif
 
 			// TODO: remove at a later date
 			// HACK: exercise state overrides:
 			if (lowerlimb_sys_info.exercise_state == SETUP)
-				lowerlimb_sys_info.exercise_state = RUNNING;
+				exercise_state = RUNNING;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// Clear motor_alert after sending it to TCP/IP APP state:
@@ -435,9 +426,9 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 
 			if (state_fw == ST_FW_SYSTEM_OFF) {
-				if (cmd_code == START_SYS_CMD) {
-					// Response to cmd_code:
-					send_OK_resp(cmd_code);
+				if (cmd_code_tcp == START_SYS_CMD) {
+					// Response to cmd_code_tcp:
+					send_OK_resp(cmd_code_tcp);
 
 					// Change fw state:
 					state_fw =  ST_FW_CONNECTING;
@@ -445,9 +436,9 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			}
 
 			if (state_fw == ST_FW_CONNECTING) {
-				if (cmd_code == AUTO_CALIB_MODE_CMD) {
-					// Response to cmd_code:
-					send_OK_resp(cmd_code);
+				if (cmd_code_tcp == AUTO_CALIB_MODE_CMD) {
+					// Response to cmd_code_tcp:
+					send_OK_resp(cmd_code_tcp);
 
 					// Change fw state:
 					state_fw = ST_FW_CALIBRATING;
@@ -455,27 +446,43 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			}
 
 			else if (state_fw == ST_FW_CALIBRATING) {
-				// Command code "bypass":
-				calib_enc_on = 0;
 
-				// Response to cmd_code:
-				// send_OK_resp(AUTO_CALIB_MODE_CMD);
+				// Calibration completion detected:
+				if (cmd_code_intern == START_HOMING_CMD) {
 
-				// Change fw state:
-				state_fw = ST_FW_HOMING;
+					// Response to cmd_code_tcp:
+					send_OK_resp(AUTO_CALIB_MODE_CMD);
+
+					// Change fw state:
+					state_fw = ST_FW_HOMING;
+
+					// Reset internal command code:
+					cmd_code_intern = NO_CMD;
+				}
+				else
+					calib_encoders_on = 0; // this initiates calibration
 			}
 
 			else if (state_fw == ST_FW_HOMING) {
 				// Command code "bypass":
+				/*
+				traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &init_homing_traj, &idx_scale,
+					dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
+					&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
+				 */
+
+				// Exit condition:
+				if (!homing_on)
+					lowerlimb_sys_info.activity_state = IDLE;
 
 				// Change fw state:
 				state_fw = ST_FW_STDBY_AT_POSITION;
 			}
 
 			else if (state_fw == ST_FW_STDBY_AT_POSITION) {
-				if (cmd_code == START_RESUME_EXE_CMD) {
-					// Response to cmd_code:
-					send_OK_resp(cmd_code);
+				if (cmd_code_tcp == START_RESUME_EXE_CMD) {
+					// Response to cmd_code_tcp:
+					send_OK_resp(cmd_code_tcp);
 
 					// Change fw state:
 					state_fw = ST_FW_EXERCISE_ON;
@@ -483,31 +490,32 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			}
 
 			else if (state_fw == ST_FW_EXERCISE_ON) {
-				if (cmd_code == STOP_EXE_CMD) {
-					// Response to cmd_code:
-					send_OK_resp(cmd_code);
+				if (cmd_code_tcp == STOP_EXE_CMD) {
+					// Response to cmd_code_tcp:
+					send_OK_resp(cmd_code_tcp);
 
 					// Change fw state:
 					state_fw = ST_FW_STDBY_AT_POSITION;
 				}
 			}
 
+			// Register change of state (CRITICAL):
+			state_fw_changed = (state_fw != state_fw_prev);
+
 			///////////////////////////////////////////////////////////////////////////////
 			// ITM Console output:
 			///////////////////////////////////////////////////////////////////////////////
 
 			#if USE_ITM_CMD_DISPLAY
-				if (state_fw != state_fw_prev || rt_step_i == 0) {
+				if (state_fw_changed || rt_step_i == 0) {
 					printf("______________________________________\n");
 					if (!USE_SOFTWARE_MSG_LIST)
-						printf("FIRMWARE STATE (%d) [%s] (state mach TCP app) \n", cmd_code, CMD_STR[cmd_code]);
+						printf("FIRMWARE STATE (%d) [%s] (state machine TCP app) \n", state_fw, STR_ST_FW[state_fw]);
 					else
 						printf("<test_real_time_stmach_control_tcp_app()> SWITCH to TCP app command codes!!! \n");
 					printf(" \n");
 				}
 			#endif
-
-			state_fw_prev = state_fw;
 
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
@@ -614,11 +622,39 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 
 			///////////////////////////////////////////////////////////////////////////////
+			// Actions for multiple states:
+			///////////////////////////////////////////////////////////////////////////////
+
+			if (lowerlimb_sys_info.activity_state != ST_FW_CALIBRATING)
+					idx_scale = IDX_SCALE_EXERCISE;
+
+			///////////////////////////////////////////////////////////////////////////////
 			// State: CONNECTING
 			///////////////////////////////////////////////////////////////////////////////
 
 			if (state_fw == ST_FW_CONNECTING) {
 
+				if (state_fw_changed) {
+					// Disengage brakes:
+					l_brakes(DISENGAGE_BRAKES);
+					r_brakes(DISENGAGE_BRAKES);
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			// State: STANDBY
+			///////////////////////////////////////////////////////////////////////////////
+
+			else if (state_fw == ST_FW_STDBY_AT_POSITION) {
+
+				if (state_fw_changed) {
+					// Default kinematic reference:
+					p_ref[IDX_X]    = p_m[IDX_X];
+					p_ref[IDX_Y]    = p_m[IDX_Y];
+
+					dt_p_ref[IDX_X] = 0.0;
+					dt_p_ref[IDX_Y] = 0.0;
+				}
 			}
 
 			///////////////////////////////////////////////////////////////////////////////
@@ -627,6 +663,37 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 			else if (state_fw == ST_FW_CALIBRATING) {
 
+				if (state_fw_changed) {
+				// Zero-calibrate force sensors:
+					force_sensors_zero_calibrate(hadc3);
+
+					#if USE_ITM_CMD_DISPLAY
+						printf("   <<test_real_time_stmach_control_tcp_app()>> [Force sensors calibrated] \n\n");
+					#endif
+
+					// Reset encoders - CRITICAL:
+					qei_count_L_reset();
+					qei_count_R_reset();
+
+					// Activate encoder calibration:
+					calib_encoders_on = 1;
+				}
+
+				// Execute calibration trajectory (NOTE: calib_encoders_on is only zero'd by this call):
+				traj_ref_calibration_ll2(
+					p_ref, dt_p_ref, &calib_encoders_on, &calib_traj, &idx_scale, z_intern_o_dbl,
+					dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
+					&LL_motors_settings, &traj_ctrl_params, traj_exerc_type, V_CALIB, FRAC_RAMP_CALIB);
+
+				// Signal end of calibration trajectory:
+				if (calib_encoders_on == 0) {
+					// Internal command switch: switch to HOMING state
+					cmd_code_intern = START_HOMING_CMD;
+
+					#if USE_ITM_CMD_DISPLAY
+						printf("   <<test_real_time_stmach_control_tcp_app()>> [Encoders calibrated] \n\n");
+					#endif
+				}
 			}
 
 			///////////////////////////////////////////////////////////////////////////////
@@ -642,14 +709,6 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 
 			else if (state_fw == ST_FW_EXERCISE_ON) {
-
-			}
-
-			///////////////////////////////////////////////////////////////////////////////
-			// State: STANDBY
-			///////////////////////////////////////////////////////////////////////////////
-
-			else if (state_fw == ST_FW_STDBY_AT_POSITION) {
 
 			}
 
@@ -811,12 +870,12 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			} // end if (state_fw != ST_FW_SYSTEM_OFF) - FINAL
 
 			///////////////////////////////////////////////////////////////////////////////
-			// Track changes of state:
+			// Track changes of state / command code:
 			///////////////////////////////////////////////////////////////////////////////
 
-			exercise_state_prev = lowerlimb_sys_info.exercise_state;
-
-			cmd_code_prev = cmd_code;
+			state_fw_prev = state_fw;
+			cmd_code_tcp_prev = cmd_code_tcp;
+			exercise_state_prev = exercise_state;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// ITM console output:
@@ -863,8 +922,8 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					*/
 
 					/*
-					printf("   calib_enc_on = [%d], cmd_code_prev = [%s], cmd_code = [%s] \n",
-							calib_enc_on, CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
+					printf("   calib_encoders_on = [%d], cmd_code_tcp_prev = [%s], cmd_code_tcp = [%s] \n",
+							calib_encoders_on, CMD_STR[cmd_code_tcp_prev], CMD_STR[cmd_code_tcp]);
 					printf("   lowerlimb_sys_info.activity_state = [%s] \n",   ACTIV_STATE_STR[lowerlimb_sys_info.activity_state]);
 					printf("\n");
 					*/
