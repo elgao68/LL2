@@ -210,8 +210,8 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	double err_int_pos[N_COORD_2D]      = {0.0, 0.0};
 	double err_int_pos_prev[N_COORD_2D] = {0.0, 0.0};
 
-	// Exercise substate - SLOWING:
-	double t_slow   = 0.0; // TODO: consider using an implementation that doesn't require an explicit time reference (local step counts?)
+	// Exercise mode - SLOWING:
+	double t_slow     = 0.0; // TODO: consider using an implementation that doesn't require an explicit time reference (local step counts?)
 	double t_slow_ref = 0.0;
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -233,8 +233,8 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	uint16_t cmd_code_tcp_prev    = cmd_code_tcp;
 	uint8_t is_valid_cmd_code_tcp = 0;
 
-	// Command codes - firmware (internal):
-	uint16_t cmd_code_intern     = NO_CMD;
+	// Internal firmware messages:
+	uint16_t msg_code_intern     = NO_CMD;
 
 	// Firmware state - CRITICAL:
 	uint16_t state_fw         = ST_FW_SYSTEM_OFF;
@@ -242,23 +242,26 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	uint8_t state_fw_changed  = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Firmware substates:
+	// Firmware modes / modes:
 	///////////////////////////////////////////////////////////////////////////////
 
-	// CALIBRATION:
+	// CALIBRATION modes:
 	calib_traj_t calib_traj   = CalibTraj_Null;
-	uint8_t calib_encoders_on = 0;
+	uint8_t calib_enc_traj_on = 0;
 
-	// HOMING variables:
+	// HOMING modes:
 	double OMEGA_THR_HOMING_START = 0.03;
-	uint8_t homing_on        = 0; // CRITICAL initialization
+	uint8_t homing_traj_on        = 0; // CRITICAL initialization
 
-	// EXERCISE ON:
-	uint8_t exercise_substate      = RUNNING;
-	uint8_t exercise_substate_prev = exercise_substate;
+	// EXERCISE modes:
+	uint8_t mode_exerc      = RUNNING;
+	uint8_t mode_exerc_prev = mode_exerc;
+
+	// Trajectory modes:
+	int8_t mode_traj = MODE_TRAJ_NULL; // NOTE: this is a SIGNED integer
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Real-time counters, timers and switches:
+	// Real-time counters and timers:
 	///////////////////////////////////////////////////////////////////////////////
 
 	double T_RUN_MAX = 5000;
@@ -266,19 +269,6 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 	int rt_step_i    = 0; // real-time step counter
 	int r_i, c_i; // general-purpose counters
-
-	int8_t switch_traj = SWITCH_TRAJ_NULL;
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Display variables:
-	///////////////////////////////////////////////////////////////////////////////
-
-	// TODO: remove at a later date
-	#if USE_ITM_OUT_RT_CHECK
-		uint8_t idx_sys_state;
-		uint8_t idx_activ_state;
-		uint8_t idx_exerc_state;
-	#endif
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Control settings:
@@ -416,10 +406,14 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
-			// STATE MACHINE (2024.07.12):
+			// STATE MACHINE for TCP app commands:
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
 
+			state_machine_ll2_tcp_app(&state_fw, cmd_code_tcp, &msg_code_intern, &mode_exerc);
+
+			// TODO: remove at a later date:
+			/*
 			if (state_fw == ST_FW_SYSTEM_OFF) {
 				if (cmd_code_tcp == START_SYS_CMD) {
 					// Response to cmd_code_tcp:
@@ -442,10 +436,10 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 			else if (state_fw == ST_FW_CALIBRATING) {
 				// Calibration completion reported:
-				if (cmd_code_intern == START_HOMING_CMD) {
+				if (msg_code_intern == CALIB_ENC_COMPLETED_CMD) {
 
 					// Reset internal command code:
-					cmd_code_intern = NO_CMD;
+					msg_code_intern = NO_CMD;
 
 					// Response to cmd_code_tcp:
 					send_OK_resp(AUTO_CALIB_MODE_CMD);
@@ -457,10 +451,10 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 			else if (state_fw == ST_FW_HOMING) {
 				// Homing completion reported:
-				if (cmd_code_intern == STANDBY_CMD) {
+				if (msg_code_intern == HOMING_COMPLETED_CMD) {
 
 					// Reset internal command code:
-					cmd_code_intern = NO_CMD;
+					msg_code_intern = NO_CMD;
 
 					// Change fw state:
 					state_fw = ST_FW_STDBY_AT_POSITION;
@@ -468,6 +462,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			}
 
 			else if (state_fw == ST_FW_STDBY_AT_POSITION) {
+				// Start / resume exercise:
 				if (cmd_code_tcp == START_RESUME_EXE_CMD) {
 					// Response to cmd_code_tcp:
 					send_OK_resp(cmd_code_tcp);
@@ -475,17 +470,35 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					// Change fw state:
 					state_fw = ST_FW_EXERCISE_ON;
 				}
-			}
-
-			else if (state_fw == ST_FW_EXERCISE_ON) {
-				if (cmd_code_tcp == STOP_EXE_CMD) {
+				// Stop "system":
+				else if (cmd_code_tcp == STOP_SYS_CMD) {
 					// Response to cmd_code_tcp:
 					send_OK_resp(cmd_code_tcp);
 
 					// Change fw state:
-					state_fw = ST_FW_STDBY_AT_POSITION;
+					state_fw = ST_FW_SYSTEM_OFF;
 				}
 			}
+
+			else if (state_fw == ST_FW_EXERCISE_ON) {
+				if (cmd_code_tcp == STOP_EXE_CMD)
+					// Initiate exercise slow-down:
+					mode_exerc = SLOWING;
+
+				// Exercise stop completion reported:
+				else if (msg_code_intern == SLOWING_COMPLETED_CMD) {
+
+					// Reset internal command code:
+					msg_code_intern = NO_CMD;
+
+					// Response to cmd_code_tcp:
+					send_OK_resp(STOP_EXE_CMD);
+
+					// Change fw state:
+					state_fw = ST_FW_HOMING;
+				}
+			}
+			*/
 
 			// Register change of state (CRITICAL):
 			state_fw_changed = (state_fw != state_fw_prev);
@@ -498,7 +511,8 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 				if (state_fw_changed || rt_step_i == 0) {
 					printf("______________________________________\n");
 					if (!USE_SOFTWARE_MSG_LIST)
-						printf("FIRMWARE STATE (%d) [%s] (state machine TCP app) \n", state_fw, STR_ST_FW[state_fw]);
+						printf("FIRMWARE STATE (%d) [%s] (TCP app): exercise mode (%d) [%s] \n",
+							state_fw, STR_ST_FW[state_fw - OFFS_ST_FW], mode_exerc, MODE_EXERC_STR[mode_exerc]);
 					else
 						printf("<test_real_time_stmach_control_tcp_app()> SWITCH to TCP app command codes!!! \n");
 					printf(" \n");
@@ -658,23 +672,27 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					qei_count_R_reset();
 
 					// Activate encoder calibration:
-					calib_encoders_on = 1;
+					calib_enc_traj_on = 1;
 
 					#if USE_ITM_CMD_DISPLAY
 						printf("   <<test_real_time_stmach_control_tcp_app()>> [Force sensors calibrated] \n\n");
 					#endif
 				}
 
-				// Generate calibration trajectory (NOTE: calib_encoders_on can only be zero'd by this call):
+				// Generate calibration trajectory (NOTE: calib_enc_traj_on can only be zero'd by this call):
 				traj_ref_calibration_ll2(
-					p_ref, dt_p_ref, &calib_encoders_on, &calib_traj, &idx_scale, z_intern_o_dbl,
+					p_ref, dt_p_ref, &calib_enc_traj_on, &calib_traj, &idx_scale, z_intern_o_dbl,
 					dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
 					&LL_motors_settings, &traj_ctrl_params, traj_exerc_type, V_CALIB, FRAC_RAMP_CALIB);
 
+				// HACK: if motor torque is inactive, consider encoder calibration completed (only for testing):
+				if (!motor_torque_active)
+					calib_enc_traj_on = 0;
+
 				// Signal end of calibration trajectory:
-				if (!calib_encoders_on) {
-					// Internal command: switch to HOMING state
-					cmd_code_intern = START_HOMING_CMD;
+				if (!calib_enc_traj_on) {
+					// Internal message: calibration completed
+					msg_code_intern = CALIB_ENC_COMPLETED_CMD;
 
 					#if USE_ITM_CMD_DISPLAY
 						printf("   <<test_real_time_stmach_control_tcp_app()>> [Encoders calibrated] \n\n");
@@ -683,23 +701,23 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			}
 
 			///////////////////////////////////////////////////////////////////////////////
-			// State: CALIBRATING
+			// State: HOMING
 			///////////////////////////////////////////////////////////////////////////////
 
 			else if (state_fw == ST_FW_HOMING) {
 				if (state_fw_changed)
 					// Activate homing:
-					homing_on = 1;
+					homing_traj_on = 1;
 
 				// Generate homing trajectory:
-				traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &idx_scale,
+				traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_traj_on, &idx_scale,
 					dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
 					&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
 
 				// Signal end of homing trajectory:
-				if (!homing_on)
-					// Internal command : switch to ST_FW_STDBY_AT_POSITION state
-					cmd_code_intern =  STANDBY_CMD;
+				if (!homing_traj_on)
+					// Internal message : homing completed
+					msg_code_intern = HOMING_COMPLETED_CMD;
 			}
 
 			///////////////////////////////////////////////////////////////////////////////
@@ -708,47 +726,34 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 			else if (state_fw == ST_FW_EXERCISE_ON) {
 				if (state_fw_changed) {
-					// Initial exercise substate:
-					exercise_substate = RUNNING;
-
+					// Resets (inherited):
 					clear_lowerlimb_motors_settings(&LL_motors_settings); // TODO: remove at a later date (inherited from __VALIDATE_IDLE_START_EXE)
 					// clear_transition_mode_params(); // TODO: remove at a later date
 
 					// Reset emergency alerts if any:
 					reset_emergency_alerts();
 				}
-
-				///////////////////////////////////////////////////////////////////////////////
-				// EXERCISE substate switches:
-				///////////////////////////////////////////////////////////////////////////////
-
-				if (exercise_substate_prev != RUNNING      && exercise_substate == RUNNING)
-					switch_traj = SWITCH_TRAJ_START;
-				else if (exercise_substate_prev != SLOWING && exercise_substate == SLOWING)
-					switch_traj = SWITCH_TRAJ_END;
-				else
-					switch_traj = SWITCH_TRAJ_NULL;
-
-				///////////////////////////////////////////////////////////////////////////////
-				// EXERCISE - SLOWING substate: reference time
-				///////////////////////////////////////////////////////////////////////////////
-
-				if (exercise_substate == SLOWING && exercise_substate_prev != SLOWING)
-					t_slow_ref = t_ref;
+				else if (mode_exerc_prev != SLOWING && mode_exerc == SLOWING)
+					t_slow_ref  = t_ref;
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Generate reference trajectory:
 				///////////////////////////////////////////////////////////////////////////////
 
+				// Trajectory mode:
+				if (mode_exerc != SLOWING)
+					mode_traj = MODE_TRAJ_START;
+				else
+					mode_traj = MODE_TRAJ_END;
+
 				// Passive trajectory control:
 				if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
-					if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
+					if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj)
 						traj_ref_step_passive_elliptic(
 							p_ref, dt_p_ref,
 							&phi_ref, &dt_phi_ref,
 							u_t_ref, dt_k,
-							traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
-					}
+							traj_ctrl_params, mode_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
 					else
 						// Isometric trajectory OR safety catch:
 						traj_ref_step_isometric(
@@ -764,7 +769,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 							p_ref, dt_p_ref,
 							&phi_ref, &dt_phi_ref,
 							u_t_ref, dt_k, F_end_in, z_intern_o_dbl,
-							traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: elliptic was TRAJ_PARAMS_VARIABLE_ON
+							traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, mode_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: elliptic was TRAJ_PARAMS_VARIABLE_ON
 					else
 						// Isometric trajectory OR safety catch:
 						traj_ref_step_isometric(
@@ -774,18 +779,19 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 				}
 
 				///////////////////////////////////////////////////////////////////////////////
-				// EXERCISE - SLOWING substate: detect when ready for HOMING state
+				// EXERCISE - SLOWING mode: detect when completed
 				///////////////////////////////////////////////////////////////////////////////
 
-				if (exercise_substate == SLOWING) {
+				if (mode_exerc == SLOWING) {
 					t_slow = t_ref - t_slow_ref;
 
-					if (t_slow > T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING_START) {
-						// Internal command: switch to HOMING state
-						cmd_code_intern = START_HOMING_CMD;
+					if (t_slow >= T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING_START) {
+						// Internal message: slowing-down completed
+						msg_code_intern = SLOWING_COMPLETED_CMD;
 
 						#if USE_ITM_OUT_RT_CHECK
 							printf("   <<test_real_time_stmach_control_tcp_app()>> HOMING condition detected \n\n");
+							printf("   t_slow = [%3.2f], T_exp = [%3.2f], dt_phi_ref = [%3.3f] \n\n", t_slow, T_exp, dt_phi_ref);
 						#endif
 					}
 				}
@@ -907,13 +913,19 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 				// Send motor commands:
 				///////////////////////////////////////////////////////////////////////////////
 
-				// TODO: verify this implementation is correct - CRITICAL
-				// Check motor activation status:
-				if (      state_fw == ST_FW_CALIBRATING     && MOTOR_TORQUE_ACTIVE_CALIB)
-								motor_torque_active = 1; // NOTE: this "clamps" motor activation even in future IDLE states
-				else if ((state_fw == ST_FW_ADJUST_EXERCISE && MOTOR_TORQUE_ACTIVE_JOG      == 0) ||
-						 (state_fw == ST_FW_EXERCISE_ON     && MOTOR_TORQUE_ACTIVE_EXERCISE == 0) )
-								motor_torque_active = 0;
+				// Motor activation status - CRITICAL
+				if (state_fw == ST_FW_SYSTEM_OFF || state_fw == ST_FW_CONNECTING)
+					motor_torque_active = 0;
+				else if (state_fw == ST_FW_CALIBRATING)
+					motor_torque_active = 0;
+				else if (state_fw == ST_FW_HOMING)
+					motor_torque_active = 0;
+				else if (state_fw == ST_FW_ADJUST_EXERCISE)
+					motor_torque_active = 0;
+				else if (state_fw == ST_FW_EXERCISE_ON)
+					motor_torque_active = 0;
+				else if (state_fw == ST_FW_STDBY_AT_POSITION)
+					motor_torque_active = 0;
 
 				// Issue motion commands to motors - CRITICAL:
 				if (motor_alert != 1 && motor_alert != 2) {
@@ -954,7 +966,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 			state_fw_prev          = state_fw;
 			cmd_code_tcp_prev      = cmd_code_tcp;
-			exercise_substate_prev = exercise_substate;
+			mode_exerc_prev    = mode_exerc;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// ITM console output:
@@ -1001,8 +1013,8 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					*/
 
 					/*
-					printf("   calib_encoders_on = [%d], cmd_code_tcp_prev = [%s], cmd_code_tcp = [%s] \n",
-							calib_encoders_on, CMD_STR[cmd_code_tcp_prev], CMD_STR[cmd_code_tcp]);
+					printf("   calib_enc_traj_on = [%d], cmd_code_tcp_prev = [%s], cmd_code_tcp = [%s] \n",
+							calib_enc_traj_on, CMD_STR[cmd_code_tcp_prev], CMD_STR[cmd_code_tcp]);
 					printf("\n");
 					*/
 				}

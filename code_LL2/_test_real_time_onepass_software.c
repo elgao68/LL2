@@ -162,7 +162,7 @@ test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* had
 	int rt_step_i      = 0; // real-time step counter
 	int r_i, c_i; // general-purpose counters
 
-	int8_t switch_traj = SWITCH_TRAJ_NULL;
+	int8_t switch_traj = MODE_TRAJ_NULL;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Display variables:
@@ -377,13 +377,13 @@ test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* had
 				else if (lowerlimb_sys_info.activity_state == EXERCISE) {
 
 					///////////////////////////////////////////////////////////////////////////////
-					// Exercise substate switch:
+					// Exercise mode switch:
 					///////////////////////////////////////////////////////////////////////////////
 
 					if (lowerlimb_sys_info.exercise_state == RUNNING || lowerlimb_sys_info.exercise_state == SLOWING) {
 
 						///////////////////////////////////////////////////////////////////////////////
-						// SLOWING substate: reference time
+						// SLOWING mode: reference time
 						///////////////////////////////////////////////////////////////////////////////
 
 						if (lowerlimb_sys_info.exercise_state == SLOWING && exercise_state_prev != SLOWING) {
@@ -397,7 +397,7 @@ test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* had
 						// RESTORE
 
 						///////////////////////////////////////////////////////////////////////////////
-						// SLOWING exercise substate: detect "ready for HOMING" activity state
+						// SLOWING exercise mode: detect "ready for HOMING" activity state
 						///////////////////////////////////////////////////////////////////////////////
 
 						if (lowerlimb_sys_info.exercise_state == SLOWING) {
@@ -406,12 +406,12 @@ test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* had
 					} // end if (lowerlimb_sys_info.exercise_state == RUNNING || lowerlimb_sys_info.exercise_state == SLOWING)
 
 					///////////////////////////////////////////////////////////////////////////////
-					// Invalid exercise substate:
+					// Invalid exercise mode:
 					///////////////////////////////////////////////////////////////////////////////
 
 					else {
 						#if USE_ITM_OUT_RT_CHECK
-							printf("   <test_real_time_onepass_software()> Invalid exercise substate [%s] for activity_state == EXERCISE] \n\n", EXERC_STATE_STR[lowerlimb_sys_info.exercise_state]);
+							printf("   <test_real_time_onepass_software()> Invalid exercise mode [%s] for activity_state == EXERCISE] \n\n", MODE_EXERC_STR[lowerlimb_sys_info.exercise_state]);
 						#endif
 					}
 				} // end if (lowerlimb_sys_info.activity_state == EXERCISE)

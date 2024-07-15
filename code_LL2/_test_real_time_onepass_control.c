@@ -209,7 +209,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 	double err_int_pos[N_COORD_2D]      = {0.0, 0.0};
 	double err_int_pos_prev[N_COORD_2D] = {0.0, 0.0};
 
-	// Exercise substate - SLOWING:
+	// Exercise mode - SLOWING:
 	double t_slow   = 0.0; // TODO: consider using an implementation that doesn't require an explicit time reference (local step counts?)
 	double t_slow_ref = 0.0;
 
@@ -264,7 +264,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 	int rt_step_i      = 0; // real-time step counter
 	int r_i, c_i; // general-purpose counters
 
-	int8_t switch_traj = SWITCH_TRAJ_NULL;
+	int8_t switch_traj = MODE_TRAJ_NULL;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Display variables:
@@ -492,11 +492,11 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 				///////////////////////////////////////////////////////////////////////////////
 
 				if (exercise_state_prev != RUNNING && lowerlimb_sys_info.exercise_state == RUNNING)
-					switch_traj = SWITCH_TRAJ_START;
+					switch_traj = MODE_TRAJ_START;
 				else if (exercise_state_prev != SLOWING && lowerlimb_sys_info.exercise_state == SLOWING)
-					switch_traj = SWITCH_TRAJ_END;
-				else
-					switch_traj = SWITCH_TRAJ_NULL;
+					switch_traj = MODE_TRAJ_END;
+				// else
+				// 	switch_traj = MODE_TRAJ_NULL;
 
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
@@ -535,7 +535,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 							printf("   <<test_real_time_onepass_control()>> [IDLE]:\n");
 							printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 							printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-							printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+							printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
 							printf("\n");
 						#endif
 					}
@@ -576,13 +576,13 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 				else if (lowerlimb_sys_info.activity_state == EXERCISE) {
 
 					///////////////////////////////////////////////////////////////////////////////
-					// Exercise substate switch:
+					// Exercise mode switch:
 					///////////////////////////////////////////////////////////////////////////////
 
 					if (lowerlimb_sys_info.exercise_state == RUNNING || lowerlimb_sys_info.exercise_state == SLOWING) {
 
 						///////////////////////////////////////////////////////////////////////////////
-						// SLOWING substate: reference time
+						// SLOWING mode: reference time
 						///////////////////////////////////////////////////////////////////////////////
 
 						if (lowerlimb_sys_info.exercise_state == SLOWING && exercise_state_prev != SLOWING) {
@@ -596,7 +596,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 								printf("   <<test_real_time_onepass_control()>> [SLOWING] (no cmd code):\n");
 								printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 								printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-								printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+								printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
 								printf("\n");
 								printf("   t_slow_ref = [%3.2f]\n", t_slow_ref);
 								printf("\n");
@@ -641,7 +641,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 						}
 
 						///////////////////////////////////////////////////////////////////////////////
-						// SLOWING exercise substate: detect "ready for HOMING" activity state
+						// SLOWING exercise mode: detect "ready for HOMING" activity state
 						///////////////////////////////////////////////////////////////////////////////
 
 						if (lowerlimb_sys_info.exercise_state == SLOWING) {
@@ -662,12 +662,12 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 					} // end if (lowerlimb_sys_info.exercise_state == RUNNING || lowerlimb_sys_info.exercise_state == SLOWING)
 
 					///////////////////////////////////////////////////////////////////////////////
-					// Invalid exercise substate:
+					// Invalid exercise mode:
 					///////////////////////////////////////////////////////////////////////////////
 
 					else {
 						#if USE_ITM_OUT_RT_CHECK
-							printf("   <<test_real_time_onepass_control()>> Invalid exercise substate [%s] for activity_state == EXERCISE] \n\n", EXERC_STATE_STR[lowerlimb_sys_info.exercise_state]);
+							printf("   <<test_real_time_onepass_control()>> Invalid exercise mode [%s] for activity_state == EXERCISE] \n\n", MODE_EXERC_STR[lowerlimb_sys_info.exercise_state]);
 						#endif
 					}
 				} // end if (lowerlimb_sys_info.activity_state == EXERCISE)

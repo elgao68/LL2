@@ -204,7 +204,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 				printf("   BEFORE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
 				printf(" \n");
 		}
 	#endif
@@ -280,7 +280,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 				printf("   INTERMEDIATE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
 				printf("\n");
 			#endif
 
@@ -436,7 +436,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 				printf("   AFTER: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-				printf("   exercise_state: [%s]\n", EXERC_STATE_STR[idx_exerc_state]);
+				printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
 				printf(" \n");
 		}
 	#endif

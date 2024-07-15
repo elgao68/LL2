@@ -24,7 +24,7 @@ traj_ref_step_active_elliptic(
 	double p_ref[],	double dt_p_ref[],
 	double* phi_ref, double* dt_phi_ref,
 	double u_t_ref[], double dt_k, double F_end_in[], double z_intern_o_dbl[],
-	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int use_admitt_model_constr, int8_t switch_traj, int8_t use_traj_params_variable) {
+	traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int use_admitt_model_constr, int8_t mode_traj, int8_t use_traj_params_variable) {
 
     ///////////////////////////////////////////////////////////////////////////////
     // Declare static matrices:
@@ -166,14 +166,14 @@ traj_ref_step_active_elliptic(
 		static double ax_x_o;
 		static double ax_y_o;
 
-		if (switch_traj == SWITCH_TRAJ_START && traj_params_behav != TRAJ_PARAMS_GROW)	{
+		if (mode_traj == MODE_TRAJ_START && traj_params_behav != TRAJ_PARAMS_GROW)	{
 			traj_params_behav = TRAJ_PARAMS_GROW;
 
 			t_param_o = t_ref;
 			ax_x_o = ax_x_adj;
 			ax_y_o = ax_y_adj;
 		}
-		else if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
+		else if (mode_traj == MODE_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
 			traj_params_behav = TRAJ_PARAMS_DECAY;
 
 			t_param_o = t_ref;
@@ -196,7 +196,7 @@ traj_ref_step_active_elliptic(
     ///////////////////////////////////////////////////////////////////////////////
 
 	else {
-		if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
+		if (mode_traj == MODE_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
 			traj_params_behav = TRAJ_PARAMS_DECAY;
 
 			t_param_o = t_ref;

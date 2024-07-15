@@ -18,7 +18,7 @@ traj_ref_step_passive_elliptic(
 		double p_ref[],	double dt_p_ref[],
 		double* phi_ref, double* dt_phi_ref,
 		double u_t_ref[], double dt_k,
-		traj_ctrl_params_t traj_ctrl_params, int8_t switch_traj, int8_t use_traj_params_variable) {
+		traj_ctrl_params_t traj_ctrl_params, int8_t mode_traj, int8_t use_traj_params_variable) {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// COPY TRAJECTORY PARAMETERS TO LOCAL SCOPE VARIABLES:
@@ -82,7 +82,7 @@ traj_ref_step_passive_elliptic(
 		// Trajectory start and stop: reference values
 		///////////////////////////////////////////////////////////////////////////////
 
-		if (switch_traj == SWITCH_TRAJ_START && traj_params_behav != TRAJ_PARAMS_GROW)	{
+		if (mode_traj == MODE_TRAJ_START && traj_params_behav != TRAJ_PARAMS_GROW)	{
 			traj_params_behav = TRAJ_PARAMS_GROW;
 
 			t_param_o = t_ref;
@@ -90,7 +90,7 @@ traj_ref_step_passive_elliptic(
 			ax_y_o = ax_y_adj;
 
 		}
-		else if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
+		else if (mode_traj == MODE_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
 			traj_params_behav = TRAJ_PARAMS_DECAY;
 
 			t_param_o = t_ref;
@@ -117,7 +117,7 @@ traj_ref_step_passive_elliptic(
 	///////////////////////////////////////////////////////////////////////////////
 
 	else {
-		if (switch_traj == SWITCH_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
+		if (mode_traj == MODE_TRAJ_END && traj_params_behav != TRAJ_PARAMS_DECAY) {
 			traj_params_behav = TRAJ_PARAMS_DECAY;
 
 			t_param_o = t_ref;

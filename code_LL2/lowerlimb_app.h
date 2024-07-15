@@ -58,7 +58,7 @@
 ///////////////////////////////////////////////////////
 
 #define LEN_STR_MAX   	35
-#define LEN_CMD_LIST	21
+#define LEN_CMD_LIST	22
 
 // Commands enumeration:
 enum {
@@ -79,10 +79,12 @@ enum {
 	SET_OFFSET_CMD = 14,
 	SET_CTRLPARAMS = 15,
 	SET_TARG_PARAM_PTRAJCTRL_CMD = 16,
-	SET_TARG_PARAM_ADMCTRL_CMD = 17,
+	SET_TARG_PARAM_ADMCTRL_CMD   = 17,
 	SET_TARG_PARAM_ATRAJCTRL_CMD = 18,
-	START_HOMING_CMD = 19,
-	STANDBY_CMD = 20,
+	// HACK: these are not exactly commands but messages:
+	CALIB_ENC_COMPLETED_CMD      = 19,
+	HOMING_COMPLETED_CMD         = 20,
+	SLOWING_COMPLETED_CMD        = 21
 };
 
 // Command strings (must match commands enumeration):
@@ -106,8 +108,9 @@ static char CMD_STR[LEN_CMD_LIST][LEN_STR_MAX] = {
 	"SET_TARG_PARAM_PTRAJCTRL_CMD",
 	"SET_TARG_PARAM_ADMCTRL_CMD",
 	"SET_TARG_PARAM_ATRAJCTRL_CMD",
-	"START_HOMING_CMD",
-	"STANDBY_CMD"
+	"CALIB_ENC_COMPLETED_CMD",
+	"HOMING_COMPLETED_CMD",
+	"SLOWING_COMPLETED_CMD"
 };
 
 // system_state:
@@ -150,8 +153,8 @@ enum {
 	STOPPED = 0, RUNNING = 1, PAUSED = 2, SETUP = 3, SLOWING = 4
 };
 
-#define LEN_EXERC_STATE 5
-static char EXERC_STATE_STR[LEN_EXERC_STATE][LEN_STR_MAX] = {
+#define LEN_MODE_EXERC 5
+static char MODE_EXERC_STR[LEN_MODE_EXERC][LEN_STR_MAX] = {
 	"STOPPED",
 	"RUNNING",
 	"PAUSED",
