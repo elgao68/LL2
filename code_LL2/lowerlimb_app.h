@@ -47,11 +47,12 @@
 
 #define USE_ITM_CMD_DISPLAY    		1
 #define USE_ITM_VALID_CMD_CHECK		0
+#define USE_ITM_EXERC_MODE_CHECK	1
 
 #define TRAJ_PARAMS_VARIABLE_OFF 	0
 #define TRAJ_PARAMS_VARIABLE_ON 	1
 
-#define OVERRIDE_CMD_CODE_TESTS     0
+// #define OVERRIDE_CMD_CODE_TESTS     0 // TODO: remove at a later date
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -73,13 +74,13 @@ enum {
 	READ_SYS_INFO_CMD   = 6,
 	AUTO_CALIB_MODE_CMD = 7,
 	SET_TARG_PARAM_IMPCTRL_CMD = 8,
-	START_RESUME_EXE_CMD       = 9,
-	PAUSE_EXE_CMD     = 10,
-	STOP_EXE_CMD      = 11,
-	TOGGLE_SAFETY_CMD = 12,
-	BRAKES_CMD        = 13,
-	SET_OFFSET_CMD    = 14,
-	SET_CTRLPARAMS    = 15,
+	START_EXERCISE_CMD  = 9,
+	PAUSE_EXERCISE_CMD  = 10,
+	STOP_EXERCISE_CMD   = 11,
+	TOGGLE_SAFETY_CMD   = 12,
+	BRAKES_CMD          = 13,
+	SET_OFFSET_CMD      = 14,
+	SET_CTRLPARAMS      = 15,
 	SET_TARG_PARAM_PTRAJCTRL_CMD = 16,
 	SET_TARG_PARAM_ADMCTRL_CMD   = 17,
 	SET_TARG_PARAM_ATRAJCTRL_CMD = 18,
@@ -100,9 +101,9 @@ static char CMD_STR[LEN_CMD_LIST][LEN_STR_MAX] = {
 	"READ_SYS_INFO_CMD",
 	"AUTO_CALIB_MODE_CMD",
 	"SET_TARG_PARAM_IMPCTRL_CMD",
-	"START_RESUME_EXE_CMD",
-	"PAUSE_EXE_CMD",
-	"STOP_EXE_CMD",
+	"START_EXERCISE_CMD",
+	"PAUSE_EXERCISE_CMD",
+	"STOP_EXERCISE_CMD",
 	"TOGGLE_SAFETY_CMD",
 	"BRAKES_CMD",
 	"SET_OFFSET_CMD",
@@ -155,8 +156,8 @@ enum {
 	STOPPED = 0, RUNNING = 1, PAUSED = 2, SETUP = 3, SLOWING = 4
 };
 
-#define LEN_MODE_EXERC 5
-static char MODE_EXERC_STR[LEN_MODE_EXERC][LEN_STR_MAX] = {
+#define LEN_PACE_EXERC 5
+static char PACE_EXERC_STR[LEN_PACE_EXERC][LEN_STR_MAX] = {
 	"STOPPED",
 	"RUNNING",
 	"PAUSED",
@@ -227,6 +228,7 @@ static char STR_MSG_APP[LEN_MSG_APP][LEN_STR_MAX] = {
 // Firmware messages (internal)	MSG_FW
 ///////////////////////////////////////////////////////
 
+/*
 #define	OFFS_MSG_FW		500		
 #define	LEN_MSG_FW		3		
 enum MSG_FW {	
@@ -238,6 +240,7 @@ static char STR_MSG_FW[LEN_MSG_FW][LEN_STR_MAX] = {
 	"MSG_FW_CALIBRATING"	,
 	"MSG_FW_EXERCISE_ON"	,
 	"MSG_FW_STDBY_START_POINT"	};
+*/
 
 ///////////////////////////////////////////////////////
 // TCP messages	MSG_TCP	(1st VERSION):
@@ -531,19 +534,19 @@ typedef struct {
 	uint8_t r_brake_status;
 } lowerlimb_exercise_feedback_params_t;
 
-///////////////////////////////////////////////////////////////////////
-// Message validation functions, high-level:
-///////////////////////////////////////////////////////////////////////
-
-uint8_t is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t use_software_msg_list);
-
 ///////////////////////////////////////////////////////
-// Message validation functions, low-level:
+// Message validation variables, low-level:
 ///////////////////////////////////////////////////////
 
+// Constants for parsing index:
+static uint8_t cmdCode_index      = 3;
+static uint8_t payloadLen_index   = 5;
+static uint8_t payloadStart_index = 7;
+
+// Brakes command:
 static lowerlimb_brakes_command_t lowerlimb_brakes_command;
 
-//TCP messages:
+// TCP messages:
 static uint8_t tcpRxData[DATA_BUF_SIZE];
 static uint16_t tcpRxLen = 0;
 extern ADC_HandleTypeDef hadc3;
@@ -552,8 +555,15 @@ extern ADC_HandleTypeDef hadc3;
 static uint8_t PREAMP_TCP[2]  = { 0x48, 0x4D };
 static uint8_t POSTAMP_TCP[2] = { 0x68, 0x6D };
 
+///////////////////////////////////////////////////////////////////////
+// Message validation functions, high-level:
+///////////////////////////////////////////////////////////////////////
+
+uint8_t is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert,
+		uint8_t use_software_msg_list, lowerlimb_sys_info_t* lowerlimb_sys, uint8_t tcp_rx[]);
+
 ///////////////////////////////////////////////////////
-// Message validation functions:
+// Message validation functions, low-level:
 ///////////////////////////////////////////////////////
 
 uint8_t is_valid_w5500_msg(uint8_t tcp_rx_data[]);
@@ -617,12 +627,12 @@ uint8_t send_lowerlimb_exercise_feedback_help(uint64_t up_time,
 								float fRefVel_x, float fRefVel_y,
 								float fRefPhase, float fRefFreq);
 
+uint8_t send_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings,
+		lowerlimb_motors_settings_t* motor_settings, lowerlimb_ref_kinematics_t* ref_kinematics);
+
 ///////////////////////////////////////////////////////////////////////
 // Helper functions:
 ///////////////////////////////////////////////////////////////////////
-
-uint8_t send_lowerlimb_exercise_feedback(uint64_t up_time, lowerlimb_mech_readings_t* mech_readings, lowerlimb_motors_settings_t* motor_settings,
-		lowerlimb_ref_kinematics_t* ref_kinematics);
 
 void send_lowerlimb_sys_info(uint8_t tmp_resp_msg[], uint16_t cmd_code);
 void reset_lowerlimb_sys_info(void);
@@ -647,6 +657,7 @@ void set_r_brake_status(uint8_t status);
 
 void set_brakes_simple();
 void set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time);
+exercise_mode_t get_exercise_mode_tcp_app(uint8_t tcp_rx[]);
 
 void* memcpy_msb(void *pDest, const void *pSrc, unsigned long len);
 

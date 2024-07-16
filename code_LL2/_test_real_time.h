@@ -46,7 +46,7 @@
 
 // Assorted timers:
 #define DT_EXPIRE_MSEC				1000
-#define DT_DISP_MSEC_REALTIME		1000
+#define DT_DISP_MSEC_REALTIME		2000
 #define DT_DISP_MSEC_GUI_PARAMS		2000
 
 // ITM Data Console switches:

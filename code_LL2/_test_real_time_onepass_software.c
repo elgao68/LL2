@@ -411,7 +411,7 @@ test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* had
 
 					else {
 						#if USE_ITM_OUT_RT_CHECK
-							printf("   <test_real_time_onepass_software()> Invalid exercise mode [%s] for activity_state == EXERCISE] \n\n", MODE_EXERC_STR[lowerlimb_sys_info.exercise_state]);
+							printf("   <test_real_time_onepass_software()> Invalid exercise mode [%s] for activity_state == EXERCISE] \n\n", PACE_EXERC_STR[lowerlimb_sys_info.exercise_state]);
 						#endif
 					}
 				} // end if (lowerlimb_sys_info.activity_state == EXERCISE)

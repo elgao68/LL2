@@ -293,25 +293,24 @@ bool force_sensors_read(ADC_HandleTypeDef* hadc, uint32_t* left_x, uint32_t * le
 	return true;
 }
 
-bool current_sensors_read(ADC_HandleTypeDef* hadc, uint32_t* r, uint32_t * p)
+bool current_sensors_read(ADC_HandleTypeDef* hadc, uint32_t* left, uint32_t * right)
 {
-	//Get force sensor p value and assign to structure
-	if (HAL_ADC_Start(hadc) != HAL_OK || HAL_ADC_PollForConversion(hadc, 100) != HAL_OK)
-	{
-		*r = -1;
-		*p = -1;
-		return false;
-	}
-	*r = HAL_ADC_GetValue(hadc);
 
-	//Get force sensor r value and assign to structure
 	if (HAL_ADC_Start(hadc) != HAL_OK || HAL_ADC_PollForConversion(hadc, 100) != HAL_OK)
 	{
-		*r = -1;
-		*p = -1;
+		*left = -1;
+		*right = -1;
 		return false;
 	}
-	*p = HAL_ADC_GetValue(hadc);
+	*left = HAL_ADC_GetValue(hadc);
+
+	if (HAL_ADC_Start(hadc) != HAL_OK || HAL_ADC_PollForConversion(hadc, 100) != HAL_OK)
+	{
+		*left = -1;
+		*right = -1;
+		return false;
+	}
+	*right = HAL_ADC_GetValue(hadc);
 
 	return true;
 }

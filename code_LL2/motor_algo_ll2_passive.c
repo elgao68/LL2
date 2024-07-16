@@ -193,7 +193,7 @@ void traj_ref_step_isometric(
 
 void
 traj_ref_calibration_ll2(
-	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale, double z_intern_o_dbl[],
+	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale_gain, double z_intern_o_dbl[],
 	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
 	lowerlimb_motors_settings_t* LL_motors_settings, traj_ctrl_params_t* traj_ctrl_params, uint8_t traj_exerc_type, double v_calib, double frac_ramp_calib) {
 
@@ -235,7 +235,7 @@ traj_ref_calibration_ll2(
 		p_calib_f[IDX_Y] = p_calib_o[IDX_Y] - DIST_CALIB_MAX;
 
 		// Control gains scale array:
-		*idx_scale = IDX_SCALE_CALIB;
+		*idx_scale_gain = IDX_SCALE_GAIN_CALIB;
 
 		// Trajectory initiation command:
 		init_calib_traj  = 1;
@@ -258,7 +258,7 @@ traj_ref_calibration_ll2(
 		p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
 
 		// Control gains scale array:
-		*idx_scale = IDX_SCALE_CALIB;
+		*idx_scale_gain = IDX_SCALE_GAIN_CALIB;
 
 		// Trajectory initiation command:
 		init_calib_traj  = 1;
@@ -285,7 +285,7 @@ traj_ref_calibration_ll2(
 		p_calib_f[IDX_Y] = 0.5*D_WKSPC_LL2_Y;
 
 		// Control gains scale array:
-		*idx_scale = IDX_SCALE_EXERCISE;
+		*idx_scale_gain = IDX_SCALE_GAIN_EXERCISE;
 
 		// Trajectory initiation command:
 		init_calib_traj  = 1;
@@ -339,7 +339,7 @@ traj_ref_calibration_ll2(
 		z_intern_o_dbl[IDX_DT_PHI] = dt_phi_o;
 
 		// Control gains scale array:
-		*idx_scale = IDX_SCALE_EXERCISE;
+		*idx_scale_gain = IDX_SCALE_GAIN_EXERCISE;
 
 		// Trajectory initiation command:
 		init_calib_traj  = 1;
@@ -426,7 +426,7 @@ traj_ref_calibration_ll2(
 ///////////////////////////////////////////////////////////////////////////////
 
 void
-traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* idx_scale,
+traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* idx_scale_gain,
 	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
 	traj_ctrl_params_t* traj_ctrl_params, double v_calib, double frac_ramp_calib) {
 
@@ -465,7 +465,7 @@ traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8
 		p_home_f[IDX_Y] = p_ref[IDX_Y];
 
 		// Control gains scale array:
-		*idx_scale = IDX_SCALE_CALIB;
+		*idx_scale_gain = IDX_SCALE_GAIN_CALIB;
 	}
 
 	// Generate trajectory points (NOTE: this zeroes init_homing_traj):

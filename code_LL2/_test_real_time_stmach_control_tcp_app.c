@@ -182,7 +182,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	// Gain and scaling variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	uint8_t idx_scale = IDX_SCALE_EXERCISE; // scale arrays selector, activity-based (CRITICAL)
+	uint8_t idx_scale_gain = IDX_SCALE_GAIN_EXERCISE; // scale arrays selector, activity-based (CRITICAL)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Force commands:
@@ -252,8 +252,8 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	uint8_t homing_traj_on        = 0; // CRITICAL initialization
 
 	// EXERCISE modes:
-	uint8_t mode_exerc      = RUNNING;
-	uint8_t mode_exerc_prev = mode_exerc;
+	uint8_t pace_exerc      = RUNNING;
+	uint8_t pace_exerc_prev = pace_exerc;
 
 	// Trajectory modes:
 	int8_t mode_traj = MODE_TRAJ_NULL; // NOTE: this is a SIGNED integer
@@ -355,7 +355,9 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			// Get TCP/IP message:
 			//////////////////////////////////////////////////////////////////////////////////
 
-			is_valid_cmd_code_tcp = is_valid_rcv_data_cmd_code(&cmd_code_tcp, Read_Haptic_Button(), motor_alert, USE_SOFTWARE_MSG_LIST);
+			is_valid_cmd_code_tcp =
+					is_valid_rcv_data_cmd_code(&cmd_code_tcp, Read_Haptic_Button(), motor_alert,
+							USE_SOFTWARE_MSG_LIST, &lowerlimb_sys_info, tcpRxData);
 
 			// Clear motor_alert (TODO: what exactly does this do)?
 			motor_alert = 0;
@@ -408,7 +410,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
 
-			state_machine_ll2_tcp_app(&state_fw, &cmd_code_tcp, &msg_code_intern, &mode_exerc);
+			state_machine_ll2_tcp_app(&state_fw, &cmd_code_tcp, &msg_code_intern, &pace_exerc);
 
 			// Register change of state (CRITICAL):
 			state_fw_changed = (state_fw != state_fw_prev);
@@ -422,7 +424,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					printf("______________________________________\n");
 					if (!USE_SOFTWARE_MSG_LIST)
 						printf("FIRMWARE STATE (%d) [%s] (TCP app) \n",
-							state_fw, STR_ST_FW[state_fw - OFFS_ST_FW]); // mode_exerc, MODE_EXERC_STR[mode_exerc]
+							state_fw, STR_ST_FW[state_fw - OFFS_ST_FW]); // pace_exerc, PACE_EXERC_STR[pace_exerc]
 					else
 						printf("<test_real_time_stmach_control_tcp_app()> SWITCH to TCP app command codes!!! \n");
 					printf(" \n");
@@ -436,23 +438,94 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 
 			///////////////////////////////////////////////////////////////////////////////
+			// Actions for multiple states:
+			///////////////////////////////////////////////////////////////////////////////
+
+			if (rt_step_i == 0 || state_fw_changed) {
+
+				// Gains scaling index (state-dependent) - CRITICAL:
+				if (state_fw != ST_FW_CALIBRATING)
+					idx_scale_gain = IDX_SCALE_GAIN_EXERCISE;
+
+				// Motor torque activation status - CRITICAL:
+				if (state_fw == ST_FW_SYSTEM_OFF || state_fw == ST_FW_CONNECTING)
+					motor_torque_active = 0;
+				else if (state_fw == ST_FW_CALIBRATING || state_fw == ST_FW_HOMING) // TODO: (state_fw == ST_FW_HOMING) condition seems to get missed - why?
+					motor_torque_active = 1;
+				else if (state_fw == ST_FW_ADJUST_EXERCISE)
+					motor_torque_active = 0;
+				else if (state_fw == ST_FW_EXERCISE_ON)
+					motor_torque_active = 0;
+				else if (state_fw == ST_FW_STDBY_AT_POSITION)
+					motor_torque_active = 0;
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			// State: SYSTEM_OFF
+			///////////////////////////////////////////////////////////////////////////////
+
+			// Actions for inactive system:
+			if (state_fw == ST_FW_SYSTEM_OFF) { //
+				if (rt_step_i == 0 || state_fw_changed) {
+					// Change LEDs to system state OFF:
+					LED_sys_state_off();
+
+					// Disable motors:
+					motor_L_move(0, false, false);
+					motor_R_move(0, false, false);
+
+					// Engage brakes:
+					l_brakes(ENGAGE_BRAKES);
+					r_brakes(ENGAGE_BRAKES);
+
+					// Safety catch: reset integral error
+					err_int_pos[IDX_X] = 0;
+					err_int_pos[IDX_Y] = 0;
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
 			// State: (!SYSTEM_OFF)
 			///////////////////////////////////////////////////////////////////////////////
 
 			// Actions for active system:
-			if (state_fw != ST_FW_SYSTEM_OFF) {
+			else {
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Update LEDs state:
 				///////////////////////////////////////////////////////////////////////////////
 
-				cycle_haptic_buttons();
+				cycle_haptic_buttons(); // TODO: this should only be called on state change
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Update safety:
 				///////////////////////////////////////////////////////////////////////////////
 
 				set_safetyOff(lowerlimb_sys_info.safetyOFF);
+
+				///////////////////////////////////////////////////////////////////////////////
+				// State: CALIBRATING
+				///////////////////////////////////////////////////////////////////////////////
+
+				if (state_fw == ST_FW_CALIBRATING) {
+
+					// Force sensors calibration & initial encoder resets - CRITICAL: this should always happen before SENSOR readings
+					if (state_fw_changed) {
+						// Zero-calibrate force sensors:
+						force_sensors_zero_calibrate(hadc3);
+
+						// Reset encoders - CRITICAL:
+						qei_count_L_reset();
+						qei_count_R_reset();
+
+						// Activate encoder calibration:
+						calib_enc_traj_on = 1;
+
+						#if USE_ITM_CMD_DISPLAY
+							printf("   <<test_real_time_stmach_control_tcp_app()>> [Force sensors calibrated] \n\n");
+						#endif
+					}
+				}
 
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
@@ -505,40 +578,10 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			} // end if (state_fw != ST_FW_SYSTEM_OFF) - INITIAL
 
 			///////////////////////////////////////////////////////////////////////////////
-			// State: SYSTEM_OFF
 			///////////////////////////////////////////////////////////////////////////////
-
-			// Actions for inactive system:
-			else { // state_fw == ST_FW_SYSTEM_OFF
-
-				// Change LEDs to system state OFF:
-				LED_sys_state_off();
-
-				// Disable motors:
-				motor_L_move(0, false, false);
-				motor_R_move(0, false, false);
-
-				// Engage brakes:
-				l_brakes(ENGAGE_BRAKES);
-				r_brakes(ENGAGE_BRAKES);
-
-				// Safety catch: reset integral error
-				err_int_pos[IDX_X] = 0;
-				err_int_pos[IDX_Y] = 0;
-			}
-
+			// STATE-BASED ACTIONS (2): INTERMEDIATE - most of the work happens here
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
-			// STATE-BASED ACTIONS (2): INTERMEDIATE
-			///////////////////////////////////////////////////////////////////////////////
-			///////////////////////////////////////////////////////////////////////////////
-
-			///////////////////////////////////////////////////////////////////////////////
-			// Actions for multiple fw states:
-			///////////////////////////////////////////////////////////////////////////////
-
-			if (state_fw != ST_FW_CALIBRATING)
-				idx_scale = IDX_SCALE_EXERCISE;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// State: CONNECTING
@@ -573,25 +616,9 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 			else if (state_fw == ST_FW_CALIBRATING) {
 
-				if (state_fw_changed) {
-					// Zero-calibrate force sensors:
-					force_sensors_zero_calibrate(hadc3);
-
-					// Reset encoders - CRITICAL:
-					qei_count_L_reset();
-					qei_count_R_reset();
-
-					// Activate encoder calibration:
-					calib_enc_traj_on = 1;
-
-					#if USE_ITM_CMD_DISPLAY
-						printf("   <<test_real_time_stmach_control_tcp_app()>> [Force sensors calibrated] \n\n");
-					#endif
-				}
-
 				// Generate calibration trajectory (NOTE: calib_enc_traj_on can only be zero'd by this call):
 				traj_ref_calibration_ll2(
-					p_ref, dt_p_ref, &calib_enc_traj_on, &calib_traj, &idx_scale, z_intern_o_dbl,
+					p_ref, dt_p_ref, &calib_enc_traj_on, &calib_traj, &idx_scale_gain, z_intern_o_dbl,
 					dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
 					&LL_motors_settings, &traj_ctrl_params, traj_exerc_type, V_CALIB, FRAC_RAMP_CALIB);
 
@@ -620,7 +647,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					homing_traj_on = 1;
 
 				// Generate homing trajectory:
-				traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_traj_on, &idx_scale,
+				traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_traj_on, &idx_scale_gain,
 					dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
 					&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
 
@@ -636,14 +663,17 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 			else if (state_fw == ST_FW_EXERCISE_ON) {
 				if (state_fw_changed) {
+					// TODO: remove at a later date
+					/*
 					// Resets (inherited):
-					clear_lowerlimb_motors_settings(&LL_motors_settings); // TODO: remove at a later date (inherited from __VALIDATE_IDLE_START_EXE)
-					// clear_transition_mode_params(); // TODO: remove at a later date
+					clear_lowerlimb_motors_settings(&LL_motors_settings); // inherited from __VALIDATE_IDLE_START_EXE
+					clear_transition_mode_params();
+					*/
 
 					// Reset emergency alerts if any:
-					reset_emergency_alerts();
+					reset_emergency_alerts(); // TODO: what does this do?
 				}
-				else if (mode_exerc_prev != SLOWING && mode_exerc == SLOWING)
+				else if (pace_exerc_prev != SLOWING && pace_exerc == SLOWING)
 					t_slow_ref  = t_ref;
 
 				///////////////////////////////////////////////////////////////////////////////
@@ -651,7 +681,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 				///////////////////////////////////////////////////////////////////////////////
 
 				// Trajectory mode:
-				if (mode_exerc != SLOWING)
+				if (pace_exerc != SLOWING)
 					mode_traj = MODE_TRAJ_START;
 				else
 					mode_traj = MODE_TRAJ_END;
@@ -692,19 +722,17 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 				// EXERCISE - SLOWING mode: detect when completed
 				///////////////////////////////////////////////////////////////////////////////
 
-				if (mode_exerc == SLOWING) {
+				if (pace_exerc == SLOWING) {
 					t_slow = t_ref - t_slow_ref;
 
 					if (t_slow >= T_exp && fabs(dt_phi_ref) < OMEGA_THR_HOMING_START) {
 						// Internal message: slowing-down completed
 						msg_code_intern = SLOWING_COMPLETED_CMD;
 
-						/*
 						#if USE_ITM_OUT_RT_CHECK
 							printf("   <<test_real_time_stmach_control_tcp_app()>> HOMING condition detected \n\n");
-							printf("   t_slow = [%3.2f], T_exp = [%3.2f], dt_phi_ref = [%3.3f] \n\n", t_slow, T_exp, dt_phi_ref);
+							// printf("   t_slow = [%3.2f], T_exp = [%3.2f], dt_phi_ref = [%3.3f] \n\n", t_slow, T_exp, dt_phi_ref);
 						#endif
-						*/
 					}
 				}
 			}
@@ -755,7 +783,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 				// Total gravity compensation:
 				F_end_cmd_gcomp[IDX_X] = 0;
-				F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP[idx_scale]*F_G_COMP_DEF + F_gcomp_dyn;
+				F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP[idx_scale_gain]*F_G_COMP_DEF + F_gcomp_dyn;
 
 				///////////////////////////////////////////////////////////////////////////////
 				// FB force command:
@@ -774,7 +802,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 				// FB force command, nml matrix form:
 				nml_mat_dot_ref(F_end_cmd_fb_nml, K_lq_xv_nml, err_pos_vel_nml);
-				nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB[idx_scale]); // scale by switching variable
+				nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB[idx_scale_gain]); // scale by switching variable
 
 				// FB force commands, array form:
 				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
@@ -786,7 +814,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 				// FF force commands, array form:
 				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-					F_end_cmd_ff[c_i] = SCALE_FF[idx_scale]*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
+					F_end_cmd_ff[c_i] = SCALE_FF[idx_scale_gain]*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Integral position error force command:
@@ -805,7 +833,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 				// Force command:
 				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-					F_end_cmd_int_err[c_i] = SCALE_INT_ERR[idx_scale]*err_int_pos[c_i];
+					F_end_cmd_int_err[c_i] = SCALE_INT_ERR[idx_scale_gain]*err_int_pos[c_i];
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Total force command:
@@ -825,19 +853,20 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 				// Send motor commands:
 				///////////////////////////////////////////////////////////////////////////////
 
-				// Motor activation status - CRITICAL
-				if (state_fw == ST_FW_SYSTEM_OFF || state_fw == ST_FW_CONNECTING)
-					motor_torque_active = 0;
-				else if (state_fw == ST_FW_CALIBRATING)
-					motor_torque_active = 0;
-				else if (state_fw == ST_FW_HOMING)
-					motor_torque_active = 0;
-				else if (state_fw == ST_FW_ADJUST_EXERCISE)
-					motor_torque_active = 0;
-				else if (state_fw == ST_FW_EXERCISE_ON)
-					motor_torque_active = 0;
-				else if (state_fw == ST_FW_STDBY_AT_POSITION)
-					motor_torque_active = 0;
+				// ITM Console output:
+				#if USE_ITM_OUT_RT_CHECK
+					if (state_fw_changed || rt_step_i % (DT_DISP_MSEC_REALTIME/DT_STEP_MSEC) == 0) {
+						printf("   [%s]  exerc mode [%s]  p_ref [%3.3f, %3.3f]  ",
+								STR_ST_FW[state_fw - OFFS_ST_FW],
+								EXERC_MODE_STR[lowerlimb_sys_info.exercise_mode],
+								p_ref[IDX_X], p_ref[IDX_Y]);
+
+						printf("mot_trq_active [%d]  mot_alert [%d]  pace_exerc [%s]  mode_traj [%d]  t_slow [%3.2f] T_exp [%3.2f]  dt_phi_ref [%3.2f]\n\n",
+								motor_torque_active, motor_alert,
+								PACE_EXERC_STR[pace_exerc],
+								mode_traj, t_slow, T_exp, dt_phi_ref);
+					}
+				#endif
 
 				// Issue motion commands to motors - CRITICAL:
 				if (motor_alert != 1 && motor_alert != 2) {
@@ -853,11 +882,12 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					motor_L_move(0, false, false);
 					motor_R_move(0, false, false);
 
-					// Display section:
+					// ITM Console output:
+					/*
 					#if USE_ITM_OUT_RT_CHECK
-						printf("\n");
 						printf("   <<test_real_time_stmach_control_tcp_app()>> MOTOR ALERT = [%d] \n\n", motor_alert);
 					#endif
+					*/
 				}
 
 				///////////////////////////////////////////////////////////////////////////////
@@ -876,8 +906,8 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			// Track changes of state / command code:
 			///////////////////////////////////////////////////////////////////////////////
 
-			state_fw_prev      = state_fw;
-			mode_exerc_prev    = mode_exerc;
+			state_fw_prev   = state_fw;
+			pace_exerc_prev = pace_exerc;
 
 			///////////////////////////////////////////////////////////////////////////////
 			// ITM console output:
@@ -889,18 +919,13 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					up_time_end = getUpTime();
 
 					printf("   ----------------------------\n");
-					printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\n",
+					printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\tp_ref = [%3.3f, %3.3f]\tdt_p_ref = [%3.3f, %3.3f]\n",
 						rt_step_i,
 						t_ref,
 						(int)up_time_end - (int)up_time,
-						phi_ref,
-						dt_phi_ref);
-
-					printf("   p_ref   = [%3.3f, %3.3f]\tdt_p_ref = [%3.3f, %3.3f]\n",
-						p_ref[IDX_X],
-						p_ref[IDX_Y],
-						dt_p_ref[IDX_X],
-						dt_p_ref[IDX_Y]);
+						phi_ref, dt_phi_ref,
+						p_ref[IDX_X], p_ref[IDX_Y],
+						dt_p_ref[IDX_X], dt_p_ref[IDX_Y]);
 
 					/*
 					printf("   p_m     = [%3.3f, %3.3f]\tdt_p_m   = [%3.3f, %3.3f]\tF_m = [%3.3f, %3.3f]\n",

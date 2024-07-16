@@ -38,10 +38,12 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	uint8_t rxPayload  = 0;
 	uint8_t tmp_resp_msg[465];
 
-	// Constants & variables for parsing index:
+	// Constants & variables for parsing index (TODO: remove at a later date):
+	/*
 	const uint8_t cmdCode_index = 3;
 	const uint8_t payloadLen_index = 5;
 	const uint8_t payloadStart_index = 7;
+	*/
 
 	uint8_t rx_payload_index = payloadStart_index;
 
@@ -56,7 +58,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	////////////////////////////////////
 
 	uint8_t is_valid_msg = 0;
-	static uint8_t stop_exe_cmd_count = 0; // stop command counter - this is used to accommodate the SLOWING case
+	static uint8_t STOP_EXERCISE_CMD_count = 0; // stop command counter - this is used to accommodate the SLOWING case
 
 	////////////////////////////////////
 	// Reset lower-limb system info:
@@ -204,7 +206,8 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 				printf("   BEFORE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-				printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
+				printf("   exercise_state: [%s]\n", PACE_EXERC_STR[idx_exerc_state]);
+				printf("   exercise_mode:  [%s]\n", EXERC_MODE_STR[idx_exerc_mode]);
 				printf(" \n");
 		}
 	#endif
@@ -280,7 +283,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 				printf("   INTERMEDIATE: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-				printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
+				printf("   exercise_state: [%s]\n",  PACE_EXERC_STR[idx_exerc_state]);
 				printf("\n");
 			#endif
 
@@ -436,7 +439,8 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 				printf("   AFTER: \n");
 				printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 				printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-				printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
+				printf("   exercise_state: [%s]\n", PACE_EXERC_STR[idx_exerc_state]);
+				printf("   exercise_mode:  [%s]\n", EXERC_MODE_STR[idx_exerc_mode]);
 				printf(" \n");
 		}
 	#endif

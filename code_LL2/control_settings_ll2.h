@@ -53,8 +53,8 @@
 // Scaling factors:
 ///////////////////////////////////////////////////////////////////////////////
 
-#define IDX_SCALE_EXERCISE  0
-#define IDX_SCALE_CALIB     1
+#define IDX_SCALE_GAIN_EXERCISE  0
+#define IDX_SCALE_GAIN_CALIB     1
 
 // Scaling factors must be consistent with above indices:
 static double SCALE_FB[]	  = {800.0,  80.0};
@@ -116,6 +116,7 @@ static double F_G_COMP_DEF = 15.0;
 #define LEN_EXERC_MODE_LIST 5
 
 typedef enum {
+	NoCtrl                = 0,
 	ImpedanceCtrl         = 1,
 	PassiveTrajectoryCtrl = 2,
 	AdmittanceCtrl        = 3,

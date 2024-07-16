@@ -182,7 +182,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 	// Gain and scaling variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	uint8_t idx_scale = IDX_SCALE_EXERCISE; // scale arrays selector, activity-based (CRITICAL)
+	uint8_t idx_scale_gain = IDX_SCALE_GAIN_EXERCISE; // scale arrays selector, activity-based (CRITICAL)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Force commands:
@@ -509,7 +509,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 				///////////////////////////////////////////////////////////////////////////////
 
 				if (lowerlimb_sys_info.activity_state != CALIB)
-					idx_scale = IDX_SCALE_EXERCISE;
+					idx_scale_gain = IDX_SCALE_GAIN_EXERCISE;
 
 				///////////////////////////////////////////////////////////////////////////////
 				// IDLE activity state:
@@ -535,7 +535,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 							printf("   <<test_real_time_onepass_control()>> [IDLE]:\n");
 							printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 							printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-							printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
+							printf("   exercise_state: [%s]\n", PACE_EXERC_STR[idx_exerc_state]);
 							printf("\n");
 						#endif
 					}
@@ -555,7 +555,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 					// NOTE: calib_enc_on will produce activity state transition from CALIB in lowerlimb_app_onepass_ref():
 					traj_ref_calibration_ll2(
-						p_ref, dt_p_ref, &calib_enc_on, &calib_traj, &idx_scale, z_intern_o_dbl,
+						p_ref, dt_p_ref, &calib_enc_on, &calib_traj, &idx_scale_gain, z_intern_o_dbl,
 						dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
 						&LL_motors_settings, &traj_ctrl_params, traj_exerc_type, V_CALIB, FRAC_RAMP_CALIB);
 
@@ -596,7 +596,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 								printf("   <<test_real_time_onepass_control()>> [SLOWING] (no cmd code):\n");
 								printf("   system_state:   [%s]\n",   SYS_STATE_STR[idx_sys_state]  );
 								printf("   activity_state: [%s]\n", ACTIV_STATE_STR[idx_activ_state]);
-								printf("   exercise_state: [%s]\n", MODE_EXERC_STR[idx_exerc_state]);
+								printf("   exercise_state: [%s]\n", PACE_EXERC_STR[idx_exerc_state]);
 								printf("\n");
 								printf("   t_slow_ref = [%3.2f]\n", t_slow_ref);
 								printf("\n");
@@ -667,7 +667,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 					else {
 						#if USE_ITM_OUT_RT_CHECK
-							printf("   <<test_real_time_onepass_control()>> Invalid exercise mode [%s] for activity_state == EXERCISE] \n\n", MODE_EXERC_STR[lowerlimb_sys_info.exercise_state]);
+							printf("   <<test_real_time_onepass_control()>> Invalid exercise mode [%s] for activity_state == EXERCISE] \n\n", PACE_EXERC_STR[lowerlimb_sys_info.exercise_state]);
 						#endif
 					}
 				} // end if (lowerlimb_sys_info.activity_state == EXERCISE)
@@ -678,7 +678,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 				else if (lowerlimb_sys_info.activity_state == HOMING) {
 
-					traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &idx_scale,
+					traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &idx_scale_gain,
 						dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
 						&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
 
@@ -726,7 +726,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 				// Total gravity compensation:
 				F_end_cmd_gcomp[IDX_X] = 0;
-				F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP[idx_scale]*F_G_COMP_DEF + F_gcomp_dyn;
+				F_end_cmd_gcomp[IDX_Y] = SCALE_GCOMP[idx_scale_gain]*F_G_COMP_DEF + F_gcomp_dyn;
 
 				///////////////////////////////////////////////////////////////////////////////
 				// FB force command:
@@ -745,7 +745,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 				// FB force command, nml matrix form:
 				nml_mat_dot_ref(F_end_cmd_fb_nml, K_lq_xv_nml, err_pos_vel_nml);
-				nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB[idx_scale]); // scale by switching variable
+				nml_mat_smult_r(F_end_cmd_fb_nml, SCALE_FB[idx_scale_gain]); // scale by switching variable
 
 				// FB force commands, array form:
 				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
@@ -757,7 +757,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 				// FF force commands, array form:
 				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-					F_end_cmd_ff[c_i] = SCALE_FF[idx_scale]*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
+					F_end_cmd_ff[c_i] = SCALE_FF[idx_scale_gain]*C_FF_DC_DEF[c_i]*dt_p_ref[c_i];
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Integral position error force command:
@@ -776,7 +776,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 				// Force command:
 				for (c_i = IDX_X; c_i <= IDX_Y; c_i++)
-					F_end_cmd_int_err[c_i] = SCALE_INT_ERR[idx_scale]*err_int_pos[c_i];
+					F_end_cmd_int_err[c_i] = SCALE_INT_ERR[idx_scale_gain]*err_int_pos[c_i];
 
 				///////////////////////////////////////////////////////////////////////////////
 				// Total force command:
@@ -888,7 +888,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 					up_time_end = getUpTime();
 
 					printf("   ----------------------------\n");
-					printf("   %d\t%3.3f\t(%d)\tphi = [%3.2f]\tdt_phi = [%3.2f]\n",
+					printf("   %d\t%3.3f\t(%d)\tphi_ref = [%3.2f]\tdt_phi_ref = [%3.2f]\n",
 						rt_step_i,
 						t_ref,
 						(int)up_time_end - (int)up_time,

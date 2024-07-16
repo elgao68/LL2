@@ -86,20 +86,16 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 ///////////////////////////////////////////////////////////////////////
 
 uint8_t
-is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t use_software_msg_list) {
+is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert,
+		uint8_t use_software_msg_list, lowerlimb_sys_info_t* lowerlimb_sys, uint8_t tcp_rx[]) {
 
-	static uint16_t cmd_code = 0; // CRITICAL to make it static
-	uint8_t rxPayload  = 0;
+	static uint16_t cmd_code             = 0;      // CRITICAL to make it static
+	static exercise_mode_t exercise_mode = NoCtrl; // CRITICAL to make it static
 
-	////////////////////////////////////
-	// Constants & variables for parsing index:
-	////////////////////////////////////
-
-	const uint8_t cmdCode_index      = 3;
-	const uint8_t payloadLen_index   = 5;
+	uint8_t rxPayload        = 0;
 
 	////////////////////////////////////
-	// Test variable:
+	// Test variables:
 	////////////////////////////////////
 
 	uint8_t is_valid_msg_test = 0; // NOTE: this variable gets reused for several tests
@@ -108,60 +104,19 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 	// Reset lower-limb system info:
 	////////////////////////////////////
 
-	// CRITICAL: lowerlimb_sys_info is a global variable
-	lowerlimb_sys_info.app_status    = 0;
+	lowerlimb_sys->app_status    = 0;
 
 	////////////////////////////////////
 	// Update system operation status:
 	////////////////////////////////////
 
-	update_operation_state(&lowerlimb_sys_info.operation_state, ui8EBtnState, ui8Alert);
+	update_operation_state(&lowerlimb_sys->operation_state, ui8EBtnState, ui8Alert);
 
 	////////////////////////////////////
 	// Update local Unix time:
 	////////////////////////////////////
 
 	update_unix_time();
-
-	////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////
-	// Special case: return cmd_code_ref untested (TODO: remove at a later date)
-	////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////
-
-	#if OVERRIDE_CMD_CODE_TESTS
-		// Check if TCP connected:
-		// isTCPConnected()
-
-		// Check if there is a valid message:
-		ethernet_w5500_new_rcv_data();
-		memset(tcpRxData, 0, sizeof(tcpRxData)); // CRITICAL: tcpRxData is a global variable
-		is_valid_msg_test = is_valid_w5500_msg(tcpRxData);
-
-		// Parse command code & payload:
-		cmd_code =  ((uint16_t) tcpRxData[cmdCode_index] << 8) +
-						  (uint16_t) tcpRxData[cmdCode_index + 1];
-
-		rxPayload = ((uint16_t) tcpRxData[payloadLen_index] << 8) +
-					 (uint16_t) tcpRxData[payloadLen_index + 1];
-
-		// Validate command code:
-		if (use_software_msg_list)
-			is_valid_msg_test = is_valid_payload_size_software(cmd_code, rxPayload,
-					&lowerlimb_sys_info.app_status); // for software-generated messages (MSG_TCP), check only the payload size
-		else
-			is_valid_msg_test = is_valid_cmd_code_tcp_app(cmd_code, rxPayload,
-				lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status);
-
-		if (is_valid_msg_test)
-			*cmd_code_ref = cmd_code;
-		else if (use_software_msg_list)
-			*cmd_code_ref = NO_MSG_TCP;
-		else
-			*cmd_code_ref = NO_CMD;
-
-		return is_valid_msg_test;
-	#endif
 
 	////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////
@@ -184,8 +139,8 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 	////////////////////////////////////////////////////////////////////////////////
 
 	if (ethernet_w5500_new_rcv_data()) {
-		memset(tcpRxData, 0, sizeof(tcpRxData)); // CRITICAL: tcpRxData is a global variable
-		is_valid_msg_test = is_valid_w5500_msg(tcpRxData);
+		memset(tcp_rx, 0, sizeof(tcp_rx)); // CRITICAL: tcp_rx references a global variable
+		is_valid_msg_test = is_valid_w5500_msg(tcp_rx);
 	}
 	else
 		return 0;
@@ -195,11 +150,11 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 	////////////////////////////////////////////////////////////////////////////////
 
 	if (is_valid_msg_test) {
-		cmd_code =  ((uint16_t) tcpRxData[cmdCode_index] << 8) +
-					      (uint16_t) tcpRxData[cmdCode_index + 1];
+		cmd_code =  ((uint16_t) tcp_rx[cmdCode_index] << 8) +
+					      (uint16_t) tcp_rx[cmdCode_index + 1];
 
-		rxPayload = ((uint16_t) tcpRxData[payloadLen_index] << 8) +
-					 (uint16_t) tcpRxData[payloadLen_index + 1];
+		rxPayload = ((uint16_t) tcp_rx[payloadLen_index] << 8) +
+					 (uint16_t) tcp_rx[payloadLen_index + 1];
 	}
 	else {
 		#if USE_ITM_VALID_CMD_CHECK
@@ -215,10 +170,10 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 
 	if (use_software_msg_list)
 		is_valid_msg_test = is_valid_payload_size_software(cmd_code, rxPayload,
-				&lowerlimb_sys_info.app_status); // for software-generated messages (MSG_TCP), check only the payload size
+				&lowerlimb_sys->app_status); // for software-generated messages (MSG_TCP), check only the payload size
 	else
 		is_valid_msg_test = is_valid_cmd_code_tcp_app(cmd_code, rxPayload,
-			lowerlimb_sys_info.system_state, lowerlimb_sys_info.activity_state, &lowerlimb_sys_info.app_status);
+			lowerlimb_sys->system_state, lowerlimb_sys->activity_state, &lowerlimb_sys->app_status);
 
 	////////////////////////////////////////////////////////////////////////////////
 	// ITM console output:
@@ -245,6 +200,33 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 		*cmd_code_ref = NO_MSG_TCP;
 	else
 		*cmd_code_ref = NO_CMD;
+
+	////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+	// Assign payload values to system info (CRITICAL):
+	////////////////////////////////////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////
+
+	////////////////////////////////////////////////////////////////////////////////
+	// Exercise mode:
+	////////////////////////////////////////////////////////////////////////////////
+
+	if (use_software_msg_list) {
+		#if USE_ITM_EXERC_MODE_CHECK
+			printf("   <<is_valid_rcv_data_cmd_code()>> EXERCISE MODE assignments for software app (MSG_TCP) NOT IMPLEMENTED! \n\n", cmd_code);
+		#endif
+	}
+	else {
+		if (*cmd_code_ref == START_EXERCISE_CMD) {
+			exercise_mode = get_exercise_mode_tcp_app(tcp_rx);
+
+			// Reject non-applicable cases:
+			if (exercise_mode == ImpedanceCtrl || exercise_mode ==	AdmittanceCtrl)
+				exercise_mode = NoCtrl;
+		}
+	}
+
+	lowerlimb_sys->exercise_mode = exercise_mode;
 
 	////////////////////////////////////////////////////////////////////////////////
 	// ITM console output:
@@ -355,11 +337,11 @@ is_valid_cmd_code_tcp_app(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_s
 			cmd_code == BRAKES_CMD			||
 			cmd_code == AUTO_CALIB_MODE_CMD ||
 			cmd_code == STOP_SYS_CMD		||
-			cmd_code == STOP_EXE_CMD		||
+			cmd_code == STOP_EXERCISE_CMD		||
 			cmd_code == RESET_SYS_CMD		||
 			cmd_code == READ_DEV_ID_CMD		||
 			cmd_code == READ_SYS_INFO_CMD 	||
-			cmd_code == PAUSE_EXE_CMD		||
+			cmd_code == PAUSE_EXERCISE_CMD		||
 			cmd_code == TOGGLE_SAFETY_CMD
 			)
 				if (!valid_app_status(rxPayload, 1,
@@ -377,9 +359,9 @@ is_valid_cmd_code_tcp_app(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_s
 	#if TEST_CMD_CODE_TCP_APP_SYS_ON
 		if (cmd_code == BRAKES_CMD           ||
 			cmd_code == AUTO_CALIB_MODE_CMD  ||
-			cmd_code == START_RESUME_EXE_CMD ||
-			cmd_code == STOP_EXE_CMD		 ||
-			cmd_code == PAUSE_EXE_CMD        ||
+			cmd_code == START_EXERCISE_CMD ||
+			cmd_code == STOP_EXERCISE_CMD		 ||
+			cmd_code == PAUSE_EXERCISE_CMD        ||
 			cmd_code == TOGGLE_SAFETY_CMD    ||
 			cmd_code == SET_CTRLPARAMS       ||
 			cmd_code == SET_TARG_PARAM_PTRAJCTRL_CMD ||
@@ -448,7 +430,7 @@ is_valid_cmd_code_tcp_app(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_s
     ////////////////////////////////////////////////////////////////////////////////
 
 	#if TEST_CMD_CODE_TCP_APP_STOP_EXE
-		if (cmd_code == STOP_EXE_CMD ||	cmd_code == SET_CTRLPARAMS)
+		if (cmd_code == STOP_EXERCISE_CMD ||	cmd_code == SET_CTRLPARAMS)
 			if (!valid_app_status(activity_state, CALIB,
 					app_status, cmd_code, ERR_EXERCISE_NOT_RUNNING, ERR_OFFSET) ||
 				!valid_app_status(activity_state, IDLE,
@@ -1088,6 +1070,11 @@ set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 		set_l_brake_status(l_brakes(get_l_brake_cmd() && Read_Haptic_Button()));
 		set_r_brake_status(r_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
 	}
+}
+
+exercise_mode_t
+get_exercise_mode_tcp_app(uint8_t tcp_rx[]) {
+	return (exercise_mode_t)tcp_rx[payloadStart_index];
 }
 
 /**

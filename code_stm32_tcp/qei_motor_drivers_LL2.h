@@ -53,6 +53,6 @@ uint8_t r_brakes(bool disengage);
 ////////////////////////////////////////////////////////////////
 
 bool force_sensors_read(ADC_HandleTypeDef* hadc, uint32_t* left_x, uint32_t * left_y, uint32_t* right_x, uint32_t * right_y);
-bool current_sensors_read(ADC_HandleTypeDef* hadc, uint32_t* r, uint32_t * p);
+bool current_sensors_read(ADC_HandleTypeDef* hadc, uint32_t* left, uint32_t * right);
 
 #endif

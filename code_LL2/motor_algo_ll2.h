@@ -181,13 +181,13 @@ void traj_ref_step_isometric(
 
 // CALIBRATION TRAJECTORY:
 void traj_ref_calibration_ll2(
-	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale, double z_intern_o_dbl[],
+	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale_gain, double z_intern_o_dbl[],
 	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
 	lowerlimb_motors_settings_t* LL_motors_settings, traj_ctrl_params_t* traj_ctrl_params, uint8_t traj_exerc_type, double v_calib, double frac_ramp_calib);
 
 // HOMING TRAJECTORY:
 void
-traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* idx_scale,
+traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* idx_scale_gain,
 	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
 	traj_ctrl_params_t* traj_ctrl_params, double v_calib, double frac_ramp_calib);
 
