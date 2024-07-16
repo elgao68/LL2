@@ -51,6 +51,8 @@
 #define TRAJ_PARAMS_VARIABLE_OFF 	0
 #define TRAJ_PARAMS_VARIABLE_ON 	1
 
+#define OVERRIDE_CMD_CODE_TESTS     0
+
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
 // TYPE DEFINITIONS (OLD FIRMWARE):
@@ -62,22 +64,22 @@
 
 // Commands enumeration:
 enum {
-	NO_CMD = 0,
-	SET_UNIX_CMD = 1,
-	START_SYS_CMD = 2,
-	STOP_SYS_CMD = 3,
-	RESET_SYS_CMD = 4,
-	READ_DEV_ID_CMD = 5,
-	READ_SYS_INFO_CMD = 6,
+	NO_CMD              = 0,
+	SET_UNIX_CMD        = 1,
+	START_SYS_CMD       = 2,
+	STOP_SYS_CMD        = 3,
+	RESET_SYS_CMD       = 4,
+	READ_DEV_ID_CMD     = 5,
+	READ_SYS_INFO_CMD   = 6,
 	AUTO_CALIB_MODE_CMD = 7,
 	SET_TARG_PARAM_IMPCTRL_CMD = 8,
-	START_RESUME_EXE_CMD = 9,
-	PAUSE_EXE_CMD = 10,
-	STOP_EXE_CMD = 11,
+	START_RESUME_EXE_CMD       = 9,
+	PAUSE_EXE_CMD     = 10,
+	STOP_EXE_CMD      = 11,
 	TOGGLE_SAFETY_CMD = 12,
-	BRAKES_CMD = 13,
-	SET_OFFSET_CMD = 14,
-	SET_CTRLPARAMS = 15,
+	BRAKES_CMD        = 13,
+	SET_OFFSET_CMD    = 14,
+	SET_CTRLPARAMS    = 15,
 	SET_TARG_PARAM_PTRAJCTRL_CMD = 16,
 	SET_TARG_PARAM_ADMCTRL_CMD   = 17,
 	SET_TARG_PARAM_ATRAJCTRL_CMD = 18,
@@ -533,7 +535,7 @@ typedef struct {
 // Message validation functions, high-level:
 ///////////////////////////////////////////////////////////////////////
 
-uint8_t is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t use_software_msg_list, uint8_t overr_cmd_code_tests);
+uint8_t is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t use_software_msg_list);
 
 ///////////////////////////////////////////////////////
 // Message validation functions, low-level:

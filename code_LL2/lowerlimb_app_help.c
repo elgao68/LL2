@@ -86,7 +86,7 @@ uint8_t lowerlimb_app_state_initialize(uint64_t init_unix, uint8_t maj_ver,
 ///////////////////////////////////////////////////////////////////////
 
 uint8_t
-is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t use_software_msg_list, uint8_t overr_cmd_code_tests) {
+is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t ui8Alert, uint8_t use_software_msg_list) {
 
 	static uint16_t cmd_code = 0; // CRITICAL to make it static
 	uint8_t rxPayload  = 0;
@@ -129,7 +129,7 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 	////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////
 
-	if (overr_cmd_code_tests) {
+	#if OVERRIDE_CMD_CODE_TESTS
 		// Check if TCP connected:
 		// isTCPConnected()
 
@@ -155,9 +155,13 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 
 		if (is_valid_msg_test)
 			*cmd_code_ref = cmd_code;
+		else if (use_software_msg_list)
+			*cmd_code_ref = NO_MSG_TCP;
+		else
+			*cmd_code_ref = NO_CMD;
 
 		return is_valid_msg_test;
-	}
+	#endif
 
 	////////////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////////////
@@ -235,7 +239,12 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 	// Assign command code to reference variable (CRITICAL):
 	////////////////////////////////////////////////////////////////////////////////
 
-	*cmd_code_ref = cmd_code;
+	if (is_valid_msg_test)
+		*cmd_code_ref = cmd_code;
+	else if (use_software_msg_list)
+		*cmd_code_ref = NO_MSG_TCP;
+	else
+		*cmd_code_ref = NO_CMD;
 
 	////////////////////////////////////////////////////////////////////////////////
 	// ITM console output:

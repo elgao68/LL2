@@ -25,7 +25,6 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 	///////////////////////////////////////////////////////////////////////////////
 
 	const uint8_t USE_SOFTWARE_MSG_LIST   = 0; // CRITICAL option
-	const uint8_t OVERRIDE_CMD_CODE_TESTS = 0; // CRITICAL option
 
 	///////////////////////////////////////////////////////////////////////////////
 	// MOTOR STATE VARS:
@@ -230,7 +229,6 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 
 	// Command codes - TCP:
 	uint16_t cmd_code_tcp         = NO_CMD;
-	uint16_t cmd_code_tcp_prev    = cmd_code_tcp;
 	uint8_t is_valid_cmd_code_tcp = 0;
 
 	// Internal firmware messages:
@@ -357,16 +355,16 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			// Get TCP/IP message:
 			//////////////////////////////////////////////////////////////////////////////////
 
-			is_valid_cmd_code_tcp = is_valid_rcv_data_cmd_code(&cmd_code_tcp, Read_Haptic_Button(), motor_alert, USE_SOFTWARE_MSG_LIST, OVERRIDE_CMD_CODE_TESTS);
+			is_valid_cmd_code_tcp = is_valid_rcv_data_cmd_code(&cmd_code_tcp, Read_Haptic_Button(), motor_alert, USE_SOFTWARE_MSG_LIST);
 
-			// Clear motor_alert (TODO: exactly what does this do)?
+			// Clear motor_alert (TODO: what exactly does this do)?
 			motor_alert = 0;
 
 			#if USE_ITM_CMD_DISPLAY
 				if (is_valid_cmd_code_tcp) {
 					printf("   --------------------------------------\n");
 					if (!USE_SOFTWARE_MSG_LIST)
-						printf("   cmd_code_tcp(%d) [%s] (state mach TCP app) \n", cmd_code_tcp, CMD_STR[cmd_code_tcp]);
+						printf("   cmd_code_tcp(%d) [%s] (state machine TCP app) \n", cmd_code_tcp, CMD_STR[cmd_code_tcp]);
 					else
 						printf("   <test_real_time_stmach_control_tcp_app()> SWITCH to TCP app command codes!!! \n");
 					printf(" \n");
@@ -410,95 +408,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
 
-			state_machine_ll2_tcp_app(&state_fw, cmd_code_tcp, &msg_code_intern, &mode_exerc);
-
-			// TODO: remove at a later date:
-			/*
-			if (state_fw == ST_FW_SYSTEM_OFF) {
-				if (cmd_code_tcp == START_SYS_CMD) {
-					// Response to cmd_code_tcp:
-					send_OK_resp(cmd_code_tcp);
-
-					// Change fw state:
-					state_fw =  ST_FW_CONNECTING;
-				}
-			}
-
-			if (state_fw == ST_FW_CONNECTING) {
-				if (cmd_code_tcp == AUTO_CALIB_MODE_CMD) {
-					// Response to cmd_code_tcp:
-					send_OK_resp(cmd_code_tcp);
-
-					// Change fw state:
-					state_fw = ST_FW_CALIBRATING;
-				}
-			}
-
-			else if (state_fw == ST_FW_CALIBRATING) {
-				// Calibration completion reported:
-				if (msg_code_intern == CALIB_ENC_COMPLETED_CMD) {
-
-					// Reset internal command code:
-					msg_code_intern = NO_CMD;
-
-					// Response to cmd_code_tcp:
-					send_OK_resp(AUTO_CALIB_MODE_CMD);
-
-					// Change fw state:
-					state_fw = ST_FW_HOMING;
-				}
-			}
-
-			else if (state_fw == ST_FW_HOMING) {
-				// Homing completion reported:
-				if (msg_code_intern == HOMING_COMPLETED_CMD) {
-
-					// Reset internal command code:
-					msg_code_intern = NO_CMD;
-
-					// Change fw state:
-					state_fw = ST_FW_STDBY_AT_POSITION;
-				}
-			}
-
-			else if (state_fw == ST_FW_STDBY_AT_POSITION) {
-				// Start / resume exercise:
-				if (cmd_code_tcp == START_RESUME_EXE_CMD) {
-					// Response to cmd_code_tcp:
-					send_OK_resp(cmd_code_tcp);
-
-					// Change fw state:
-					state_fw = ST_FW_EXERCISE_ON;
-				}
-				// Stop "system":
-				else if (cmd_code_tcp == STOP_SYS_CMD) {
-					// Response to cmd_code_tcp:
-					send_OK_resp(cmd_code_tcp);
-
-					// Change fw state:
-					state_fw = ST_FW_SYSTEM_OFF;
-				}
-			}
-
-			else if (state_fw == ST_FW_EXERCISE_ON) {
-				if (cmd_code_tcp == STOP_EXE_CMD)
-					// Initiate exercise slow-down:
-					mode_exerc = SLOWING;
-
-				// Exercise stop completion reported:
-				else if (msg_code_intern == SLOWING_COMPLETED_CMD) {
-
-					// Reset internal command code:
-					msg_code_intern = NO_CMD;
-
-					// Response to cmd_code_tcp:
-					send_OK_resp(STOP_EXE_CMD);
-
-					// Change fw state:
-					state_fw = ST_FW_HOMING;
-				}
-			}
-			*/
+			state_machine_ll2_tcp_app(&state_fw, &cmd_code_tcp, &msg_code_intern, &mode_exerc);
 
 			// Register change of state (CRITICAL):
 			state_fw_changed = (state_fw != state_fw_prev);
@@ -511,8 +421,8 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 				if (state_fw_changed || rt_step_i == 0) {
 					printf("______________________________________\n");
 					if (!USE_SOFTWARE_MSG_LIST)
-						printf("FIRMWARE STATE (%d) [%s] (TCP app): exercise mode (%d) [%s] \n",
-							state_fw, STR_ST_FW[state_fw - OFFS_ST_FW], mode_exerc, MODE_EXERC_STR[mode_exerc]);
+						printf("FIRMWARE STATE (%d) [%s] (TCP app) \n",
+							state_fw, STR_ST_FW[state_fw - OFFS_ST_FW]); // mode_exerc, MODE_EXERC_STR[mode_exerc]
 					else
 						printf("<test_real_time_stmach_control_tcp_app()> SWITCH to TCP app command codes!!! \n");
 					printf(" \n");
@@ -789,10 +699,12 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 						// Internal message: slowing-down completed
 						msg_code_intern = SLOWING_COMPLETED_CMD;
 
+						/*
 						#if USE_ITM_OUT_RT_CHECK
 							printf("   <<test_real_time_stmach_control_tcp_app()>> HOMING condition detected \n\n");
 							printf("   t_slow = [%3.2f], T_exp = [%3.2f], dt_phi_ref = [%3.3f] \n\n", t_slow, T_exp, dt_phi_ref);
 						#endif
+						*/
 					}
 				}
 			}
@@ -964,8 +876,7 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 			// Track changes of state / command code:
 			///////////////////////////////////////////////////////////////////////////////
 
-			state_fw_prev          = state_fw;
-			cmd_code_tcp_prev      = cmd_code_tcp;
+			state_fw_prev      = state_fw;
 			mode_exerc_prev    = mode_exerc;
 
 			///////////////////////////////////////////////////////////////////////////////
@@ -1010,12 +921,6 @@ test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDe
 					printf("   current[LEFT, RIGHT] = [%3.3f, %3.3f] \n", LL_motors_settings.left.current, LL_motors_settings.right.current);
 					printf("   volt[LEFT, RIGHT]    = [%3.3f, %3.3f] \n", LL_motors_settings.left.volt,    LL_motors_settings.right.volt);
 					printf("   dac_in[LEFT, RIGHT]  = [%i, %i] \n",       LL_motors_settings.left.dac_in,  LL_motors_settings.right.dac_in);
-					*/
-
-					/*
-					printf("   calib_enc_traj_on = [%d], cmd_code_tcp_prev = [%s], cmd_code_tcp = [%s] \n",
-							calib_enc_traj_on, CMD_STR[cmd_code_tcp_prev], CMD_STR[cmd_code_tcp]);
-					printf("\n");
 					*/
 				}
 			#endif

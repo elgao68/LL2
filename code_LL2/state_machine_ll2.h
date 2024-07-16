@@ -13,6 +13,8 @@
 #include <_std_c.h>
 #include <lowerlimb_app.h>
 
-void state_machine_ll2_tcp_app(uint16_t* state_fw, uint16_t cmd_code_tcp, uint16_t* msg_code_intern, uint8_t* mode_exerc);
+#define USE_ITM_OUT_STATE_MACH	1
+
+void state_machine_ll2_tcp_app(uint16_t* state_fw, uint16_t* cmd_code_tcp, uint16_t* msg_code_intern, uint8_t* mode_exerc);
 
 #endif /* CODE_LL2_STATE_MACHINE_LL2_H_ */
