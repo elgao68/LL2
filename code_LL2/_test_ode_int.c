@@ -49,7 +49,7 @@ void test_ode_int() {
 	double u_t_ref[N_COORD_2D] = {0.0, 0.0};
 
 	// Internal state: initial values:
-	double z_intern_o_dbl[2*N_COORD_EXT];
+	double z_intern_home_dbl[2*N_COORD_EXT];
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Counters and timers:
@@ -106,25 +106,25 @@ void test_ode_int() {
 
 	if (ADMITT_MODEL_CONSTR_ON) {
 		// Positions:
-		z_intern_o_dbl[IDX_X  ] = traj_ctrl_params.semiaxis_x;
-		z_intern_o_dbl[IDX_Y  ] = 0;
-		z_intern_o_dbl[IDX_PHI] = 0;
+		z_intern_home_dbl[IDX_X  ] = traj_ctrl_params.semiaxis_x;
+		z_intern_home_dbl[IDX_Y  ] = 0;
+		z_intern_home_dbl[IDX_PHI] = 0;
 
 		// Velocities:
-		z_intern_o_dbl[IDX_DT_X  ] = 0;
-		z_intern_o_dbl[IDX_DT_Y  ] = 0.5;
-		z_intern_o_dbl[IDX_DT_PHI] = 0;
+		z_intern_home_dbl[IDX_DT_X  ] = 0;
+		z_intern_home_dbl[IDX_DT_Y  ] = 0.5;
+		z_intern_home_dbl[IDX_DT_PHI] = 0;
 	}
 	else {
 		// Positions:
-		z_intern_o_dbl[IDX_X  ] = traj_ctrl_params.semiaxis_x;
-		z_intern_o_dbl[IDX_Y  ] = traj_ctrl_params.semiaxis_y;
-		z_intern_o_dbl[IDX_PHI] = 0;
+		z_intern_home_dbl[IDX_X  ] = traj_ctrl_params.semiaxis_x;
+		z_intern_home_dbl[IDX_Y  ] = traj_ctrl_params.semiaxis_y;
+		z_intern_home_dbl[IDX_PHI] = 0;
 
 		// Velocities:
-		z_intern_o_dbl[IDX_DT_X  ] = 0;
-		z_intern_o_dbl[IDX_DT_Y  ] = 0;
-		z_intern_o_dbl[IDX_DT_PHI] = 0;
+		z_intern_home_dbl[IDX_DT_X  ] = 0;
+		z_intern_home_dbl[IDX_DT_Y  ] = 0;
+		z_intern_home_dbl[IDX_DT_PHI] = 0;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -155,7 +155,7 @@ void test_ode_int() {
 		traj_ref_step_active_elliptic(
 			p_ref, dt_p_ref,
 			&phi_ref, &dt_phi_ref,
-			u_t_ref, dt_k, F_end_m, z_intern_o_dbl,
+			u_t_ref, dt_k, F_end_m, z_intern_home_dbl,
 			traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, 0, 0);
 
 		// Set reference kinematics struct:

@@ -168,7 +168,7 @@ test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* had
 	// Display variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	#if USE_ITM_OUT_RT_CHECK
+	#if USE_ITM_OUT_RT_CHECK_CTRL
 		uint8_t idx_sys_state;
 		uint8_t idx_activ_state;
 		uint8_t idx_exerc_state;
@@ -410,7 +410,7 @@ test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* had
 					///////////////////////////////////////////////////////////////////////////////
 
 					else {
-						#if USE_ITM_OUT_RT_CHECK
+						#if USE_ITM_OUT_RT_CHECK_CTRL
 							printf("   <test_real_time_onepass_software()> Invalid exercise mode [%s] for activity_state == EXERCISE] \n\n", PACE_EXERC_STR[lowerlimb_sys_info.exercise_state]);
 						#endif
 					}

@@ -155,7 +155,7 @@ traj_ref_step_passive_elliptic(
 
 	// Compute instantaneous frequency and phase:
 	*dt_phi_ref = frac_dt_phi*2*PI/T_cycle;
-	*phi_ref    = (*dt_phi_ref)*t_ref;
+	*phi_ref    = (*dt_phi_ref)*t_ref; // TODO: this derivative is inexact for the portion where frac_dt_phi decays
 
 	// Compute reference trajectory position and velocity from PHASE:
 	traj_ellipse_points(*phi_ref, *dt_phi_ref, p_ref, dt_p_ref, u_t_ref,
@@ -193,8 +193,8 @@ void traj_ref_step_isometric(
 
 void
 traj_ref_calibration_ll2(
-	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale_gain, double z_intern_o_dbl[],
-	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
+	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale_gain,
+	double dt_k, double p_m[], double dt_p_m[], double phi_home, double dt_phi_home,
 	lowerlimb_motors_settings_t* LL_motors_settings, traj_ctrl_params_t* traj_ctrl_params, uint8_t traj_exerc_type, double v_calib, double frac_ramp_calib) {
 
 	// Switching variables:
@@ -225,20 +225,20 @@ traj_ref_calibration_ll2(
 
 	if (*calib_traj == CalibTraj_Null) {
 
-		// Set up next calibration trajectory:
-		*calib_traj = CalibTraj_1_Y_Travel;
+			// Set up next calibration trajectory:
+			*calib_traj = CalibTraj_1_Y_Travel;
 
-		p_calib_o[IDX_X] = p_m[IDX_X];
-		p_calib_o[IDX_Y] = p_m[IDX_Y];
+			p_calib_o[IDX_X] = p_m[IDX_X];
+			p_calib_o[IDX_Y] = p_m[IDX_Y];
 
-		p_calib_f[IDX_X] = p_calib_o[IDX_X];
-		p_calib_f[IDX_Y] = p_calib_o[IDX_Y] - DIST_CALIB_MAX;
+			p_calib_f[IDX_X] = p_calib_o[IDX_X];
+			p_calib_f[IDX_Y] = p_calib_o[IDX_Y] - DIST_CALIB_MAX;
 
-		// Control gains scale array:
-		*idx_scale_gain = IDX_SCALE_GAIN_CALIB;
+			// Control gains scale array:
+			*idx_scale_gain = IDX_SCALE_GAIN_CALIB;
 
-		// Trajectory initiation command:
-		init_calib_traj  = 1;
+			// Trajectory initiation command:
+			init_calib_traj  = 1;
 	}
 
 	else if (
@@ -248,20 +248,20 @@ traj_ref_calibration_ll2(
 		fabs(LL_motors_settings->right.volt) > THR_VOLTAGE_CONTACT &&
 		norm2_2d(p_m[IDX_X] - p_calib_o[IDX_X], p_m[IDX_Y] - p_calib_o[IDX_Y]) > ERR_POS_REL) {
 
-		// Set up next calibration trajectory:
-		*calib_traj = CalibTraj_2_X_Travel;
+			// Set up next calibration trajectory:
+			*calib_traj = CalibTraj_2_X_Travel;
 
-		p_calib_o[IDX_X] = p_m[IDX_X];
-		p_calib_o[IDX_Y] = p_m[IDX_Y];
+			p_calib_o[IDX_X] = p_m[IDX_X];
+			p_calib_o[IDX_Y] = p_m[IDX_Y];
 
-		p_calib_f[IDX_X] = p_calib_o[IDX_X] - DIST_CALIB_MAX;
-		p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
+			p_calib_f[IDX_X] = p_calib_o[IDX_X] - DIST_CALIB_MAX;
+			p_calib_f[IDX_Y] = p_calib_o[IDX_Y];
 
-		// Control gains scale array:
-		*idx_scale_gain = IDX_SCALE_GAIN_CALIB;
+			// Control gains scale array:
+			*idx_scale_gain = IDX_SCALE_GAIN_CALIB;
 
-		// Trajectory initiation command:
-		init_calib_traj  = 1;
+			// Trajectory initiation command:
+			init_calib_traj  = 1;
 	}
 
 	else if (
@@ -271,85 +271,87 @@ traj_ref_calibration_ll2(
 		fabs(LL_motors_settings->right.volt) > THR_VOLTAGE_CONTACT &&
 		norm2_2d(p_m[IDX_X] - p_calib_o[IDX_X], p_m[IDX_Y] - p_calib_o[IDX_Y]) > ERR_POS_REL) {
 
-		// Reset encoders - CRITICAL:
-		qei_count_L_reset();
-		qei_count_R_reset();
+			// Reset encoders - CRITICAL:
+			qei_count_L_reset();
+			qei_count_R_reset();
 
-		// Set up next calibration trajectory:
-		*calib_traj = CalibTraj_3_Travel_to_ORG;
+			// Set up next calibration trajectory:
+			*calib_traj = CalibTraj_3_Travel_to_ORG;
 
-		p_calib_o[IDX_X] = 0;
-		p_calib_o[IDX_Y] = 0;
+			p_calib_o[IDX_X] = 0;
+			p_calib_o[IDX_Y] = 0;
 
-		p_calib_f[IDX_X] = 0.5*D_WKSPC_LL2_X;
-		p_calib_f[IDX_Y] = 0.5*D_WKSPC_LL2_Y;
+			p_calib_f[IDX_X] = 0.5*D_WKSPC_LL2_X;
+			p_calib_f[IDX_Y] = 0.5*D_WKSPC_LL2_Y;
 
-		// Control gains scale array:
-		*idx_scale_gain = IDX_SCALE_GAIN_EXERCISE;
+			// Control gains scale array:
+			*idx_scale_gain = IDX_SCALE_GAIN_EXERCISE;
 
-		// Trajectory initiation command:
-		init_calib_traj  = 1;
+			// Trajectory initiation command:
+			init_calib_traj  = 1;
 	}
 
 	else if (
 		*calib_traj == CalibTraj_3_Travel_to_ORG &&
 		t_calib >= T_f_calib) {
 
-		/*
-		#if USE_ITM_OUT_CALIB_CHECK
-			printf("   ----------------------------\n");
-			printf("   CalibTraj_3_Travel_to_ORG: \n");
-			printf("   calib_traj (%d)\t= [%s] \n", *calib_traj, CALIB_TRAJ_STR[*calib_traj]);
-			printf("   calib_enc_on\t\t= [%d] \n", *calib_enc_on);
-			printf("   t_calib (%d)\t= [%3.2f], T_f_calib = [%3.2f] \n\n", step_i, t_calib, T_f_calib);
-		#endif
-		*/
+			/*
+			#if USE_ITM_OUT_CALIB_CHECK
+				printf("   ----------------------------\n");
+				printf("   CalibTraj_3_Travel_to_ORG: \n");
+				printf("   calib_traj (%d)\t= [%s] \n", *calib_traj, CALIB_TRAJ_STR[*calib_traj]);
+				printf("   calib_enc_on\t\t= [%d] \n", *calib_enc_on);
+				printf("   t_calib (%d)\t= [%3.2f], T_f_calib = [%3.2f] \n\n", step_i, t_calib, T_f_calib);
+			#endif
+			*/
 
-		// Reset encoders - CRITICAL:
-		qei_count_L_reset();
-		qei_count_R_reset();
+			// Reset encoders - CRITICAL:
+			qei_count_L_reset();
+			qei_count_R_reset();
 
-		// Set up next calibration trajectory:
-		*calib_traj = CalibTraj_4_Travel_to_P_Start_Exe;
+			// Set up next calibration trajectory:
+			*calib_traj = CalibTraj_4_Travel_to_HOME;
 
-		p_calib_o[IDX_X] = 0;
-		p_calib_o[IDX_Y] = 0;
+			p_calib_o[IDX_X] = 0;
+			p_calib_o[IDX_Y] = 0;
 
-		if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
-			// CALIBRATION: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
-			traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref_dum,
-				traj_ctrl_params->semiaxis_x, traj_ctrl_params->semiaxis_y, traj_ctrl_params->rot_angle);
+			if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
+				// CALIBRATION: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
+				// traj_ellipse_points(phi_home, dt_phi_home, p_ref, dt_p_ref, u_t_ref_dum, traj_ctrl_params->semiaxis_x, traj_ctrl_params->semiaxis_y, traj_ctrl_params->rot_angle); // TODO: remove at a later date
+				home_point_ellipse(phi_home, dt_phi_home, p_ref, dt_p_ref, traj_ctrl_params);
 
-			p_calib_f[IDX_X] = p_ref[IDX_X];
-			p_calib_f[IDX_Y] = p_ref[IDX_Y];
-		}
-		else {
-			// Safety catch:
-			p_calib_f[IDX_X] = 0;
-			p_calib_f[IDX_Y] = 0;
-		}
+				p_calib_f[IDX_X] = p_ref[IDX_X];
+				p_calib_f[IDX_Y] = p_ref[IDX_Y];
+			}
+			else {
+				// Safety catch:
+				p_calib_f[IDX_X] = 0;
+				p_calib_f[IDX_Y] = 0;
+			}
 
-		// Active trajectory control: create initial condition for internal state (CRITICAL)
-		z_intern_o_dbl[IDX_X  ]    = p_ref[IDX_X];
-		z_intern_o_dbl[IDX_Y  ]    = p_ref[IDX_Y];
-		z_intern_o_dbl[IDX_PHI]    = phi_o;
+			// TODO: remove at a later date
+			// Active trajectory control: create initial condition for internal state (CRITICAL)
+			/*
+			z_intern_home_dbl[IDX_X  ]    = p_ref[IDX_X];
+			z_intern_home_dbl[IDX_Y  ]    = p_ref[IDX_Y];
+			z_intern_home_dbl[IDX_PHI]    = phi_home;
 
-		z_intern_o_dbl[IDX_DT_X  ] = 0;
-		z_intern_o_dbl[IDX_DT_Y  ] = 0;
-		z_intern_o_dbl[IDX_DT_PHI] = dt_phi_o;
+			z_intern_home_dbl[IDX_DT_X  ] = 0;
+			z_intern_home_dbl[IDX_DT_Y  ] = 0;
+			z_intern_home_dbl[IDX_DT_PHI] = dt_phi_home;
+			*/
 
-		// Control gains scale array:
-		*idx_scale_gain = IDX_SCALE_GAIN_EXERCISE;
+			// Control gains scale array:
+			*idx_scale_gain = IDX_SCALE_GAIN_EXERCISE;
 
-		// Trajectory initiation command:
-		init_calib_traj  = 1;
+			// Trajectory initiation command:
+			init_calib_traj  = 1;
 	}
 
 	// Encoders calibration - exit condition:
 	else if (
-		*calib_traj == CalibTraj_4_Travel_to_P_Start_Exe &&
+		*calib_traj == CalibTraj_4_Travel_to_HOME &&
 		t_calib >= T_f_calib) {
-
 
 		*calib_enc_on = 0;
 	}
@@ -365,6 +367,7 @@ traj_ref_calibration_ll2(
 	///////////////////////////////////////////////////////////////////////////////
 
 	if (*calib_enc_on)
+		// NOTE: init_calib_traj gets zero'd:
 		traj_linear_points(	p_ref, dt_p_ref, u_t_ref_dum, dt_k,
 							p_calib_o, p_calib_f, v_calib, frac_ramp_calib, &init_calib_traj, &T_f_calib,
 							&pos_rel_calib_dum, &dt_pos_rel_calib_dum);
@@ -426,63 +429,78 @@ traj_ref_calibration_ll2(
 ///////////////////////////////////////////////////////////////////////////////
 
 void
-traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* idx_scale_gain,
-	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
+traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_traj_on, uint8_t* idx_scale_gain,
+	double dt_k, double p_m[], double dt_p_m[], double phi_home, double dt_phi_home,
 	traj_ctrl_params_t* traj_ctrl_params, double v_calib, double frac_ramp_calib) {
 
-	const double FACT_T_REF = 1.05; // HACK: extend trajectory reference time to avoid a speed jump during state transition
+	const double FACT_T_REF = 1.2; // HACK: extend trajectory reference time to avoid a speed jump during state transition
 
 	// Homing end points:
-	static double p_home_o[N_COORD_2D] = {0.0, 0.0};
-	static double p_home_f[N_COORD_2D] = {0.0, 0.0};
+	static double p_homing_o[N_COORD_2D] = {0.0, 0.0};
+	static double p_homing_f[N_COORD_2D] = {0.0, 0.0};
 
 	// Timers:
 	static uint16_t step_i = 0;
-	static double T_f_home = 0.0;
-
-	static double t_home   = 0.0;
-	t_home = step_i*dt_k;
+	double T_f_home;
+	double t_home;
 
 	// State variables:
-	static uint8_t init_homing_traj = 1;
+	static uint8_t init_homing_traj = 1; // "initiate homing" flag
 
 	// Dummy variables:
 	double u_t_ref_dum[N_COORD_2D] = {0.0, 0.0};
 	double pos_rel_home_dum        = 0.0;
 	double dt_pos_rel_home_dum     = 0.0;
 
-	if (*homing_on && init_homing_traj) { // CRITICAL: this condition differs from what is used in CALIB logic
+	///////////////////////////////////////////////////////////////////////////////
+	// Initial conditions:
+	///////////////////////////////////////////////////////////////////////////////
 
-		// Set up next HOMING trajectory:
-		p_home_o[IDX_X] = p_m[IDX_X];
-		p_home_o[IDX_Y] = p_m[IDX_Y];
+	if (*homing_traj_on && init_homing_traj) {
 
-		// HOMING: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option in (LL_sys_info.exercise_state == RUNNING):
-		traj_ellipse_points(phi_o, dt_phi_o, p_ref, dt_p_ref, u_t_ref_dum,
-				traj_ctrl_params->semiaxis_x, traj_ctrl_params->semiaxis_y, traj_ctrl_params->rot_angle);
+		// Set up homing trajectory start & end points:
+		p_homing_o[IDX_X] = p_m[IDX_X];
+		p_homing_o[IDX_Y] = p_m[IDX_Y];
 
-		p_home_f[IDX_X] = p_ref[IDX_X];
-		p_home_f[IDX_Y] = p_ref[IDX_Y];
+		home_point_ellipse(phi_home, dt_phi_home, p_ref, dt_p_ref, traj_ctrl_params); // HOMING: this will only work with the TRAJ_PARAMS_VARIABLE_OFF option
+
+		p_homing_f[IDX_X] = p_ref[IDX_X];
+		p_homing_f[IDX_Y] = p_ref[IDX_Y];
+
+		// Restart step counter:
+		step_i = 0;
 
 		// Control gains scale array:
-		*idx_scale_gain = IDX_SCALE_GAIN_CALIB;
+		*idx_scale_gain = IDX_SCALE_GAIN_EXERCISE; // was IDX_SCALE_GAIN_CALIB
 	}
 
-	// Generate trajectory points (NOTE: this zeroes init_homing_traj):
+	///////////////////////////////////////////////////////////////////////////////
+	// Update timer:
+	///////////////////////////////////////////////////////////////////////////////
+
+	t_home = step_i*dt_k;
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Generate trajectory points (NOTE: init_homing_traj gets zero'd):
+	///////////////////////////////////////////////////////////////////////////////
+
 	traj_linear_points(	p_ref, dt_p_ref, u_t_ref_dum, dt_k,
-						p_home_o, p_home_f, v_calib, frac_ramp_calib, &init_homing_traj, &T_f_home,
+						p_homing_o, p_homing_f, v_calib, frac_ramp_calib, &init_homing_traj, &T_f_home,
 						&pos_rel_home_dum, &dt_pos_rel_home_dum);
 
-	// Increase step counter:
-	step_i++;
-
+	///////////////////////////////////////////////////////////////////////////////
 	// Exit condition:
+	///////////////////////////////////////////////////////////////////////////////
+
 	if (t_home >= FACT_T_REF*T_f_home) {
-		*homing_on       = 0; // this will cause homing trajectory to stop
-		init_homing_traj = 1;
+		*homing_traj_on  = 0; // this will cause homing trajectory to stop
+		init_homing_traj = 1; // re-arm "initiate homing" flag for next homing call
 	}
 
+	///////////////////////////////////////////////////////////////////////////////
 	// ITM Console output:
+	///////////////////////////////////////////////////////////////////////////////
+
 	#if USE_ITM_OUT_CALIB_CHECK
 		if (step_i % (DT_DISP_MSEC_CALIB/DT_STEP_MSEC) == 0) {
 			printf("   ----------------------------\n");
@@ -500,7 +518,22 @@ traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8
 			printf("\n");
 		}
 
-		if (*homing_on == 0)
-			printf("   <<traj_ref_homing_ll2()>> homing_on == 0 \n\n");
+		if (*homing_traj_on == 0)
+			printf("   <<traj_ref_homing_ll2()>> homing_traj_on = [%d] \n\n", *homing_traj_on);
 	#endif
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Increase step counter:
+	///////////////////////////////////////////////////////////////////////////////
+
+	step_i++;
+}
+
+void
+home_point_ellipse(double phi_home, double dt_phi_home, double p_ref[], double dt_p_ref[], traj_ctrl_params_t* traj_ctrl_params) {
+	// Dummy variables:
+	double u_t_ref_dum[N_COORD_2D] = {0.0, 0.0};
+
+	traj_ellipse_points(phi_home, dt_phi_home, p_ref, dt_p_ref, u_t_ref_dum,
+		traj_ctrl_params->semiaxis_x, traj_ctrl_params->semiaxis_y, traj_ctrl_params->rot_angle);
 }

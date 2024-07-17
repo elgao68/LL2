@@ -113,7 +113,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 	else
 		 traj_exerc_type = EllipticTraj;
 
-	#if USE_ITM_OUT_RT_CHECK
+	#if USE_ITM_OUT_RT_CHECK_CTRL
 		printf("   test_real_time: traj_exerc_type = [%s]\n\n", TRAJ_TYPE_STR[traj_exerc_type]);
 	#endif
 
@@ -139,10 +139,10 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 	double u_t_ref[N_COORD_2D] = {0.0, 0.0};
 
 	// Internal state: initial values:
-	double z_intern_o_dbl[2*N_COORD_EXT];
+	double z_intern_home_dbl[2*N_COORD_EXT];
 
-	double    phi_o = PHI_INIT_EXERC;
-	double dt_phi_o = 0.0;
+	double    phi_home = PHI_HOME;
+	double dt_phi_home = 0.0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Kinematics variables - MEASURED:
@@ -264,17 +264,34 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 	int rt_step_i      = 0; // real-time step counter
 	int r_i, c_i; // general-purpose counters
 
-	int8_t switch_traj = MODE_TRAJ_NULL;
+	int8_t mode_traj      = MODE_TRAJ_NULL; // NOTE: this is a SIGNED integer
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Display variables:
 	///////////////////////////////////////////////////////////////////////////////
 
-	#if USE_ITM_OUT_RT_CHECK
+	#if USE_ITM_OUT_RT_CHECK_CTRL
 		uint8_t idx_sys_state;
 		uint8_t idx_activ_state;
 		uint8_t idx_exerc_state;
 	#endif
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Initialize internal state for active trajectory control (CRITICAL):
+	///////////////////////////////////////////////////////////////////////////////
+
+	home_point_ellipse(phi_home, dt_phi_home, p_ref, dt_p_ref, &traj_ctrl_params);
+
+	z_intern_home_dbl[IDX_X  ]    = p_ref[IDX_X];
+	z_intern_home_dbl[IDX_Y  ]    = p_ref[IDX_Y];
+	z_intern_home_dbl[IDX_PHI]    = phi_home;
+
+	z_intern_home_dbl[IDX_DT_X  ] = 0;
+	z_intern_home_dbl[IDX_DT_Y  ] = 0;
+	z_intern_home_dbl[IDX_DT_PHI] = dt_phi_home;
+
+	// Initial trajectory flag (CRITICAL):
+	uint8_t init_traj_exerc = 1;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Initialize app:
@@ -306,7 +323,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 		init_nml = 0;
 	}
 
-	#if USE_ITM_OUT_RT_CHECK
+	#if USE_ITM_OUT_RT_CHECK_CTRL
 		printf("test_real_time_onepass_control():\n\n");
 		printf("K_lq_xv_nml:\n");
 		for (r_i = 0; r_i < K_lq_xv_nml->num_rows; r_i++) {
@@ -492,11 +509,11 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 				///////////////////////////////////////////////////////////////////////////////
 
 				if (exercise_state_prev != RUNNING && lowerlimb_sys_info.exercise_state == RUNNING)
-					switch_traj = MODE_TRAJ_START;
+					mode_traj = MODE_TRAJ_START;
 				else if (exercise_state_prev != SLOWING && lowerlimb_sys_info.exercise_state == SLOWING)
-					switch_traj = MODE_TRAJ_END;
+					mode_traj = MODE_TRAJ_END;
 				// else
-				// 	switch_traj = MODE_TRAJ_NULL;
+				// 	mode_traj = MODE_TRAJ_NULL;
 
 				///////////////////////////////////////////////////////////////////////////////
 				///////////////////////////////////////////////////////////////////////////////
@@ -527,7 +544,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 						init_idle_activity_state = 0;
 
-						#if USE_ITM_OUT_RT_CHECK
+						#if USE_ITM_OUT_RT_CHECK_CTRL
 							idx_sys_state   = lowerlimb_sys_info.system_state;
 							idx_activ_state = lowerlimb_sys_info.activity_state;
 							idx_exerc_state = lowerlimb_sys_info.exercise_state;
@@ -547,16 +564,18 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 
 				else if (lowerlimb_sys_info.activity_state == CALIB) { // NOTE: calib_enc_on condition is activated by lowerlimb_app_onepass_ref()
 
-					#if USE_ITM_OUT_RT_CHECK
+					/*
+					#if USE_ITM_OUT_RT_CHECK_CTRL
 						if (cmd_code != cmd_code_prev) {
 							printf("   <<test_real_time_onepass_control()>> cmd_code_prev = [%s], cmd_code = [%s]\n\n", CMD_STR[cmd_code_prev], CMD_STR[cmd_code]);
 						}
 					#endif
+					*/
 
 					// NOTE: calib_enc_on will produce activity state transition from CALIB in lowerlimb_app_onepass_ref():
 					traj_ref_calibration_ll2(
-						p_ref, dt_p_ref, &calib_enc_on, &calib_traj, &idx_scale_gain, z_intern_o_dbl,
-						dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
+						p_ref, dt_p_ref, &calib_enc_on, &calib_traj, &idx_scale_gain,
+						dt_k, p_m, dt_p_m, phi_home, dt_phi_home,
 						&LL_motors_settings, &traj_ctrl_params, traj_exerc_type, V_CALIB, FRAC_RAMP_CALIB);
 
 				} // end if (lowerlimb_sys_info.activity_state == CALIB)
@@ -588,7 +607,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 						if (lowerlimb_sys_info.exercise_state == SLOWING && exercise_state_prev != SLOWING) {
 							t_slow_ref = t_ref;
 
-							#if USE_ITM_OUT_RT_CHECK
+							#if USE_ITM_OUT_RT_CHECK_CTRL
 								idx_sys_state   = lowerlimb_sys_info.system_state;
 								idx_activ_state = lowerlimb_sys_info.activity_state;
 								idx_exerc_state = lowerlimb_sys_info.exercise_state;
@@ -614,7 +633,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 									p_ref, dt_p_ref,
 									&phi_ref, &dt_phi_ref,
 									u_t_ref, dt_k,
-									traj_ctrl_params, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
+									traj_ctrl_params, mode_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
 							}
 							else
 								// Isometric trajectory OR safety catch:
@@ -628,10 +647,11 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 						else if (lowerlimb_sys_info.exercise_mode == ActiveTrajectoryCtrl) {
 							if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj)
 								traj_ref_step_active_elliptic(
+									z_intern_home_dbl,
 									p_ref, dt_p_ref,
 									&phi_ref, &dt_phi_ref,
-									u_t_ref, dt_k, F_end_in, z_intern_o_dbl,
-									traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, switch_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: elliptic was TRAJ_PARAMS_VARIABLE_ON
+									u_t_ref, dt_k, F_end_in,
+									traj_ctrl_params, admitt_model_params, ADMITT_MODEL_CONSTR_ON, mode_traj, TRAJ_PARAMS_VARIABLE_OFF, &init_traj_exerc); // NOTE: elliptic was TRAJ_PARAMS_VARIABLE_ON
 							else
 								// Isometric trajectory OR safety catch:
 								traj_ref_step_isometric(
@@ -653,7 +673,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 								lowerlimb_sys_info.activity_state = HOMING;
 								lowerlimb_sys_info.exercise_state = STOPPED;
 
-								#if USE_ITM_OUT_RT_CHECK
+								#if USE_ITM_OUT_RT_CHECK_CTRL
 									printf("   <<test_real_time_onepass_control()>> HOMING condition detected \n\n");
 									// printf("   t_slow = [%3.2f], t_slow_ref = [%3.2f]\n\n", t_slow, t_slow_ref);
 								#endif
@@ -666,7 +686,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 					///////////////////////////////////////////////////////////////////////////////
 
 					else {
-						#if USE_ITM_OUT_RT_CHECK
+						#if USE_ITM_OUT_RT_CHECK_CTRL
 							printf("   <<test_real_time_onepass_control()>> Invalid exercise mode [%s] for activity_state == EXERCISE] \n\n", PACE_EXERC_STR[lowerlimb_sys_info.exercise_state]);
 						#endif
 					}
@@ -679,7 +699,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 				else if (lowerlimb_sys_info.activity_state == HOMING) {
 
 					traj_ref_homing_ll2(p_ref, dt_p_ref, &homing_on, &idx_scale_gain,
-						dt_k, p_m, dt_p_m, phi_o, dt_phi_o,
+						dt_k, p_m, dt_p_m, phi_home, dt_phi_home,
 						&traj_ctrl_params, V_CALIB, FRAC_RAMP_CALIB);
 
 					// Exit condition:
@@ -818,7 +838,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 					motor_R_move(0, false, false);
 
 					// Display section:
-					#if USE_ITM_OUT_RT_CHECK
+					#if USE_ITM_OUT_RT_CHECK_CTRL
 						printf("\n");
 						printf("   <<test_real_time_onepass_control()>> MOTOR ALERT = [%d] \n\n", motor_alert);
 					#endif
@@ -839,7 +859,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 				///////////////////////////////////////////////////////////////////////////////
 
 				/*
-				#if USE_ITM_OUT_RT_CHECK
+				#if USE_ITM_OUT_RT_CHECK_CTRL
 					if ((up_time_end - up_time) > DT_STEP_MSEC) {
 						printf("____________________________\n");
 						printf("rt_step_i [%d]: t_ref = %f\tDT MSEC = %d\n",
@@ -882,7 +902,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 			// ITM console output:
 			///////////////////////////////////////////////////////////////////////////////
 
-			#if USE_ITM_OUT_RT_CHECK_LONG
+			#if USE_ITM_OUT_RT_CHECK_CTRL_LONG
 				if (rt_step_i % (DT_DISP_MSEC_REALTIME/DT_STEP_MSEC) == 0) {
 					// Check uptime after computations:
 					up_time_end = getUpTime();

@@ -20,7 +20,7 @@
 #define SEMIAXIS_Y_DEF		0.075
 #define ROT_ANGLE_DEF		0.0 // (-PI/6)
 #define CYCLE_DIR_DEF		1
-#define PHI_INIT_EXERC      (PI)
+#define PHI_HOME      		(PI)
 
 // Calibration parameters:
 #define TEST_CALIB_RUN		0
@@ -160,11 +160,11 @@ static char TRAJ_TYPE_STR[LEN_TRAJ_TYPE_LIST][LEN_STR_MAX] = {
 #define LEN_CALIB_TRAJ_LIST 5
 
 typedef enum {
-	CalibTraj_Null				= 0,
-	CalibTraj_1_Y_Travel		= 1,
-	CalibTraj_2_X_Travel		= 2,
-	CalibTraj_3_Travel_to_ORG	= 3,
-	CalibTraj_4_Travel_to_P_Start_Exe = 4,
+	CalibTraj_Null			   = 0,
+	CalibTraj_1_Y_Travel	   = 1,
+	CalibTraj_2_X_Travel	   = 2,
+	CalibTraj_3_Travel_to_ORG  = 3,
+	CalibTraj_4_Travel_to_HOME = 4,
 } calib_traj_t;
 
 // Calibration state strings (must match enumeration):
@@ -173,7 +173,7 @@ static char CALIB_TRAJ_STR[LEN_CALIB_TRAJ_LIST][LEN_STR_MAX] = {
 	"CALIB TRAJ 1 Y",
 	"CALIB TRAJ 2 X",
 	"CALIB TRAJ 3 TO ORG",
-	"CALIB TRAJ 4 TO P START"
+	"CALIB TRAJ 4 TO HOME"
 };
 
 ///////////////////////////////////////////////////////////////////////////////

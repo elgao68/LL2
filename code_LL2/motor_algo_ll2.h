@@ -157,10 +157,11 @@ typedef struct {
 
 // ELLIPTIC TRAJECTORY - ACTIVE:
 void traj_ref_step_active_elliptic(
+		double z_intern_home_dbl[],
 		double p_ref[],	double dt_p_ref[],
 		double* phi_ref, double* dt_phi_ref,
-		double u_t_ref[], double dt_k, double F_end_in[], double z_intern_o_dbl[],
-		traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int use_admitt_model_constr, int8_t mode_traj, int8_t use_traj_params_variable);
+		double u_t_ref[], double dt_k, double F_end_in[],
+		traj_ctrl_params_t traj_ctrl_params, admitt_model_params_t admitt_model_params, int use_admitt_model_constr, int8_t mode_traj, int8_t use_traj_params_variable, uint8_t* init_traj);
 
 ///////////////////////////////////////////////////////////////////////////////
 // MOTION ALGORITHMS - PASSIVE:
@@ -181,15 +182,16 @@ void traj_ref_step_isometric(
 
 // CALIBRATION TRAJECTORY:
 void traj_ref_calibration_ll2(
-	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale_gain, double z_intern_o_dbl[],
-	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
-	lowerlimb_motors_settings_t* LL_motors_settings, traj_ctrl_params_t* traj_ctrl_params, uint8_t traj_exerc_type, double v_calib, double frac_ramp_calib);
+	double p_ref[], double dt_p_ref[], uint8_t* calib_enc_on, calib_traj_t* calib_traj, uint8_t* idx_scale_gain,
+	double dt_k, double p_m[], double dt_p_m[], double phi_home, double dt_phi_home,
+	lowerlimb_motors_settings_t* LL_motors_settings, traj_ctrl_params_t* traj_ctrl_params, uint8_t traj_exerc_type, double v_calib, double frac_ramp_calib); // NOTE: removed double z_intern_home_dbl[] (17.07.2024)
 
 // HOMING TRAJECTORY:
-void
-traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* idx_scale_gain,
-	double dt_k, double p_m[], double dt_p_m[], double phi_o, double dt_phi_o,
+void traj_ref_homing_ll2(double p_ref[], double dt_p_ref[], uint8_t* homing_on, uint8_t* idx_scale_gain,
+	double dt_k, double p_m[], double dt_p_m[], double phi_home, double dt_phi_home,
 	traj_ctrl_params_t* traj_ctrl_params, double v_calib, double frac_ramp_calib);
+
+void home_point_ellipse(double phi_home, double dt_phi_home, double p_ref[], double dt_p_ref[], traj_ctrl_params_t* traj_ctrl_params);
 
 ///////////////////////////////////////////////////////////////////////////////
 // FUNCTION DECLARATIONS, DYNAMIC SYSTEMS

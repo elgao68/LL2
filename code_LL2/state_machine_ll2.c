@@ -37,24 +37,24 @@ state_machine_ll2_tcp_app(uint16_t* state_fw, uint16_t* cmd_code_tcp, uint16_t* 
 			send_OK_resp(*cmd_code_tcp);
 
 			// Change fw state:
-			*state_fw = ST_FW_CALIBRATING;
+			*state_fw = ST_FW_CALIBRATE_AND_HOME;
+		}
+		// Stop "system":
+		else if (*cmd_code_tcp == STOP_SYS_CMD) {
+			// Response to *cmd_code_tcp:
+			send_OK_resp(*cmd_code_tcp);
+
+			// Change fw state:
+			*state_fw = ST_FW_SYSTEM_OFF;
 		}
 	}
 
-	else if (*state_fw == ST_FW_CALIBRATING) {
+	else if (*state_fw == ST_FW_CALIBRATE_AND_HOME) {
 		// Calibration completion reported:
 		if (*msg_code_intern == CALIB_ENC_COMPLETED_CMD) {
 			// Response to *cmd_code_tcp:
 			send_OK_resp(AUTO_CALIB_MODE_CMD);
 
-			// Change fw state:
-			*state_fw = ST_FW_HOMING;
-		}
-	}
-
-	else if (*state_fw == ST_FW_HOMING) {
-		// Homing completion reported:
-		if (*msg_code_intern == HOMING_COMPLETED_CMD) {
 			// Change fw state:
 			*state_fw = ST_FW_STDBY_AT_POSITION;
 		}
@@ -94,6 +94,14 @@ state_machine_ll2_tcp_app(uint16_t* state_fw, uint16_t* cmd_code_tcp, uint16_t* 
 
 			// Change fw state:
 			*state_fw = ST_FW_HOMING;
+		}
+	}
+
+	else if (*state_fw == ST_FW_HOMING) {
+		// Homing completion reported:
+		if (*msg_code_intern == HOMING_COMPLETED_CMD) {
+			// Change fw state:
+			*state_fw = ST_FW_STDBY_AT_POSITION;
 		}
 	}
 

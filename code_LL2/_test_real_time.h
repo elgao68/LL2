@@ -50,11 +50,12 @@
 #define DT_DISP_MSEC_GUI_PARAMS		2000
 
 // ITM Data Console switches:
-#define USE_ITM_OUT_RT_CHECK		1
-#define USE_ITM_OUT_UPTIME_CHECK	0
-#define USE_ITM_OUT_RT_CHECK_LONG	0
-#define USE_ITM_OUT_GUI_PARAMS		0
-#define USE_ITM_TCP_CHECK		    0
+#define USE_ITM_OUT_RT_CHECK_CTRL		1
+#define USE_ITM_OUT_RT_CHECK_CTRL_LONG	0
+#define USE_ITM_OUT_RT_CHECK_STATES		0
+#define USE_ITM_OUT_UPTIME_CHECK		0
+#define USE_ITM_OUT_GUI_PARAMS			0
+#define USE_ITM_TCP_CHECK		    	0
 
 // TCP ethernet related - Demo Firmware Version:
 #define VER_H		0x00
@@ -90,7 +91,7 @@ static uint64_t R_brakes_powersavetimer = 0;
 
 void test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
 void test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
-void test_real_time_stmach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
+void test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3);
 
 ////////////////////////////////////////////////////////////////////////////////
 // Declare helper functions (see main.c):

@@ -146,7 +146,7 @@ traj_ellipse_help(	double phi, double dt_phi, double p[], double dt_p[], double 
 
 void
 traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
-					double p_o[], double p_f[], double v_max, double frac_ramp_o, uint8_t* initial, double* T_f_ref,
+					double p_o[], double p_f[], double v_max, double frac_ramp_o, uint8_t *initial, double* T_f_ref,
 					double* pos_rel, double* dt_pos_rel) {
 
 	static int    step_int = 0; // relative time reference
@@ -154,6 +154,7 @@ traj_linear_points(	double p[], double dt_p[], double u_t[], double dt_k,
 	static double dist_max;
 	int c_i;
 
+	// Initialize trajectory parameters (NOTE: initial is passed by value)
 	if (*initial) {
 		step_int = 0;
 
