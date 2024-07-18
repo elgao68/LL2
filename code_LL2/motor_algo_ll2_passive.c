@@ -31,7 +31,6 @@ traj_ref_step_passive_elliptic(
 	static double ax_y;
 	static double rot_ang;
 	static int cycle_dir;
-	static double sig_exp;
 
 	if (*init_traj) {
 		T_cycle   = traj_ctrl_params.cycle_period;
@@ -40,20 +39,20 @@ traj_ref_step_passive_elliptic(
 		ax_y      = traj_ctrl_params.semiaxis_y;
 		rot_ang   = traj_ctrl_params.rot_angle;
 		cycle_dir = (int)traj_ctrl_params.cycle_dir;
-		sig_exp   = 3.0/T_exp;
 	}
+
+	double sig_exp     = 3.0/T_exp;
+	double omega_cycle = 2*PI/T_cycle; // desired cycle frequency
+
+	// Switch to slow-down conditions (MODE_TRAJ_END);
+	static double omega_sw;
+	static double phi_sw;
 
 	///////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////
 	// STATIC VARIABLES declarations (other than trajectory parameters):
 	///////////////////////////////////////////////////////////////////////////////
 	///////////////////////////////////////////////////////////////////////////////
-
-	///////////////////////////////////////////////////////////////////////////////
-	// Cycle frequency - variable fraction:
-	///////////////////////////////////////////////////////////////////////////////
-
-	static double frac_dt_phi = 1.0;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Variable trajectory parameters:
@@ -80,9 +79,6 @@ traj_ref_step_passive_elliptic(
 
 	if (*init_traj) {
 
-		// (Re)initialize force fraction:
-		frac_dt_phi = 1.0;
-
 		// Variable trajectory parameters:
 		if (use_traj_params_variable) {
 			ax_x_adj = 0;
@@ -108,7 +104,7 @@ traj_ref_step_passive_elliptic(
 
 	double t_ref = dt_k*step_int;
 
-	static double t_param_o = 0;
+	static double t_sw_o = 0; // time reference for trajectory mode switch (MODE_TRAJ_START / MODE_TRAJ_END)
 
     ///////////////////////////////////////////////////////////////////////////////
     //  Variable trajectory path parameters - behaviors:
@@ -120,24 +116,28 @@ traj_ref_step_passive_elliptic(
 		static double ax_y_o;
 
 		if (mode_traj == MODE_TRAJ_START && mode_traj != mode_traj_prev) {
-			t_param_o = t_ref;
+			t_sw_o = t_ref;
 			ax_x_o = ax_x_adj;
 			ax_y_o = ax_y_adj;
 		}
 		else if (mode_traj == MODE_TRAJ_END && mode_traj != mode_traj_prev) {
-			t_param_o = t_ref;
+			t_sw_o = t_ref;
 			ax_x_o = ax_x_adj;
 			ax_y_o = ax_y_adj;
 		}
 
 		if (mode_traj == MODE_TRAJ_START) {
-			ax_x_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_x - ax_x_o) + ax_x_o;
-			ax_y_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_y - ax_y_o) + ax_y_o;
+			ax_x_adj = (1.0 - exp(-sig_exp*(t_ref - t_sw_o)))*(ax_x - ax_x_o) + ax_x_o;
+			ax_y_adj = (1.0 - exp(-sig_exp*(t_ref - t_sw_o)))*(ax_y - ax_y_o) + ax_y_o;
 		}
 		else if (mode_traj == MODE_TRAJ_END) {
-			ax_x_adj = exp(-sig_exp*(t_ref - t_param_o))*ax_x_o;
-			ax_y_adj = exp(-sig_exp*(t_ref - t_param_o))*ax_y_o;
+			ax_x_adj = exp(-sig_exp*(t_ref - t_sw_o))*ax_x_o;
+			ax_y_adj = exp(-sig_exp*(t_ref - t_sw_o))*ax_y_o;
 		}
+
+		// Compute instantaneous frequency and phase (TODO: these formulas need to be re-tested after implementation of homing-based trajectory - 18.07.2024):
+		*dt_phi_ref = omega_cycle;
+		*phi_ref    = (*dt_phi_ref)*t_ref + phi_home;
 	}
 
     ///////////////////////////////////////////////////////////////////////////////
@@ -145,26 +145,33 @@ traj_ref_step_passive_elliptic(
     ///////////////////////////////////////////////////////////////////////////////
 
 	else { // (!use_traj_params_variable)
-		if (mode_traj == MODE_TRAJ_END && mode_traj != mode_traj_prev)
-			t_param_o = t_ref;
 
-		///////////////////////////////////////////////////////////////////////////////
-		// Make input force decay:
-		///////////////////////////////////////////////////////////////////////////////
+		// Detect trajectory mode switch (MODE_TRAJ_START / MODE_TRAJ_END):
+		if (mode_traj != mode_traj_prev) {
+			t_sw_o = t_ref;
 
-		if (mode_traj == MODE_TRAJ_END)
-			frac_dt_phi = exp(-sig_exp*(t_ref - t_param_o));
+			// MODE_TRAJ_END case: record initial conditions:
+			if (mode_traj == MODE_TRAJ_END) {
+				 omega_sw = *dt_phi_ref;
+				 phi_sw   = *phi_ref;
+			}
+		}
+
+		// Compute instantaneous frequency and phase:
+		if (mode_traj == MODE_TRAJ_START) {
+			*dt_phi_ref = (1.0 - exp(-sig_exp*(t_ref - t_sw_o)))*omega_cycle;
+			*phi_ref    = omega_cycle*(t_ref - t_sw_o) - omega_cycle/sig_exp*(1.0 - exp(-sig_exp*(t_ref - t_sw_o))) + phi_home;
+		}
+		else if (mode_traj == MODE_TRAJ_END) {
+			*dt_phi_ref = omega_sw*exp(-sig_exp*(t_ref - t_sw_o));
+			*phi_ref    = omega_cycle/sig_exp*(1.0 - exp(-sig_exp*(t_ref - t_sw_o))) + phi_sw;
+		}
 	}
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Obtain reference trajectory position and velocity:
+	// Compute reference trajectory position and velocity from PHASE and FREQ:
 	///////////////////////////////////////////////////////////////////////////////
 
-	// Compute instantaneous frequency and phase (NOTE initial condition phi_home):
-	*dt_phi_ref = frac_dt_phi*2*PI/T_cycle;
-	*phi_ref    = (*dt_phi_ref)*t_ref + phi_home; // TODO: this integral is inexact for the portion where frac_dt_phi decays
-
-	// Compute reference trajectory position and velocity from PHASE:
 	traj_ellipse_points(*phi_ref, *dt_phi_ref, p_ref, dt_p_ref, u_t_ref,
 		ax_x_adj, ax_y_adj, rot_ang);
 
@@ -185,10 +192,9 @@ traj_ref_step_passive_elliptic(
 		}
 
 		if (step_int % (DT_DISP_MSEC_ALGO/(int)(1000*dt_k)) == 0) {
-			printf("[%d] phi = [%3.2f] \tdt_phi = [%3.2f] \tfrac_dt_phi = [%3.2f] \n\n",
+			printf("[%d] phi = [%3.2f] \tdt_phi = [%3.2f] \n\n",
 				step_int,
-				*phi_ref, *dt_phi_ref,
-				frac_dt_phi);
+				*phi_ref, *dt_phi_ref);
 		}
 	#endif
 
