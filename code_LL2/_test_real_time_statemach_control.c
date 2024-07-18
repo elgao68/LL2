@@ -21,7 +21,7 @@ void
 test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
 	///////////////////////////////////////////////////////////////////////////////
-	// NOTE: Select TCP command codes list (CRITICAL):
+	// Select TCP command codes list (CRITICAL):
 	///////////////////////////////////////////////////////////////////////////////
 
 	__SELECT_CMD_CODE_LIST(USE_SOFTWARE_MSG_LIST)
@@ -447,7 +447,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
 
-			state_machine_ll2_tcp_app(&state_fw, &cmd_code_tcp, &msg_code_intern, &pace_exerc);
+			state_machine_ll2(&state_fw, &cmd_code_tcp, &msg_code_intern, &pace_exerc); // USE_SOFTWARE_MSG_LIST
 
 			// Register change of state (CRITICAL):
 			state_fw_changed = (state_fw != state_fw_prev);
@@ -492,13 +492,13 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 					else if (state_fw == ST_FW_CALIBRATE_AND_HOME)
 						motor_torque_active = 1;
 					else if (state_fw == ST_FW_HOMING)
-						motor_torque_active = 0;
+						motor_torque_active = 1;
 					else if (state_fw == ST_FW_ADJUST_EXERCISE)
 						motor_torque_active = 0;
 					else if (state_fw == ST_FW_EXERCISE_ON)
-						motor_torque_active = 0;
+						motor_torque_active = 1;
 					else if (state_fw == ST_FW_STDBY_AT_POSITION)
-						motor_torque_active = 0;
+						motor_torque_active = 1;
 				#else
 					motor_torque_active = 0;
 				#endif
@@ -666,7 +666,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 					&LL_motors_settings, &traj_ctrl_params, traj_exerc_type, V_CALIB, FRAC_RAMP_CALIB);
 
 				// If motor torque is inactive, consider encoder calibration completed (only for testing):
-				if (!motor_torque_active)
+				if (MODE_STANDALONE_BOARD || !motor_torque_active)
 					calib_enc_traj_on = 0;
 
 				// Signal end of calibration trajectory:
