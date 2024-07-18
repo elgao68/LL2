@@ -37,6 +37,9 @@
 // Program settings:
 ////////////////////////////////////////////////////////////////////////////////
 
+// Switch robot mode / standalone board mode:
+#define MODE_STANDALONE_BOARD		0
+
 // TCP messages list to use (TCP app: 0 / software app: 1) - CRITICAL:
 #define USE_SOFTWARE_MSG_LIST		0
 
@@ -64,6 +67,18 @@
 #define VER_H		0x00
 #define VER_L		0x00
 #define VER_P		0x00
+
+////////////////////////////////////////////////////////////////////////////////
+// Define macros:
+////////////////////////////////////////////////////////////////////////////////
+
+#if USE_SOFTWARE_MSG_LIST
+	#define __CMD_CODE_STR(cmd_code) \
+		MSG_TCP_STR[cmd_code]
+#else
+	#define __CMD_CODE_STR(cmd_code) \
+		CMD_STR[cmd_code]
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////
 // Control variables:

@@ -20,7 +20,11 @@ extern lowerlimb_sys_info_t lowerlimb_sys_info;
 void
 test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
-	// NOTE: TCP messages list option is by controlled USE_SOFTWARE_MSG_LIST
+	///////////////////////////////////////////////////////////////////////////////
+	// NOTE: Select TCP command codes list (CRITICAL):
+	///////////////////////////////////////////////////////////////////////////////
+
+	__SELECT_CMD_CODE_LIST(USE_SOFTWARE_MSG_LIST)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// MOTOR STATE VARS:
@@ -210,7 +214,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 	double t_slow_ref = 0.0;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// TCP/IP variables:
+	// TCP/IP communications variables:
 	///////////////////////////////////////////////////////////////////////////////
 
 	int sock_status;
@@ -218,6 +222,16 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 	// TCP communication checks:
 	int32_t ret_tcp_msg      = 0;
 	uint64_t dt_ret_tcp_msec = 0;
+
+	///////////////////////////////////////////////////////////////////////////////
+	// TCP/IP message PAYLOAD variables:
+	///////////////////////////////////////////////////////////////////////////////
+
+	// Void pointer to TCP message PAYLOAD - should be recast to the correct data type depending on the payload (CRITICAL):
+	void* msg_payload = &tcpRxData[payloadStart_index];
+
+	// Payload variables (message specific):
+	exercise_mode_t exercise_mode;
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Firmware state & command code variables:
@@ -362,11 +376,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 			#if USE_ITM_CMD_DISPLAY
 				if (is_valid_cmd_code_tcp) {
 					printf("   --------------------------------------\n");
-					if (USE_SOFTWARE_MSG_LIST == 0)
-						printf("   cmd_code_tcp(%d) [%s] (state machine TCP app) \n", cmd_code_tcp, CMD_STR[cmd_code_tcp]);
-					else
-						printf("   <test_real_time_statemach_control()> SWITCH to TCP app command codes!!! \n");
-					printf(" \n");
+					printf("   cmd_code_tcp(%d) [%s] (state machine TCP app) \n\n", cmd_code_tcp, __CMD_CODE_STR(cmd_code_tcp));
 				}
 			#endif
 
@@ -403,6 +413,36 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
+			// PAYLOAD extraction for different command codes (TODO: complete this section!):
+			///////////////////////////////////////////////////////////////////////////////
+			///////////////////////////////////////////////////////////////////////////////
+
+			if (is_valid_cmd_code_tcp) {
+				if (cmd_code_tcp == _START_SYSTEM) { }
+				else if (cmd_code_tcp == _BRAKES_ON_OFF	) { }
+				else if (cmd_code_tcp == _CALIBRATE) { }
+
+				else if (cmd_code_tcp == _START_EXERCISE) {
+					// Obtain exercise mode from payload:
+					exercise_mode = *(exercise_mode_t*)msg_payload;
+
+					#if USE_ITM_EXERC_MODE_CHECK
+						printf("   <<test_real_time_statemach_control>> cmd_code (%d) [%s]: PAYLOAD exercise_mode (%d) [%s]\n\n",
+								cmd_code_tcp, __CMD_CODE_STR(cmd_code_tcp), exercise_mode, EXERC_MODE_STR[exercise_mode]);
+					#endif
+				}
+
+				else if (cmd_code_tcp == _STOP_EXERCISE) { }
+				else if (cmd_code_tcp == _STOP_SYSTEM) { }
+				else if (cmd_code_tcp == _MOVE_TO_START) { }
+				else if (cmd_code_tcp == _GO_TO_EXERCISE) { }
+				else if (cmd_code_tcp == _PEDAL_TRAVEL) { }
+				else if (cmd_code_tcp == _FORCE_THERAPY_CHANGE) { }
+				else if (cmd_code_tcp == _STDBY_START_POINT) { }
+			}
+
+			///////////////////////////////////////////////////////////////////////////////
+			///////////////////////////////////////////////////////////////////////////////
 			// STATE MACHINE for TCP app commands:
 			///////////////////////////////////////////////////////////////////////////////
 			///////////////////////////////////////////////////////////////////////////////
@@ -419,12 +459,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 			#if USE_ITM_CMD_DISPLAY
 				if (state_fw_changed || rt_step_i == 0) {
 					printf("______________________________________\n");
-					if (USE_SOFTWARE_MSG_LIST == 0)
-						printf("FIRMWARE STATE (%d) [%s] (TCP app) \n",
-							state_fw, STR_ST_FW[state_fw - OFFS_ST_FW]); // pace_exerc, PACE_EXERC_STR[pace_exerc]
-					else
-						printf("<test_real_time_statemach_control()> SWITCH to TCP app command codes!!! \n");
-					printf(" \n");
+					printf("FIRMWARE STATE (%d) [%s] (TCP app) \n\n",	state_fw, STR_ST_FW[state_fw - OFFS_ST_FW]); // pace_exerc, PACE_EXERC_STR[pace_exerc]
 				}
 			#endif
 
@@ -451,18 +486,22 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 				// Motor torque activation status - CRITICAL:
 				///////////////////////////////////////////////////////////////////////////////
 
-				if (state_fw == ST_FW_SYSTEM_OFF || state_fw == ST_FW_CONNECTING)
+				#if (MODE_STANDALONE_BOARD == 0)
+					if (state_fw == ST_FW_SYSTEM_OFF || state_fw == ST_FW_CONNECTING)
+						motor_torque_active = 0;
+					else if (state_fw == ST_FW_CALIBRATE_AND_HOME)
+						motor_torque_active = 1;
+					else if (state_fw == ST_FW_HOMING)
+						motor_torque_active = 0;
+					else if (state_fw == ST_FW_ADJUST_EXERCISE)
+						motor_torque_active = 0;
+					else if (state_fw == ST_FW_EXERCISE_ON)
+						motor_torque_active = 0;
+					else if (state_fw == ST_FW_STDBY_AT_POSITION)
+						motor_torque_active = 0;
+				#else
 					motor_torque_active = 0;
-				else if (state_fw == ST_FW_CALIBRATE_AND_HOME)
-					motor_torque_active = 1;
-				else if (state_fw == ST_FW_HOMING)
-					motor_torque_active = 1;
-				else if (state_fw == ST_FW_ADJUST_EXERCISE)
-					motor_torque_active = 0;
-				else if (state_fw == ST_FW_EXERCISE_ON)
-					motor_torque_active = 1;
-				else if (state_fw == ST_FW_STDBY_AT_POSITION)
-					motor_torque_active = 1;
+				#endif
 			}
 
 			///////////////////////////////////////////////////////////////////////////////
@@ -703,7 +742,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 					mode_traj = MODE_TRAJ_END;
 
 				// Passive trajectory control:
-				if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
+				if (exercise_mode == PassiveTrajectoryCtrl) {
 					if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj)
 						traj_ref_step_passive_elliptic(
 							phi_home,
@@ -720,7 +759,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 				}
 
 				// Active trajectory control:
-				else if (lowerlimb_sys_info.exercise_mode == ActiveTrajectoryCtrl) {
+				else if (exercise_mode == ActiveTrajectoryCtrl) {
 					if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj)
 						traj_ref_step_active_elliptic(
 							z_intern_home_dbl,
@@ -876,7 +915,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 					if (state_fw_changed || rt_step_i % (DT_DISP_MSEC_REALTIME/DT_STEP_MSEC) == 0) {
 						printf("   [%s]  exerc mode [%s]  p_ref [%3.3f, %3.3f]  ",
 								STR_ST_FW[state_fw - OFFS_ST_FW],
-								EXERC_MODE_STR[lowerlimb_sys_info.exercise_mode],
+								EXERC_MODE_STR[exercise_mode],
 								p_ref[IDX_X], p_ref[IDX_Y]);
 
 						printf("mot_trq_active [%d]  mot_alert [%d]  pace_exerc [%s]  mode_traj [%d]  t_slow [%3.2f] T_exp [%3.2f]  dt_phi_ref [%3.2f]\n\n",

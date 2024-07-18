@@ -195,33 +195,6 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 		*cmd_code_ref = NO_CMD;
 
 	////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////
-	// Assign payload values to system info (CRITICAL):
-	////////////////////////////////////////////////////////////////////////////////
-	////////////////////////////////////////////////////////////////////////////////
-
-	////////////////////////////////////////////////////////////////////////////////
-	// Exercise mode:
-	////////////////////////////////////////////////////////////////////////////////
-
-	if (use_software_msg_list) {
-		#if USE_ITM_EXERC_MODE_CHECK
-			printf("   <<is_valid_rcv_data_cmd_code()>> EXERCISE MODE assignments for software app (MSG_TCP) NOT IMPLEMENTED! \n\n", cmd_code);
-		#endif
-	}
-	else {
-		if (*cmd_code_ref == START_EXERCISE_CMD) {
-			exercise_mode = get_exercise_mode_tcp_app(tcp_rx);
-
-			// Reject non-applicable cases:
-			if (exercise_mode == ImpedanceCtrl || exercise_mode ==	AdmittanceCtrl)
-				exercise_mode = NoCtrl;
-		}
-	}
-
-	lowerlimb_sys->exercise_mode = exercise_mode;
-
-	////////////////////////////////////////////////////////////////////////////////
 	// ITM console output:
 	////////////////////////////////////////////////////////////////////////////////
 
@@ -300,12 +273,6 @@ is_valid_w5500_msg(uint8_t tcp_rx_data[]) {
 
 	return 1;
 }
-
-#define TEST_CMD_CODE_TCP_APP_PAYLOAD 			1
-#define TEST_CMD_CODE_TCP_APP_SYS_ON 			0
-#define TEST_CMD_CODE_TCP_APP_CTRL_MODE 		1
-#define TEST_CMD_CODE_TCP_APP_START_STOP_SYS	0
-#define TEST_CMD_CODE_TCP_APP_STOP_EXE			0
 
 uint8_t
 is_valid_cmd_code_tcp_app(uint16_t cmd_code, uint8_t rxPayload, uint8_t system_state, uint8_t activity_state, uint16_t* app_status) {
@@ -1063,11 +1030,6 @@ set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time) {
 		set_l_brake_status(l_brakes(get_l_brake_cmd() && Read_Haptic_Button()));
 		set_r_brake_status(r_brakes(get_r_brake_cmd() && Read_Haptic_Button()));
 	}
-}
-
-exercise_mode_t
-get_exercise_mode_tcp_app(uint8_t tcp_rx[]) {
-	return (exercise_mode_t)tcp_rx[payloadStart_index];
 }
 
 /**

@@ -654,7 +654,6 @@ void set_r_brake_status(uint8_t status);
 
 void set_brakes_simple();
 void set_brakes_timed(uint64_t uptime, uint64_t* brakes_next_time);
-exercise_mode_t get_exercise_mode_tcp_app(uint8_t tcp_rx[]);
 
 void* memcpy_msb(void *pDest, const void *pSrc, unsigned long len);
 
