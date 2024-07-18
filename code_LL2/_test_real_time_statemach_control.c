@@ -1,6 +1,6 @@
 /////////////////////////////////////////////////////////////////////////////
 //
-//  _test_real_time_statemach_control_tcp_app.c
+//  _test_real_time_statemach_control.c
 //
 // Created on: 2024.07.10
 // Author: Gabriel Aguirre Ollinger
@@ -9,7 +9,7 @@
 
 #include <_test_real_time.h>
 
-extern lowerlimb_sys_info_t lowerlimb_sys_info; // TODO: remove at a later date
+extern lowerlimb_sys_info_t lowerlimb_sys_info;
 
 /////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////
@@ -18,13 +18,9 @@ extern lowerlimb_sys_info_t lowerlimb_sys_info; // TODO: remove at a later date
 /////////////////////////////////////////////////////////////////////////////
 
 void
-test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
+test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc3) {
 
-	///////////////////////////////////////////////////////////////////////////////
-	// General settings:
-	///////////////////////////////////////////////////////////////////////////////
-
-	const uint8_t USE_SOFTWARE_MSG_LIST   = 0; // CRITICAL option
+	// NOTE: TCP messages list option is by controlled USE_SOFTWARE_MSG_LIST
 
 	///////////////////////////////////////////////////////////////////////////////
 	// MOTOR STATE VARS:
@@ -288,7 +284,7 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 	}
 
 	#if USE_ITM_OUT_RT_CHECK_CTRL
-		printf("test_real_time_statemach_control_tcp_app():\n\n");
+		printf("test_real_time_statemach_control():\n\n");
 		printf("K_lq_xv_nml:\n");
 		for (r_i = 0; r_i < K_lq_xv_nml->num_rows; r_i++) {
 			for (c_i = 0; c_i < K_lq_xv_nml->num_cols; c_i++)
@@ -366,10 +362,10 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 			#if USE_ITM_CMD_DISPLAY
 				if (is_valid_cmd_code_tcp) {
 					printf("   --------------------------------------\n");
-					if (!USE_SOFTWARE_MSG_LIST)
+					if (USE_SOFTWARE_MSG_LIST == 0)
 						printf("   cmd_code_tcp(%d) [%s] (state machine TCP app) \n", cmd_code_tcp, CMD_STR[cmd_code_tcp]);
 					else
-						printf("   <test_real_time_statemach_control_tcp_app()> SWITCH to TCP app command codes!!! \n");
+						printf("   <test_real_time_statemach_control()> SWITCH to TCP app command codes!!! \n");
 					printf(" \n");
 				}
 			#endif
@@ -423,11 +419,11 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 			#if USE_ITM_CMD_DISPLAY
 				if (state_fw_changed || rt_step_i == 0) {
 					printf("______________________________________\n");
-					if (!USE_SOFTWARE_MSG_LIST)
+					if (USE_SOFTWARE_MSG_LIST == 0)
 						printf("FIRMWARE STATE (%d) [%s] (TCP app) \n",
 							state_fw, STR_ST_FW[state_fw - OFFS_ST_FW]); // pace_exerc, PACE_EXERC_STR[pace_exerc]
 					else
-						printf("<test_real_time_statemach_control_tcp_app()> SWITCH to TCP app command codes!!! \n");
+						printf("<test_real_time_statemach_control()> SWITCH to TCP app command codes!!! \n");
 					printf(" \n");
 				}
 			#endif
@@ -457,7 +453,9 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 
 				if (state_fw == ST_FW_SYSTEM_OFF || state_fw == ST_FW_CONNECTING)
 					motor_torque_active = 0;
-				else if (state_fw == ST_FW_CALIBRATE_AND_HOME || state_fw == ST_FW_HOMING)
+				else if (state_fw == ST_FW_CALIBRATE_AND_HOME)
+					motor_torque_active = 1;
+				else if (state_fw == ST_FW_HOMING)
 					motor_torque_active = 1;
 				else if (state_fw == ST_FW_ADJUST_EXERCISE)
 					motor_torque_active = 0;
@@ -529,7 +527,7 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 						calib_enc_traj_on = 1;
 
 						#if USE_ITM_CMD_DISPLAY
-							printf("   <<test_real_time_statemach_control_tcp_app()>> [Force sensors calibrated] \n\n");
+							printf("   <<test_real_time_statemach_control()>> [Force sensors calibrated] \n\n");
 						#endif
 					}
 				}
@@ -608,12 +606,6 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 
 			else if (state_fw == ST_FW_STDBY_AT_POSITION) {
 				if (state_fw_changed) {
-					// Default kinematic reference - // TODO: remove at a later date
-					/*
-					p_ref[IDX_X]    = p_m[IDX_X];
-					p_ref[IDX_Y]    = p_m[IDX_Y];
-					*/
-
 					// Generate HOME point:
 					home_point_ellipse(phi_home, dt_phi_home, p_ref, dt_p_ref, &traj_ctrl_params);
 
@@ -644,7 +636,7 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 					msg_code_intern = CALIB_ENC_COMPLETED_CMD;
 
 					#if USE_ITM_CMD_DISPLAY
-						printf("   <<test_real_time_statemach_control_tcp_app()>> [Encoders calibrated] \n\n");
+						printf("   <<test_real_time_statemach_control()>> [Encoders calibrated] \n\n");
 					#endif
 				}
 			}
@@ -659,7 +651,7 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 					homing_traj_on = 1;
 
 					#if USE_ITM_OUT_RT_CHECK_CTRL
-						printf("   <<test_real_time_statemach_control_tcp_app()>> homing_traj_on = [%d] \n\n", homing_traj_on);
+						printf("   <<test_real_time_statemach_control()>> homing_traj_on = [%d] \n\n", homing_traj_on);
 					#endif
 				}
 
@@ -714,10 +706,11 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 				if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
 					if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj)
 						traj_ref_step_passive_elliptic(
+							phi_home,
 							p_ref, dt_p_ref,
 							&phi_ref, &dt_phi_ref,
 							u_t_ref, dt_k,
-							traj_ctrl_params, mode_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
+							traj_ctrl_params, mode_traj, TRAJ_PARAMS_VARIABLE_OFF, &init_traj_exerc); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
 					else
 						// Isometric trajectory OR safety catch (TODO: merge with home_point_ellipse()?):
 						traj_ref_step_isometric(
@@ -755,7 +748,7 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 						msg_code_intern = SLOWING_COMPLETED_CMD;
 
 						#if USE_ITM_OUT_RT_CHECK_CTRL
-							printf("   <<test_real_time_statemach_control_tcp_app()>> HOMING condition detected \n\n");
+							printf("   <<test_real_time_statemach_control()>> HOMING condition detected \n\n");
 							// printf("   t_slow = [%3.2f], T_exp = [%3.2f], dt_phi_ref = [%3.3f] \n\n", t_slow, T_exp, dt_phi_ref);
 						#endif
 					}
@@ -910,7 +903,7 @@ test_real_time_statemach_control_tcp_app(ADC_HandleTypeDef* hadc1, ADC_HandleTyp
 					// ITM Console output:
 					/*
 					#if USE_ITM_OUT_RT_CHECK_CTRL
-						printf("   <<test_real_time_statemach_control_tcp_app()>> MOTOR ALERT = [%d] \n\n", motor_alert);
+						printf("   <<test_real_time_statemach_control()>> MOTOR ALERT = [%d] \n\n", motor_alert);
 					#endif
 					*/
 				}

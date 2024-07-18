@@ -169,10 +169,11 @@ void traj_ref_step_active_elliptic(
 
 // ELLIPTIC TRAJECTORY - PASSIVE:
 void traj_ref_step_passive_elliptic(
+		double phi_home,
 		double p_ref[],	double dt_p_ref[],
 		double* phi_ref, double* dt_phi_ref,
 		double u_t_ref[], double dt_k,
-		traj_ctrl_params_t traj_ctrl_params, int8_t mode_traj, int8_t use_traj_params_variable);
+		traj_ctrl_params_t traj_ctrl_params, int8_t mode_traj, int8_t use_traj_params_variable, uint8_t* init_traj);
 
 // ISOMETRIC "TRAJECTORY":
 void traj_ref_step_isometric(

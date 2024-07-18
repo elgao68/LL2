@@ -34,7 +34,6 @@
 // Macros files:
 ///////////////////////////////////////////////////////
 
-// TODO: remove at a later date:
 // #include <__VALIDATE_CMD_CALIB.h>
 // #include <__VALIDATE_CMD_START_EXE.h>
 #include <__VALIDATE_IDLE_START_EXE.h>
@@ -51,8 +50,6 @@
 
 #define TRAJ_PARAMS_VARIABLE_OFF 	0
 #define TRAJ_PARAMS_VARIABLE_ON 	1
-
-// #define OVERRIDE_CMD_CODE_TESTS     0 // TODO: remove at a later date
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////

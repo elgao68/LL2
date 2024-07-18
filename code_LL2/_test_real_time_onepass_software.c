@@ -24,7 +24,7 @@ test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* had
 	// General settings:
 	///////////////////////////////////////////////////////////////////////////////
 
-	const uint8_t USE_SOFTWARE_MSG_LIST = 1; // CRITICAL option (2)
+	const uint8_t use_software_msg_list = 1; // CRITICAL option (2)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// MOTOR STATE VARS:
@@ -253,7 +253,7 @@ test_real_time_onepass_software(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* had
 			// CRITICAL: passes reference to global-declared lowerlimb_sys_info for the sake of traceability (2):
 			lowerlimb_app_onepass_ref(&lowerlimb_sys_info, Read_Haptic_Button(), motor_alert,
 				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
-				&calib_enc_on, USE_SOFTWARE_MSG_LIST);
+				&calib_enc_on, use_software_msg_list);
 
 			// HACK: exercise state overrides:
 			if (lowerlimb_sys_info.exercise_state == SETUP)

@@ -137,7 +137,6 @@ traj_ref_step_active_elliptic(
 
 	static uint8_t is_linear_traj;  // special case: linear trajectory
 	static int8_t mode_traj_prev = MODE_TRAJ_NULL; // previous trajectory mode (for switching detection)
-	// static int8_t traj_params_behav; // TODO: remove at a later date (signed integer)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Algorithm step counter:
@@ -146,7 +145,7 @@ traj_ref_step_active_elliptic(
 	static int step_int = 0;
 
 	///////////////////////////////////////////////////////////////////////////////
-	// Trajectory initialization - initialize STATIC VARIABLES(CRITICAL):
+	// Trajectory initialization - initialize STATIC VARIABLES (CRITICAL):
 	///////////////////////////////////////////////////////////////////////////////
 
 	if (*init_traj) {
@@ -172,7 +171,6 @@ traj_ref_step_active_elliptic(
 
 		// Trajectory mode:
 		mode_traj_prev = MODE_TRAJ_NULL;
-		// traj_params_behav = TRAJ_PARAMS_STEADY; // TODO: remove at a later date
 
 		// (Re)initialize step counter (CRITICAL):
 		step_int = 0;
@@ -198,26 +196,22 @@ traj_ref_step_active_elliptic(
 		static double ax_x_o;
 		static double ax_y_o;
 
-		if (mode_traj == MODE_TRAJ_START && mode_traj != mode_traj_prev) { // && traj_params_behav != TRAJ_PARAMS_GROW
-			// traj_params_behav = TRAJ_PARAMS_GROW;
-
+		if (mode_traj == MODE_TRAJ_START && mode_traj != mode_traj_prev) {
 			t_param_o = t_ref;
 			ax_x_o = ax_x_adj;
 			ax_y_o = ax_y_adj;
 		}
-		else if (mode_traj == MODE_TRAJ_END && mode_traj != mode_traj_prev) { // && traj_params_behav != TRAJ_PARAMS_DECAY) {
-			// traj_params_behav = TRAJ_PARAMS_DECAY;
-
+		else if (mode_traj == MODE_TRAJ_END && mode_traj != mode_traj_prev) {
 			t_param_o = t_ref;
 			ax_x_o = ax_x_adj;
 			ax_y_o = ax_y_adj;
 		}
 
-		if (mode_traj == MODE_TRAJ_START) { // traj_params_behav == TRAJ_PARAMS_GROW
+		if (mode_traj == MODE_TRAJ_START) {
 			ax_x_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_x - ax_x_o) + ax_x_o;
 			ax_y_adj = (1.0 - exp(-sig_exp*(t_ref - t_param_o)))*(ax_y - ax_y_o) + ax_y_o;
 		}
-		else if (mode_traj == MODE_TRAJ_END) { // traj_params_behav == TRAJ_PARAMS_DECAY
+		else if (mode_traj == MODE_TRAJ_END) {
 			ax_x_adj = exp(-sig_exp*(t_ref - t_param_o))*ax_x_o;
 			ax_y_adj = exp(-sig_exp*(t_ref - t_param_o))*ax_y_o;
 		}
@@ -228,10 +222,8 @@ traj_ref_step_active_elliptic(
     ///////////////////////////////////////////////////////////////////////////////
 
 	else { // (!use_traj_params_variable)
-		if (mode_traj == MODE_TRAJ_END && mode_traj != mode_traj_prev) { // && traj_params_behav != TRAJ_PARAMS_DECAY
-			// traj_params_behav = TRAJ_PARAMS_DECAY;
+		if (mode_traj == MODE_TRAJ_END && mode_traj != mode_traj_prev)
 			t_param_o = t_ref;
-		}
 
 		///////////////////////////////////////////////////////////////////////////////
 		// Make input force decay:

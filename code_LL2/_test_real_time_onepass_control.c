@@ -24,7 +24,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 	// General settings:
 	///////////////////////////////////////////////////////////////////////////////
 
-	const uint8_t USE_SOFTWARE_MSG_LIST = 0; // CRITICAL option
+	const uint8_t use_software_msg_list = 0; // CRITICAL option
 
 	///////////////////////////////////////////////////////////////////////////////
 	// MOTOR STATE VARS:
@@ -395,7 +395,7 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 			// CRITICAL: passes reference to global-declared lowerlimb_sys_info for the sake of traceability:
 			lowerlimb_app_onepass_ref(&lowerlimb_sys_info, Read_Haptic_Button(), motor_alert,
 				&traj_ctrl_params, &admitt_model_params, &LL_motors_settings, &cmd_code,
-				&calib_enc_on, USE_SOFTWARE_MSG_LIST);
+				&calib_enc_on, use_software_msg_list);
 
 			// HACK: exercise state overrides:
 			if (lowerlimb_sys_info.exercise_state == SETUP)
@@ -630,10 +630,11 @@ test_real_time_onepass_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* hadc
 						if (lowerlimb_sys_info.exercise_mode == PassiveTrajectoryCtrl) {
 							if (traj_exerc_type == EllipticTraj || traj_exerc_type == LinearTraj) {
 								traj_ref_step_passive_elliptic(
+									phi_home,
 									p_ref, dt_p_ref,
 									&phi_ref, &dt_phi_ref,
 									u_t_ref, dt_k,
-									traj_ctrl_params, mode_traj, TRAJ_PARAMS_VARIABLE_OFF); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
+									traj_ctrl_params, mode_traj, TRAJ_PARAMS_VARIABLE_OFF, &init_traj_exerc); // NOTE: was TRAJ_PARAMS_VARIABLE_ON for both cases
 							}
 							else
 								// Isometric trajectory OR safety catch:

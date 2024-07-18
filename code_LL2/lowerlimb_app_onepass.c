@@ -38,13 +38,6 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 	uint8_t rxPayload  = 0;
 	uint8_t tmp_resp_msg[465];
 
-	// Constants & variables for parsing index (TODO: remove at a later date):
-	/*
-	const uint8_t cmdCode_index = 3;
-	const uint8_t payloadLen_index = 5;
-	const uint8_t payloadStart_index = 7;
-	*/
-
 	uint8_t rx_payload_index = payloadStart_index;
 
 	////////////////////////////////////
@@ -301,8 +294,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 			// Activate encoder calibration:
 			*calib_enc_on = 1;
 		}
-
-		// TODO: remove at a later date
+		// Old-style validation no longer needed:
 		/*
 		else {
 			__VALIDATE_CMD_CALIB
@@ -346,7 +338,7 @@ lowerlimb_app_onepass_ref(lowerlimb_sys_info_t* lowerlimb_sys, uint8_t ui8EBtnSt
 			// Exercise state goes to SETUP:
 			lowerlimb_sys->exercise_state = SETUP; // is there a way we can switch to RUNNING directly?
 		}
-		// TODO: remove at a later date
+		// Old-style validation no longer needed:
 		/*
 		else {
 			__VALIDATE_CMD_START_EXE
