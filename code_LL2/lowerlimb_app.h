@@ -44,12 +44,13 @@
 // CONTROL / SIMULATION SETTINGS
 ///////////////////////////////////////////////////////
 
-#define USE_ITM_CMD_DISPLAY    		1
-#define USE_ITM_VALID_CMD_CHECK		0
-#define USE_ITM_EXERC_MODE_CHECK	1
-
 #define TRAJ_PARAMS_VARIABLE_OFF 	0
 #define TRAJ_PARAMS_VARIABLE_ON 	1
+
+#define USE_ITM_CMD_DISPLAY    		1
+#define USE_ITM_VALID_CMD_CHECK		1
+#define USE_ITM_EXERC_MODE_CHECK	1
+#define USE_ITM_MSG_DATA			1
 
 ///////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////
@@ -355,7 +356,7 @@ static char STR_ST_APP[LEN_ST_APP][LEN_STR_MAX] = {
 enum ST_FW {	
 	ST_FW_SYSTEM_OFF		 =	800	,
 	ST_FW_CONNECTING		 =	801	,
-	ST_FW_CALIBRATE_AND_HOME =	802	,
+	ST_FW_CALIBRATING_AND_HOMING =	802	,
 	ST_FW_HOMING			 =	803	,
 	ST_FW_ADJUST_EXERCISE	 =	804	,
 	ST_FW_EXERCISE_ON		 =	805	,
@@ -364,7 +365,7 @@ enum ST_FW {
 static char STR_ST_FW[LEN_ST_FW][LEN_STR_MAX] = {
 	"ST_FW_SYSTEM_OFF"	,
 	"ST_FW_CONNECTING"	,
-	"ST_FW_CALIBRATE_AND_HOME"	,
+	"ST_FW_CALIBRATING_AND_HOMING"	,
 	"ST_FW_HOMING" ,
 	"ST_FW_ADJUST_EXERCISE"	,
 	"ST_FW_EXERCISE_ON"	,
@@ -574,9 +575,9 @@ uint8_t is_valid_payload_size_software(uint16_t cmd_code, uint8_t rxPayload, uin
  @param[in]: state = 0 (0 = idle, 1 = running, 2 = passed, 3 = failed)
  */
 uint8_t send_calibration_resp(uint8_t actProto, uint8_t percent, uint8_t state);
-uint8_t send_error_msg(uint16_t tmp_cmd_code, uint16_t tmp_err_code);
 uint8_t send_OK_resp(uint16_t tmp_cmd_code);
 uint8_t send_resp_msg(uint16_t tmp_cmd_code, uint8_t tmp_payload[],	uint16_t tmp_len);
+uint8_t send_error_msg(uint16_t tmp_cmd_code, uint16_t tmp_err_code);
 
 /**
  @brief: reset the lowerlimb_exercise_feedback_info

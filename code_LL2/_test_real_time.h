@@ -37,18 +37,21 @@
 // Program settings:
 ////////////////////////////////////////////////////////////////////////////////
 
-// Switch robot mode / standalone board mode:
-#define MODE_STANDALONE_BOARD		0
+// Switch robot mode / standalone board mode - CRITICAL:
+#define MODE_STANDALONE_BOARD		1
 
 // TCP messages list to use (TCP app: 0 / software app: 1) - CRITICAL:
-#define USE_SOFTWARE_MSG_LIST		0
+#define USE_SOFTWARE_MSG_LIST		1
 
 // Dynamic system mode: unconstrained / constrained:
 #define ADMITT_MODEL_CONSTR_ON		1
 #define ADMITT_MODEL_CONSTR_OFF		0
 
+// Control overrides:
 #define OVERR_DYN_PARAMS_RT			1
 #define OVERR_FORCE_SENSORS_CALIB	0
+#define OVERR_BRAKES				0
+#define OVERR_DATA_FEEDBACK			0
 
 // ITM Data Console switches:
 #define USE_ITM_OUT_RT_CHECK_CTRL		1
@@ -59,9 +62,9 @@
 #define USE_ITM_TCP_CHECK		    	0
 
 // Assorted timers:
-#define DT_EXPIRE_MSEC				1000
-#define DT_DISP_MSEC_REALTIME		2000
-#define DT_DISP_MSEC_GUI_PARAMS		2000
+#define DT_EXPIRE_MSEC				 1000
+#define DT_DISP_MSEC_REALTIME		 2000
+#define DT_DISP_MSEC_GUI_PARAMS		 2000
 
 // TCP ethernet related - Demo Firmware Version:
 #define VER_H		0x00

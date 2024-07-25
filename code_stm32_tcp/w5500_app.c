@@ -129,9 +129,9 @@ void Display_Net_Conf(void)
     ctlwizchip(CW_GET_ID,(void*)tmpstr);
 
     if(gHman_WIZNETINFO.dhcp == NETINFO_DHCP)
-        printf("\r\n===== %s NET CONF : DHCP =====\r\n",(char*)tmpstr);
+        printf("\r\n===== %s NET CONF : DHCP =========\r\n",(char*)tmpstr);
     else
-        printf("\r\n===== %s NET CONF : Static =====\r\n",(char*)tmpstr);
+        printf("\r\n===== %s NET CONF : Static =========\r\n",(char*)tmpstr);
 
     printf(" MAC : %02X:%02X:%02X:%02X:%02X:%02X\r\n", gHman_WIZNETINFO.mac[0], gHman_WIZNETINFO.mac[1], gHman_WIZNETINFO.mac[2], gHman_WIZNETINFO.mac[3], gHman_WIZNETINFO.mac[4], gHman_WIZNETINFO.mac[5]);
     printf(" IP : %d.%d.%d.%d\r\n", gHman_WIZNETINFO.ip[0], gHman_WIZNETINFO.ip[1], gHman_WIZNETINFO.ip[2], gHman_WIZNETINFO.ip[3]);

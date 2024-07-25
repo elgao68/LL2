@@ -173,14 +173,15 @@ is_valid_rcv_data_cmd_code(uint16_t* cmd_code_ref, uint8_t ui8EBtnState, uint8_t
 	////////////////////////////////////////////////////////////////////////////////
 
 	#if USE_ITM_VALID_CMD_CHECK
-		if (is_valid_msg_test) {
+		// if (is_valid_msg_test) { // OR: if (cmd_code != *cmd_code_ref)
+			printf("   =================================================================================\n");
 			if (use_software_msg_list)
 				printf("   <<is_valid_rcv_data_cmd_code()>> cmd code (%d) [%s] (previous cmd code (%d) [%s]) \n\n",
 						cmd_code, MSG_TCP_STR[cmd_code], *cmd_code_ref, MSG_TCP_STR[*cmd_code_ref]);
 			else
 				printf("   <<is_valid_rcv_data_cmd_code()>> cmd code (%d) [%s] (previous cmd code (%d) [%s]) \n\n",
 						cmd_code, CMD_STR[cmd_code], *cmd_code_ref, CMD_STR[*cmd_code_ref]);
-		}
+		// }
 	#endif
 
 	////////////////////////////////////////////////////////////////////////////////
@@ -493,6 +494,71 @@ send_OK_resp(uint16_t tmp_cmd_code) {
 }
 
 /**
+ @brief: tx response message. All message tmp_payload is expected to be MSB first.
+ @param[in]: tmp_cmd_code  = command code.
+ @param[in]: tmp_payload  = pointer to transmission data buffer
+ @param[in]: tmp_len  = len of data buffer
+ @retval: 0 = success, 1 = failed
+ */
+
+uint8_t
+send_resp_msg(uint16_t tmp_cmd_code, uint8_t tmp_payload[],
+		uint16_t tmp_len) {
+	uint8_t tcp_resp_msg[tmp_len + 11];
+	uint16_t err_chksum_index;
+
+	#if USE_ITM_MSG_DATA
+		static uint16_t tmp_cmd_code_prev = 0;
+	#endif
+
+	memset(tcp_resp_msg, 0, sizeof(tcp_resp_msg)); //clear
+
+	//set preample and postample
+	tcp_resp_msg[0] = PREAMP_TCP[0];
+	tcp_resp_msg[1] = PREAMP_TCP[1];
+	tcp_resp_msg[8 + tmp_len] = POSTAMP_TCP[0];
+	tcp_resp_msg[9 + tmp_len] = POSTAMP_TCP[1];
+	tcp_resp_msg[10 + tmp_len] = 0; //encrypted byte
+
+	//set payload
+	tcp_resp_msg[2] = RESP_MSG_TYPE;
+	tcp_resp_msg[3] = (uint8_t) (tmp_cmd_code >> 8);
+	tcp_resp_msg[4] = (uint8_t) tmp_cmd_code;
+	tcp_resp_msg[5] = (uint8_t) (tmp_len >> 8);
+	tcp_resp_msg[6] = (uint8_t) tmp_len;
+
+	//tmp_payload is expected to be MSB first, hence,
+	//this memcpy will just copy the data according to address w/o any further rearrangement.
+	memcpy(&tcp_resp_msg[7], tmp_payload, tmp_len);
+
+	//set checksum
+	for (err_chksum_index = 2; err_chksum_index < (7 + tmp_len); err_chksum_index++){
+		tcp_resp_msg[7 + tmp_len] ^= tcp_resp_msg[err_chksum_index];
+	}
+
+	#if USE_ITM_MSG_DATA
+		if (tmp_cmd_code != tmp_cmd_code_prev) {
+			printf("\n");
+			printf("   ..........................\n");
+			printf("   <<send_resp_msg()>> \n\n");
+			printf("   tmp_cmd_code  = [%d]\n\n", tmp_cmd_code);
+			printf("   tcp_resp_msg[] BEFORE send data:\n");
+			printf("   RESP_MSG_TYPE = [%d]\n",  tcp_resp_msg[2]);
+			printf("   cmd_code MSB  = [%d]\n",  tcp_resp_msg[3]);
+			printf("   cmd_code LSB  = [%d]\n",  tcp_resp_msg[4]);
+			printf("   tmp_len  MSB  = [%d]\n",  tcp_resp_msg[5]);
+			printf("   tmp_len  LSB  = [%d]\n",  tcp_resp_msg[6]);
+		}
+		tmp_cmd_code_prev = tmp_cmd_code;
+	#endif
+
+	//send TCP
+	ethernet_w5500_send_data(tcp_resp_msg, sizeof(tcp_resp_msg));
+
+	return 0;
+}
+
+/**
  @brief: tx error message. All message is MSB first.
  @retval: 0 = success, 1 = failed
  */
@@ -526,51 +592,6 @@ send_error_msg(uint16_t tmp_cmd_code, uint16_t tmp_err_code) {
 
 	//send TCP
 	ethernet_w5500_send_data(tcp_err_msg, sizeof(tcp_err_msg));
-
-	return 0;
-}
-
-/**
- @brief: tx response message. All message tmp_payload is expected to be MSB first.
- @param[in]: tmp_cmd_code  = command code.
- @param[in]: tmp_payload  = pointer to transmission data buffer
- @param[in]: tmp_len  = len of data buffer
- @retval: 0 = success, 1 = failed
- */
-
-uint8_t
-send_resp_msg(uint16_t tmp_cmd_code, uint8_t tmp_payload[],
-		uint16_t tmp_len) {
-	uint8_t tcp_resp_msg[tmp_len + 11];
-	uint16_t err_chksum_index;
-
-	memset(tcp_resp_msg, 0, sizeof(tcp_resp_msg)); //clear
-
-	//set preample and postample
-	tcp_resp_msg[0] = PREAMP_TCP[0];
-	tcp_resp_msg[1] = PREAMP_TCP[1];
-	tcp_resp_msg[8 + tmp_len] = POSTAMP_TCP[0];
-	tcp_resp_msg[9 + tmp_len] = POSTAMP_TCP[1];
-	tcp_resp_msg[10 + tmp_len] = 0; //encrypted byte
-
-	//set payload
-	tcp_resp_msg[2] = RESP_MSG_TYPE;
-	tcp_resp_msg[3] = (uint8_t) (tmp_cmd_code >> 8);
-	tcp_resp_msg[4] = (uint8_t) tmp_cmd_code;
-	tcp_resp_msg[5] = (uint8_t) (tmp_len >> 8);
-	tcp_resp_msg[6] = (uint8_t) tmp_len;
-
-	//tmp_payload is expected to be MSB first, hence,
-	//this memcpy will just copy the data according to address w/o any further rearrangement.
-	memcpy(&tcp_resp_msg[7], tmp_payload, tmp_len);
-
-	//set checksum
-	for (err_chksum_index = 2; err_chksum_index < (7 + tmp_len); err_chksum_index++){
-		tcp_resp_msg[7 + tmp_len] ^= tcp_resp_msg[err_chksum_index];
-	}
-
-	//send TCP
-	ethernet_w5500_send_data(tcp_resp_msg, sizeof(tcp_resp_msg));
 
 	return 0;
 }

@@ -479,7 +479,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 				// State-dependent gains scaling index - defaults - CRITICAL:
 				///////////////////////////////////////////////////////////////////////////////
 
-				if (state_fw != ST_FW_CALIBRATE_AND_HOME)
+				if (state_fw != ST_FW_CALIBRATING_AND_HOMING)
 					idx_scale_gain = IDX_SCALE_GAIN_EXERCISE;
 
 				///////////////////////////////////////////////////////////////////////////////
@@ -489,16 +489,16 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 				#if (MODE_STANDALONE_BOARD == 0)
 					if (state_fw == ST_FW_SYSTEM_OFF || state_fw == ST_FW_CONNECTING)
 						motor_torque_active = 0;
-					else if (state_fw == ST_FW_CALIBRATE_AND_HOME)
-						motor_torque_active = 1;
+					else if (state_fw == ST_FW_CALIBRATING_AND_HOMING)
+						motor_torque_active = 0;
 					else if (state_fw == ST_FW_HOMING)
-						motor_torque_active = 1;
+						motor_torque_active = 0;
 					else if (state_fw == ST_FW_ADJUST_EXERCISE)
 						motor_torque_active = 0;
 					else if (state_fw == ST_FW_EXERCISE_ON)
-						motor_torque_active = 1;
+						motor_torque_active = 0;
 					else if (state_fw == ST_FW_STDBY_AT_POSITION)
-						motor_torque_active = 1;
+						motor_torque_active = 0;
 				#else
 					motor_torque_active = 0;
 				#endif
@@ -519,8 +519,14 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 					motor_R_move(0, false, false);
 
 					// Engage brakes:
-					l_brakes(ENGAGE_BRAKES);
-					r_brakes(ENGAGE_BRAKES);
+					if (!OVERR_BRAKES) {
+						l_brakes(ENGAGE_BRAKES);
+						r_brakes(ENGAGE_BRAKES);
+					}
+					else {
+						l_brakes(DISENGAGE_BRAKES);
+						r_brakes(DISENGAGE_BRAKES);
+					}
 
 					// Safety catch: reset integral error
 					err_int_pos[IDX_X] = 0;
@@ -536,12 +542,6 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 			else {
 
 				///////////////////////////////////////////////////////////////////////////////
-				// Update LEDs state:
-				///////////////////////////////////////////////////////////////////////////////
-
-				cycle_haptic_buttons(); // TODO: this should only be called on state change
-
-				///////////////////////////////////////////////////////////////////////////////
 				// Update safety:
 				///////////////////////////////////////////////////////////////////////////////
 
@@ -551,7 +551,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 				// State: CALIBRATING
 				///////////////////////////////////////////////////////////////////////////////
 
-				if (state_fw == ST_FW_CALIBRATE_AND_HOME) {
+				if (state_fw == ST_FW_CALIBRATING_AND_HOMING) {
 
 					// Force sensors calibration & initial encoder resets - CRITICAL: this should always happen before SENSOR readings
 					if (state_fw_changed) {
@@ -633,6 +633,9 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 
 			if (state_fw == ST_FW_CONNECTING) {
 				if (state_fw_changed) {
+					// Update LEDs state:
+					LED_sys_state_on(); // TODO: was cycle_haptic_buttons();
+
 					// Disengage brakes:
 					l_brakes(DISENGAGE_BRAKES);
 					r_brakes(DISENGAGE_BRAKES);
@@ -657,7 +660,7 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 			// State: CALIBRATING
 			///////////////////////////////////////////////////////////////////////////////
 
-			else if (state_fw == ST_FW_CALIBRATE_AND_HOME) {
+			else if (state_fw == ST_FW_CALIBRATING_AND_HOMING) {
 
 				// Generate calibration trajectory (NOTE: calib_enc_traj_on can only be zero'd by this call):
 				traj_ref_calibration_ll2(
@@ -946,18 +949,21 @@ test_real_time_statemach_control(ADC_HandleTypeDef* hadc1, ADC_HandleTypeDef* ha
 					#endif
 					*/
 				}
-
-				///////////////////////////////////////////////////////////////////////////////
-				// Send feedback data to TCP/IP app:
-				///////////////////////////////////////////////////////////////////////////////
-
-				// HACK: include low-pass filtered force sensor measurements in robot readings:
-				LL_mech_readings.Xforce = F_end_lo[IDX_X];
-				LL_mech_readings.Yforce = F_end_lo[IDX_Y];
-
-				send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
-
 			} // end if (state_fw != ST_FW_SYSTEM_OFF) - FINAL
+
+			///////////////////////////////////////////////////////////////////////////////
+			// Send feedback data to TCP/IP app:
+			///////////////////////////////////////////////////////////////////////////////
+
+			#if !OVERR_DATA_FEEDBACK
+				if (state_fw == ST_FW_EXERCISE_ON) {
+					// HACK: include low-pass filtered force sensor measurements in robot readings:
+					LL_mech_readings.Xforce = F_end_lo[IDX_X];
+					LL_mech_readings.Yforce = F_end_lo[IDX_Y];
+
+					send_lowerlimb_exercise_feedback(up_time, &LL_mech_readings, &LL_motors_settings, &ref_kinematics);
+				}
+			#endif
 
 			///////////////////////////////////////////////////////////////////////////////
 			// Track changes of state / command code:

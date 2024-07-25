@@ -58,7 +58,7 @@ state_machine_ll2(uint16_t* state_fw, uint16_t* cmd_code_tcp, uint16_t* msg_code
 			send_OK_resp(*cmd_code_tcp);
 
 			// Change fw state:
-			*state_fw = ST_FW_CALIBRATE_AND_HOME;
+			*state_fw = ST_FW_CALIBRATING_AND_HOMING;
 		}
 		// Stop "system":
 		else if (*cmd_code_tcp == _STOP_SYSTEM) {
@@ -70,7 +70,7 @@ state_machine_ll2(uint16_t* state_fw, uint16_t* cmd_code_tcp, uint16_t* msg_code
 		}
 	}
 
-	else if (*state_fw == ST_FW_CALIBRATE_AND_HOME) {
+	else if (*state_fw == ST_FW_CALIBRATING_AND_HOMING) {
 		// Calibration completion reported:
 		if (*msg_code_intern == CALIB_ENC_COMPLETED_CMD) {
 			// Response to *cmd_code_tcp:
@@ -137,7 +137,7 @@ state_machine_ll2(uint16_t* state_fw, uint16_t* cmd_code_tcp, uint16_t* msg_code
 				printf("   ----------------------------\n");
 				printf("   state_machine_ll2():\n"),
 				printf("   PREVIOUS:\n");
-				printf("   state_fw = [%s]\t pace_exerc = [%s] \n", STR_ST_FW[state_fw_prev - OFFS_ST_FW], PACE_EXERC_STR[pace_exerc_prev]);
+				printf("   state_fw = [%s]\t pace_exerc = [%s] \n\n", STR_ST_FW[state_fw_prev - OFFS_ST_FW], PACE_EXERC_STR[pace_exerc_prev]);
 				printf("   cmd_code_tcp = [%s]\t msg_code_intern = [%s] \n", __CMD_CODE_STR(*cmd_code_tcp), __CMD_CODE_STR(*msg_code_intern));
 				printf("   NEW:\n");
 				printf("   state_fw = [%s]\t pace_exerc = [%s] \n", STR_ST_FW[*state_fw - OFFS_ST_FW], PACE_EXERC_STR[*pace_exerc]);
@@ -149,7 +149,7 @@ state_machine_ll2(uint16_t* state_fw, uint16_t* cmd_code_tcp, uint16_t* msg_code
 	#endif
 
 	//////////////////////////////////////////////////////
-	// Reset messages - CRITICAL:
+	// Consume messages - CRITICAL:
 	///////////////////////////////////////////////////////
 
 	*cmd_code_tcp    = NO_CMD;

@@ -284,8 +284,11 @@ traj_ref_step_active_elliptic(
 		// Integration step for ODE:
 		///////////////////////////////////////////////////////////////////////////////
 
-		// solve_ode_sys_rkutta_ord4_nml(z_intern, z_intern_prev[DELAY_1], dt_k, ode_admitt_model_nml, ode_params);
-		solve_ode_sys_rectang_nml(z_intern, z_intern_prev[DELAY_1], dt_k, ode_admitt_model_nml, ode_params); // TODO: verify integrator robustness
+		#if USE_ODE_SOLVER_RUNGE_KUTTA
+			solve_ode_sys_rkutta_ord4_nml(z_intern, z_intern_prev[DELAY_1], dt_k, ode_admitt_model_nml, ode_params);
+		#else
+			solve_ode_sys_rectang_nml(z_intern, z_intern_prev[DELAY_1], dt_k, ode_admitt_model_nml, ode_params); // TODO: verify integrator robustness
+		#endif
 	}
 
 	nml_mat_cp_ref(z_intern_prev[DELAY_1], z_intern);

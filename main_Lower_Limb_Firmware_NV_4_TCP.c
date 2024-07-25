@@ -57,7 +57,7 @@ UART_HandleTypeDef huart3;
 #define DT_STEP_MSEC 5
 
 ////////////////////////////////////////////////////////////////////////////////
-// STM32 PRIVATE FUNCTIONS - VERY IMPORTANT:
+// STM32 PRIVATE FUNCTIONS - CRITICAL:
 ////////////////////////////////////////////////////////////////////////////////
 
 #include <_stm32_private_funcs_c>
@@ -85,6 +85,7 @@ UART_HandleTypeDef huart3;
 int _write(int32_t file, uint8_t *ptr, int32_t len); // use this to send output to SWV ITM Data Console
 // int __io_putchar(int ch);
 void cycle_haptic_buttons();
+void LED_sys_state_on();
 void LED_sys_state_off();
 
 /////////////////////////////////////////////////////////////////////////////
@@ -199,7 +200,7 @@ int main(void)
 	#elif TEST_OPTION == _TEST_REAL_TIME_SOFTWARE
 		test_real_time_onepass_software(&hadc1, &hadc3);
 	#elif TEST_OPTION == _TEST_REAL_TIME_STMACHINE
-		test_real_time_stmach_control_tcp_app(&hadc1, &hadc3);
+		test_real_time_statemach_control(&hadc1, &hadc3);
 	#endif
 }
 
@@ -233,6 +234,12 @@ cycle_haptic_buttons() {
 		Left_LED_function(Red);
 		Right_LED_function(Red);
 	}
+}
+
+void
+LED_sys_state_on() {
+	Left_LED_function(Blue);
+	Right_LED_function(Blue);
 }
 
 void
